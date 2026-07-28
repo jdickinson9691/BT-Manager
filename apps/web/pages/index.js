@@ -4,6 +4,7 @@ export default function Dashboard() {
   const [balance, setBalance] = useState({ WP: 1000, SP: 500, CBills: 15000000 });
   const [units, setUnits] = useState([]);
   const [missions, setMissions] = useState([]);
+  const [pilots, setPilots] = useState([]);
 
   // New Unit Form State
   const [chassis, setChassis] = useState("");
@@ -18,6 +19,13 @@ export default function Dashboard() {
   const [employer, setEmployer] = useState("House Davion");
   const [wpReward, setWpReward] = useState(350);
   const [cbillReward, setCbillReward] = useState(3000000);
+
+  // New Pilot Form State
+  const [pilotName, setPilotName] = useState("");
+  const [callsign, setCallsign] = useState("");
+  const [gunnery, setGunnery] = useState(4);
+  const [piloting, setPiloting] = useState(5);
+  const [assignedUnitId, setAssignedUnitId] = useState("");
 
   // Advanced Repair Form State
   const [componentType, setComponentType] = useState("Armor");
@@ -48,10 +56,18 @@ export default function Dashboard() {
       .catch(() => {});
   };
 
+  const fetchPilots = () => {
+    fetch("http://localhost:8000/api/v1/pilots")
+      .then((res) => res.json())
+      .then((data) => setPilots(data))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchBalance();
     fetchUnits();
     fetchMissions();
+    fetchPilots();
   }, []);
 
   const handleAddUnit = async (e) => {
@@ -118,6 +134,33 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Failed to complete mission", err);
+    }
+  };
+
+  const handleRecruitPilot = async (e) => {
+    e.preventDefault();
+    if (!pilotName || !callsign) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/pilots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pilotName,
+          callsign,
+          gunnery: Number(gunnery),
+          piloting: Number(piloting),
+          unit_id: assignedUnitId ? Number(assignedUnitId) : null,
+        }),
+      });
+
+      if (res.ok) {
+        setPilotName("");
+        setCallsign("");
+        fetchPilots();
+      }
+    } catch (err) {
+      console.error("Failed to recruit pilot", err);
     }
   };
 
@@ -247,9 +290,64 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Right Column: Add Unit Form & Repair Engine */}
+        {/* Right Column: Personnel, Commission Form & Repair Engine */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
+          {/* MechWarrior Personnel Roster */}
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel</h2>
+            {pilots.length === 0 ? (
+              <p style={{ color: "#8b949e", fontSize: "14px", fontStyle: "italic", padding: "12px 0" }}>No MechWarriors recruited.</p>
+            ) : (
+              pilots.map((p) => (
+                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "10px 14px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "8px" }}>
+                  <div>
+                    <strong style={{ color: "#ffffff", fontSize: "15px" }}>{p.name}</strong> <span style={{ color: "#a78bfa", fontWeight: "bold" }}>"{p.callsign}"</span>
+                    <br />
+                    <small style={{ color: "#8b949e" }}>
+                      Assigned: <span style={{ color: p.assigned_unit ? "#60a5fa" : "#8b949e" }}>{p.assigned_unit || "Unassigned"}</span>
+                    </small>
+                  </div>
+                  <div style={{ textAlign: "right", fontFamily: "monospace" }}>
+                    <div style={{ fontSize: "13px", color: "#fbbf24" }}>G{p.gunnery} / P{p.piloting}</div>
+                    <small style={{ color: "#3fb950" }}>● {p.status}</small>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Recruit Pilot Form */}
+            <form onSubmit={handleRecruitPilot} style={{ marginTop: "14px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <strong style={{ fontSize: "13px", color: "#f0f6fc" }}>Recruit MechWarrior</strong>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <input type="text" placeholder="Pilot Name" value={pilotName} onChange={(e) => setPilotName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
+                <input type="text" placeholder='Callsign (e.g. "Maverick")' value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: "10px" }}>
+                <div>
+                  <label style={{ fontSize: "10px", color: "#8b949e", display: "block" }}>GUNNERY</label>
+                  <input type="number" min="0" max="8" value={gunnery} onChange={(e) => setGunnery(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "10px", color: "#8b949e", display: "block" }}>PILOTING</label>
+                  <input type="number" min="0" max="8" value={piloting} onChange={(e) => setPiloting(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "10px", color: "#8b949e", display: "block" }}>ASSIGN MECH</label>
+                  <select value={assignedUnitId} onChange={(e) => setAssignedUnitId(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px" }}>
+                    <option value="">Unassigned</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>{u.chassis} ({u.model})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+                + Recruit MechWarrior
+              </button>
+            </form>
+          </div>
+
           {/* Add New Unit Form */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Commission New Unit</h2>

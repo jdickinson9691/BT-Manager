@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from packages.database.db import init_db, get_db
-from packages.database.models import Campaign, Unit, Mission
+from packages.database.models import Campaign, Unit, Mission, Pilot
 from packages.engine.repair import RepairRequest, RepairEstimate, calculate_repair_task
 
 app = FastAPI(title="BT-Manager API", version="1.0.0")
@@ -35,6 +35,13 @@ class MissionCreate(BaseModel):
     employer: str = "Mercenary Review Board"
     wp_reward: int = 300
     cbill_reward: float = 2500000.0
+
+class PilotCreate(BaseModel):
+    name: str
+    callsign: str
+    gunnery: int = 4
+    piloting: int = 5
+    unit_id: Optional[int] = None
 
 @app.get("/")
 def read_root():
@@ -104,6 +111,43 @@ def complete_mission(mission_id: int, db: Session = Depends(get_db)):
     mission.status = "Completed"
     db.commit()
     return {"message": "Mission completed successfully! Contract reward payout added to treasury.", "mission": mission}
+
+@app.get("/api/v1/pilots")
+def get_pilots(db: Session = Depends(get_db)):
+    pilots = db.query(Pilot).all()
+    results = []
+    for p in pilots:
+        unit_info = None
+        if p.assigned_unit:
+            unit_info = f"{p.assigned_unit.chassis} ({p.assigned_unit.model})"
+        results.append({
+            "id": p.id,
+            "name": p.name,
+            "callsign": p.callsign,
+            "gunnery": p.gunnery,
+            "piloting": p.piloting,
+            "status": p.status,
+            "unit_id": p.unit_id,
+            "assigned_unit": unit_info
+        })
+    return results
+
+@app.post("/api/v1/pilots")
+def create_pilot(pilot_data: PilotCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    new_pilot = Pilot(
+        campaign_id=campaign.id if campaign else 1,
+        name=pilot_data.name,
+        callsign=pilot_data.callsign,
+        gunnery=pilot_data.gunnery,
+        piloting=pilot_data.piloting,
+        unit_id=pilot_data.unit_id if pilot_data.unit_id else None,
+        status="Active"
+    )
+    db.add(new_pilot)
+    db.commit()
+    db.refresh(new_pilot)
+    return new_pilot
 
 @app.post("/api/v1/engine/repair-cost", response_model=RepairEstimate)
 def estimate_repair(request: RepairRequest):

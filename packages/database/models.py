@@ -14,6 +14,7 @@ class Campaign(Base):
 
     units = relationship("Unit", back_populates="campaign")
     missions = relationship("Mission", back_populates="campaign")
+    pilots = relationship("Pilot", back_populates="campaign")
 
 class Unit(Base):
     __tablename__ = "units"
@@ -29,6 +30,7 @@ class Unit(Base):
     structure_damage = Column(Integer, default=0)
 
     campaign = relationship("Campaign", back_populates="units")
+    pilot = relationship("Pilot", back_populates="assigned_unit", uselist=False)
 
 class Mission(Base):
     __tablename__ = "missions"
@@ -40,6 +42,21 @@ class Mission(Base):
     employer = Column(String, default="Free Worlds League")
     wp_reward = Column(Integer, default=300)
     cbill_reward = Column(Float, default=2500000.0)
-    status = Column(String, default="Active")  # Active, Completed, Failed
+    status = Column(String, default="Active")
 
     campaign = relationship("Campaign", back_populates="missions")
+
+class Pilot(Base):
+    __tablename__ = "pilots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), default=1)
+    unit_id = Column(Integer, ForeignKey("units.id"), nullable=True)
+    name = Column(String, nullable=False)
+    callsign = Column(String, nullable=False)
+    gunnery = Column(Integer, default=4)
+    piloting = Column(Integer, default=5)
+    status = Column(String, default="Active")  # Active, Injured, KIA
+
+    campaign = relationship("Campaign", back_populates="pilots")
+    assigned_unit = relationship("Unit", back_populates="pilot")
