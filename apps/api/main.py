@@ -1,94 +1,110 @@
-from fastapi import FastAPI, Depends, HTTPException
+﻿from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from pydantic import BaseModel
+from typing import List, Optional
 
-from packages.database.db import SessionLocal, init_db
-from packages.database import models, schemas
-from packages.engine.warchest import WarchestEngine
-from packages.engine.repairs import RepairEngine
-from packages.engine.bv_calculator import BV2Calculator
-
-# Initialize DB tables on startup
-init_db()
+from packages.database.db import init_db, get_db
+from packages.database.models import Campaign, Unit, Mission
+from packages.engine.repair import RepairRequest, RepairEstimate, calculate_repair_task
 
 app = FastAPI(title="BT-Manager API", version="1.0.0")
 
-# Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Dependency for DB Session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+class UnitCreate(BaseModel):
+    chassis: str
+    model: str
+    tonnage: int
+    tech_base: Optional[str] = "Inner Sphere"
+    bv2: Optional[int] = 1000
+
+class MissionCreate(BaseModel):
+    name: str
+    mission_type: str = "Raid"
+    employer: str = "Mercenary Review Board"
+    wp_reward: int = 300
+    cbill_reward: float = 2500000.0
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "system": "BT-Manager API"}
-
-# --- PILOT ENDPOINTS ---
-@app.get("/api/v1/pilots", response_model=List[schemas.PilotResponse])
-def get_pilots(db: Session = Depends(get_db)):
-    return db.query(models.Pilot).all()
-
-@app.post("/api/v1/pilots", response_model=schemas.PilotResponse)
-def create_pilot(pilot: schemas.PilotCreate, db: Session = Depends(get_db)):
-    db_pilot = models.Pilot(**pilot.dict())
-    db.add(db_pilot)
-    db.commit()
-    db.refresh(db_pilot)
-    return db_pilot
-
-# --- UNIT ENDPOINTS ---
-@app.get("/api/v1/units", response_model=List[schemas.UnitResponse])
-def get_units(db: Session = Depends(get_db)):
-    return db.query(models.Unit).all()
-
-@app.post("/api/v1/units", response_model=schemas.UnitResponse)
-def create_unit(unit: schemas.UnitCreate, db: Session = Depends(get_db)):
-    db_unit = models.Unit(**unit.dict())
-    db.add(db_unit)
-    db.commit()
-    db.refresh(db_unit)
-    return db_unit
-
-# --- LEDGER ENDPOINTS ---
-@app.get("/api/v1/ledger", response_model=List[schemas.LedgerResponse])
-def get_ledger(db: Session = Depends(get_db)):
-    return db.query(models.LedgerEntry).order_by(models.LedgerEntry.created_at.desc()).all()
-
-@app.post("/api/v1/ledger", response_model=schemas.LedgerResponse)
-def add_ledger_entry(entry: schemas.LedgerCreate, db: Session = Depends(get_db)):
-    db_entry = models.LedgerEntry(**entry.dict())
-    db.add(db_entry)
-    db.commit()
-    db.refresh(db_entry)
-    return db_entry
+    return {"status": "online", "system": "BT-Manager Core Engine"}
 
 @app.get("/api/v1/ledger/balance")
-def get_ledger_balance(db: Session = Depends(get_db)):
-    entries = db.query(models.LedgerEntry).all()
-    balances = {"WP": 0.0, "SP": 0.0, "CBills": 0.0}
-    for e in entries:
-        if e.currency_type in balances:
-            balances[e.currency_type] += e.amount
-    return balances
+def get_balance(db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        return {"WP": 0, "SP": 0, "CBills": 0}
+    return {"WP": campaign.wp_balance, "SP": campaign.sp_balance, "CBills": campaign.cbill_balance}
 
-# --- CALCULATION ENGINE TRIGGERS ---
-@app.post("/api/v1/engine/repair-cost")
-def calculate_repair(points_missing: int, tech_base: str = "Inner Sphere"):
-    return RepairEngine.calculate_armor_repair_cost(points_missing, tech_base)
+@app.get("/api/v1/units")
+def get_units(db: Session = Depends(get_db)):
+    return db.query(Unit).all()
 
-@app.post("/api/v1/engine/bv-adjust")
-def calculate_bv(base_bv: int, gunnery: int = 4, piloting: int = 5):
-    adjusted = BV2Calculator.get_adjusted_bv(base_bv, gunnery, piloting)
-    return {"base_bv": base_bv, "adjusted_bv": adjusted}
+@app.post("/api/v1/units")
+def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    new_unit = Unit(
+        campaign_id=campaign.id if campaign else 1,
+        chassis=unit_data.chassis,
+        model=unit_data.model,
+        tonnage=unit_data.tonnage,
+        tech_base=unit_data.tech_base,
+        bv2=unit_data.bv2
+    )
+    db.add(new_unit)
+    db.commit()
+    db.refresh(new_unit)
+    return new_unit
+
+@app.get("/api/v1/missions")
+def get_missions(db: Session = Depends(get_db)):
+    return db.query(Mission).all()
+
+@app.post("/api/v1/missions")
+def create_mission(mission_data: MissionCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    new_mission = Mission(
+        campaign_id=campaign.id if campaign else 1,
+        name=mission_data.name,
+        mission_type=mission_data.mission_type,
+        employer=mission_data.employer,
+        wp_reward=mission_data.wp_reward,
+        cbill_reward=mission_data.cbill_reward,
+        status="Active"
+    )
+    db.add(new_mission)
+    db.commit()
+    db.refresh(new_mission)
+    return new_mission
+
+@app.post("/api/v1/missions/{mission_id}/complete")
+def complete_mission(mission_id: int, db: Session = Depends(get_db)):
+    mission = db.query(Mission).filter(Mission.id == mission_id).first()
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    if mission.status == "Completed":
+        raise HTTPException(status_code=400, detail="Mission already completed")
+
+    campaign = db.query(Campaign).filter(Campaign.id == mission.campaign_id).first()
+    if campaign:
+        campaign.wp_balance += mission.wp_reward
+        campaign.cbill_balance += mission.cbill_reward
+
+    mission.status = "Completed"
+    db.commit()
+    return {"message": "Mission completed successfully! Contract reward payout added to treasury.", "mission": mission}
+
+@app.post("/api/v1/engine/repair-cost", response_model=RepairEstimate)
+def estimate_repair(request: RepairRequest):
+    return calculate_repair_task(request)

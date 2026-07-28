@@ -1,55 +1,45 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, JSON
-from sqlalchemy.orm import relationship
-from datetime import datetime
-from packages.database.db import Base
+﻿from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
+from sqlalchemy.orm import declarative_base, relationship
 
-class Pilot(Base):
-    __tablename__ = "pilots"
+Base = declarative_base()
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    callsign = Column(String, nullable=True)
-    gunnery_skill = Column(Integer, default=4)
-    piloting_skill = Column(Integer, default=5)
-    status = Column(String, default="Active")  # Active, Injured, KIA
-    monthly_salary = Column(Integer, default=1500)
+    name = Column(String, default="Mercenary Command")
+    wp_balance = Column(Integer, default=1250)
+    sp_balance = Column(Integer, default=450)
+    cbill_balance = Column(Float, default=18500000.0)
 
-    units = relationship("Unit", back_populates="assigned_pilot")
+    units = relationship("Unit", back_populates="campaign")
+    missions = relationship("Mission", back_populates="campaign")
 
 class Unit(Base):
     __tablename__ = "units"
 
     id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), default=1)
     chassis = Column(String, nullable=False)
     model = Column(String, nullable=False)
     tonnage = Column(Integer, nullable=False)
-    bv2 = Column(Integer, default=0)
     tech_base = Column(String, default="Inner Sphere")
-    status = Column(String, default="Operational")  # Operational, Maintenance, Destroyed
-    
-    current_armor = Column(JSON, nullable=True)     # Stores current armor values dict
-    current_structure = Column(JSON, nullable=True) # Stores current internal structure values dict
-    
-    assigned_pilot_id = Column(Integer, ForeignKey("pilots.id"), nullable=True)
-    assigned_pilot = relationship("Pilot", back_populates="units")
+    bv2 = Column(Integer, default=1000)
+    armor_damage = Column(Integer, default=0)
+    structure_damage = Column(Integer, default=0)
 
-class ContractTrack(Base):
-    __tablename__ = "contracts"
+    campaign = relationship("Campaign", back_populates="units")
+
+class Mission(Base):
+    __tablename__ = "missions"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    employer = Column(String, nullable=False)
-    target = Column(String, nullable=False)
-    warchest_entry_fee = Column(Integer, default=0)
-    potential_wp_payout = Column(Integer, default=0)
-    cbill_base_pay = Column(Float, default=0.0)
-    status = Column(String, default="Open")  # Open, Active, Completed, Failed
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), default=1)
+    name = Column(String, nullable=False)
+    mission_type = Column(String, default="Raid")
+    employer = Column(String, default="Free Worlds League")
+    wp_reward = Column(Integer, default=300)
+    cbill_reward = Column(Float, default=2500000.0)
+    status = Column(String, default="Active")  # Active, Completed, Failed
 
-class LedgerEntry(Base):
-    __tablename__ = "ledger_entries"
-
-    id = Column(Integer, primary_key=True, index=True)
-    currency_type = Column(String, nullable=False)  # "WP", "SP", "CBills"
-    amount = Column(Float, nullable=False)           # Positive for income, negative for expense
-    description = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    campaign = relationship("Campaign", back_populates="missions")
