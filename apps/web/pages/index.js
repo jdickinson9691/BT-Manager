@@ -3,6 +3,7 @@
 export default function Dashboard() {
   const [balance, setBalance] = useState({ WP: 1000, SP: 500, CBills: 15000000 });
   const [units, setUnits] = useState([]);
+  const [psRoster, setPsRoster] = useState([]);
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
 
@@ -32,6 +33,22 @@ export default function Dashboard() {
   const [refitTechRating, setRefitTechRating] = useState("Regular");
   const [refitCalc, setRefitCalc] = useState(null);
 
+  // Custom Loadout Configurator State (PowerShell Engine)
+  const [builderTonnage, setBuilderTonnage] = useState(75);
+  const [selectedLocation, setSelectedLocation] = useState("RA");
+  const [selectedComponent, setSelectedComponent] = useState("PPC");
+  const [locationLoadout, setLocationLoadout] = useState({
+    HD: [],
+    CT: [],
+    LT: [],
+    RT: [],
+    LA: ["PPC", "Medium Laser"],
+    RA: ["PPC", "Medium Laser"],
+    LL: [],
+    RL: [],
+  });
+  const [validationResult, setValidationResult] = useState(null);
+
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
       .then((res) => res.json())
@@ -48,6 +65,13 @@ export default function Dashboard() {
           setRefitUnitId(data[0].id);
         }
       })
+      .catch(() => {});
+  };
+
+  const fetchPsRoster = () => {
+    fetch("http://localhost:8085/roster")
+      .then((res) => res.json())
+      .then((data) => setPsRoster(Array.isArray(data) ? data : [data]))
       .catch(() => {});
   };
 
@@ -68,9 +92,43 @@ export default function Dashboard() {
   useEffect(() => {
     fetchBalance();
     fetchUnits();
+    fetchPsRoster();
     fetchMissions();
     fetchPilots();
   }, []);
+
+  const handleAddComponentToLocation = () => {
+    if (!selectedLocation || !selectedComponent) return;
+    setLocationLoadout((prev) => ({
+      ...prev,
+      [selectedLocation]: [...(prev[selectedLocation] || []), selectedComponent],
+    }));
+  };
+
+  const handleClearLocation = (loc) => {
+    setLocationLoadout((prev) => ({
+      ...prev,
+      [loc]: [],
+    }));
+  };
+
+  const handleValidatePowerShellLoadout = async () => {
+    try {
+      const res = await fetch("http://localhost:8085/builder/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          MaxTonnage: Number(builderTonnage),
+          LocationEquipment: locationLoadout,
+        }),
+      });
+      const data = await res.json();
+      setValidationResult(data);
+    } catch (err) {
+      console.error("Failed to connect to PowerShell API Server", err);
+      alert("PowerShell API Server not responding. Make sure API-Server.ps1 is running on port 8085!");
+    }
+  };
 
   const handleAddUnit = async (e) => {
     e.preventDefault();
@@ -305,8 +363,13 @@ export default function Dashboard() {
           <h1 style={{ color: "#f59e0b", margin: 0, fontSize: "28px" }}>BT-MANAGER</h1>
           <p style={{ color: "#8b949e", margin: "4px 0 0 0", fontSize: "14px" }}>Tactical Campaign Command &amp; Logistics</p>
         </div>
-        <div style={{ border: "1px solid #238636", backgroundColor: "#0e2a1f", padding: "6px 14px", borderRadius: "20px", color: "#3fb950", fontSize: "13px", fontWeight: "bold" }}>
-          ● API CONNECTED
+        <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ border: "1px solid #238636", backgroundColor: "#0e2a1f", padding: "6px 14px", borderRadius: "20px", color: "#3fb950", fontSize: "12px", fontWeight: "bold" }}>
+            ● FASTAPI ONLINE (8000)
+          </div>
+          <div style={{ border: "1px solid #3b82f6", backgroundColor: "#1e293b", padding: "6px 14px", borderRadius: "20px", color: "#60a5fa", fontSize: "12px", fontWeight: "bold" }}>
+            ● POWERSHELL API ONLINE (8085)
+          </div>
         </div>
       </header>
 
@@ -327,10 +390,116 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* Left Column: Force Roster, Missions & Marketplace */}
+        {/* Left Column: Roster & Loadout Configurator */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
-          {/* Active Roster */}
+          {/* PowerShell Custom Loadout Configurator */}
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Location Loadout Configurator</h2>
+              <span style={{ fontSize: "11px", backgroundColor: "#1e293b", color: "#60a5fa", padding: "4px 8px", borderRadius: "4px", border: "1px solid #3b82f6" }}>PowerShell Engine</span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS MAX TONNAGE</label>
+                <input type="number" value={builderTonnage} onChange={(e) => setBuilderTonnage(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <button onClick={handleValidatePowerShellLoadout} style={{ width: "100%", backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "9px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+                  Validate Loadout
+                </button>
+              </div>
+            </div>
+
+            {/* Component Picker Controls */}
+            <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "6px", marginBottom: "14px" }}>
+              <strong style={{ fontSize: "12px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Mount Component</strong>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                <div>
+                  <label style={{ fontSize: "10px", color: "#8b949e", display: "block" }}>LOCATION</label>
+                  <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} style={{ width: "100%", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                    <option value="HD">Head (HD)</option>
+                    <option value="CT">Center Torso (CT)</option>
+                    <option value="LT">Left Torso (LT)</option>
+                    <option value="RT">Right Torso (RT)</option>
+                    <option value="LA">Left Arm (LA)</option>
+                    <option value="RA">Right Arm (RA)</option>
+                    <option value="LL">Left Leg (LL)</option>
+                    <option value="RL">Right Leg (RL)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "10px", color: "#8b949e", display: "block" }}>COMPONENT</label>
+                  <select value={selectedComponent} onChange={(e) => setSelectedComponent(e.target.value)} style={{ width: "100%", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                    <option value="PPC">PPC (7T / 3 S)</option>
+                    <option value="Medium Laser">Medium Laser (1T / 1 S)</option>
+                    <option value="Small Laser">Small Laser (0.5T / 1 S)</option>
+                    <option value="AC10">AC/10 (12T / 7 S)</option>
+                    <option value="AC20">AC/20 (14T / 10 S)</option>
+                    <option value="LRM15">LRM 15 (7T / 3 S)</option>
+                    <option value="SRM6">SRM 6 (3T / 2 S)</option>
+                    <option value="Heatsink">Heatsink (1T / 1 S)</option>
+                    <option value="Ammo (AC10)">Ammo AC/10 (1T / 1 S)</option>
+                    <option value="Ammo (LRM15)">Ammo LRM 15 (1T / 1 S)</option>
+                  </select>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button onClick={handleAddComponentToLocation} style={{ width: "100%", backgroundColor: "#059669", color: "#fff", border: "none", padding: "7px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                    + Mount
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Slots Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              {["HD", "CT", "LT", "RT", "LA", "RA", "LL", "RL"].map((loc) => {
+                const items = locationLoadout[loc] || [];
+                return (
+                  <div key={loc} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 10px", borderRadius: "4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <strong style={{ fontSize: "12px", color: "#60a5fa" }}>{loc}</strong>
+                      <button onClick={() => handleClearLocation(loc)} style={{ border: "none", background: "none", color: "#f87171", cursor: "pointer", fontSize: "10px" }}>Clear</button>
+                    </div>
+                    <div style={{ fontSize: "11px", color: items.length > 0 ? "#fff" : "#8b949e" }}>
+                      {items.length > 0 ? items.join(", ") : <span style={{ fontStyle: "italic" }}>Empty</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* PowerShell Validation Results */}
+            {validationResult && (
+              <div style={{ marginTop: "14px", backgroundColor: "#0d1117", border: validationResult.Valid ? "1px solid #238636" : "1px solid #ef4444", padding: "12px", borderRadius: "6px", fontFamily: "monospace" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <strong style={{ color: validationResult.Valid ? "#3fb950" : "#f87171" }}>
+                    {validationResult.Valid ? "✔ VALID LOADOUT" : "✖ INVALID LOADOUT"}
+                  </strong>
+                  <span style={{ color: "#fbbf24" }}>{validationResult.RefitClass}</span>
+                </div>
+                <div style={{ fontSize: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  <span style={{ color: "#c9d1d9" }}>Tonnage: <strong>{validationResult.FinalTonnage} / {validationResult.MaxTonnage} T</strong></span>
+                  <span style={{ color: "#c9d1d9" }}>Slots Used: <strong>{validationResult.TotalSlotsUsed}</strong></span>
+                  <span style={{ color: "#60a5fa" }}>SP Cost: <strong>{validationResult.SPCost} SP</strong></span>
+                  <span style={{ color: "#34d399" }}>Cost: <strong>${(validationResult.CBillEquipmentCost || 0).toLocaleString()}</strong></span>
+                  <span style={{ color: "#a78bfa" }}>Labor Time: <strong>{validationResult.LaborHours} Hrs</strong></span>
+                  <span style={{ color: "#fbbf24" }}>Est. BV2: <strong>{validationResult.EstimatedBV2}</strong></span>
+                </div>
+
+                {validationResult.ValidationErrors && validationResult.ValidationErrors.length > 0 && (
+                  <div style={{ marginTop: "8px", borderTop: "1px solid #30363d", paddingTop: "6px", color: "#f87171", fontSize: "11px" }}>
+                    {validationResult.ValidationErrors.map((err, idx) => (
+                      <div key={idx}>⚠ {err}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Active Force Roster */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Active Force Roster</h2>
             {units.length === 0 ? (
@@ -382,6 +551,11 @@ export default function Dashboard() {
             )}
           </div>
 
+        </div>
+
+        {/* Right Column: Marketplace, Refit Workshop & Personnel */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          
           {/* Salvage & Warchest Marketplace */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Warchest Market</h2>
@@ -476,79 +650,6 @@ export default function Dashboard() {
             </form>
           </div>
 
-        </div>
-
-        {/* Right Column: Refit Workshop & Personnel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          
-          {/* Chassis Refit Workshop */}
-          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
-            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Chassis Refit Workshop (Class A–F)</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              
-              <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TARGET MECH</label>
-                <select value={refitUnitId} onChange={(e) => setRefitUnitId(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>{u.chassis} ({u.model}) - {u.tonnage} T</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>NEW VARIANT MODEL</label>
-                  <input type="text" placeholder="e.g. WHM-6D" value={newModel} onChange={(e) => setNewModel(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>NEW BV2</label>
-                  <input type="number" value={newBv2} onChange={(e) => setNewBv2(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>REFIT CLASS</label>
-                <select value={refitClass} onChange={(e) => setRefitClass(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                  <option value="Class A (Field Weapon Swap - Same Type)">Class A (Field Weapon Swap - Same Type)</option>
-                  <option value="Class B (Field Weapon Swap - Diff Type)">Class B (Field Weapon Swap - Diff Type)</option>
-                  <option value="Class C (Maintenance - Armor/Heatsink Upgrade)">Class C (Maintenance - Armor/Heatsink)</option>
-                  <option value="Class D (Maintenance - Engine Rating/Location)">Class D (Maintenance - Engine/Location)</option>
-                  <option value="Class E (Factory - Structure/Gyro Replacement)">Class E (Factory - Structure/Gyro)</option>
-                  <option value="Class F (Factory - Tech Base / Major Overhaul)">Class F (Factory - Tech Base Overhaul)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TECH RATING</label>
-                <select value={refitTechRating} onChange={(e) => setRefitTechRating(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                  <option value="Green">Green (TN 7+)</option>
-                  <option value="Regular">Regular (TN 6+)</option>
-                  <option value="Veteran">Veteran (TN 5+)</option>
-                  <option value="Elite">Elite (TN 4+)</option>
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "4px" }}>
-                <button onClick={calculateRefit} style={{ backgroundColor: "#30363d", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-                  Estimate Refit
-                </button>
-                <button onClick={handleApplyRefit} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-                  Execute Refit &amp; Bill
-                </button>
-              </div>
-
-              {refitCalc && (
-                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "4px", fontFamily: "monospace", marginTop: "4px" }}>
-                  <p style={{ color: "#60a5fa", margin: "0 0 4px 0" }}>SP Cost: {refitCalc.sp_cost} SP</p>
-                  <p style={{ color: "#34d399", margin: "0 0 4px 0" }}>C-Bill Cost: ${(refitCalc.cbill_cost || 0).toLocaleString()}</p>
-                  <p style={{ color: "#fbbf24", margin: "0 0 4px 0" }}>Est. Time: {refitCalc.time_hours} Hours</p>
-                  <p style={{ color: "#a78bfa", margin: 0 }}>Target Roll: {refitCalc.base_target_number}+</p>
-                </div>
-              )}
-
-            </div>
-          </div>
-
           {/* MechWarrior Personnel Roster */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel</h2>
@@ -599,45 +700,6 @@ export default function Dashboard() {
               </div>
               <button type="submit" style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
                 + Recruit MechWarrior
-              </button>
-            </form>
-          </div>
-
-          {/* Add New Unit Form */}
-          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
-            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Commission New Unit</h2>
-            <form onSubmit={handleAddUnit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS</label>
-                  <input type="text" placeholder="e.g. Marauder" value={chassis} onChange={(e) => setChassis(e.target.value)} required style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>MODEL</label>
-                  <input type="text" placeholder="e.g. MAD-3R" value={model} onChange={(e) => setModel(e.target.value)} required style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TONNAGE</label>
-                  <input type="number" value={tonnage} onChange={(e) => setTonnage(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TECH BASE</label>
-                  <select value={unitTechBase} onChange={(e) => setUnitTechBase(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                    <option value="Inner Sphere">Inner Sphere</option>
-                    <option value="Clan">Clan</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>BV2</label>
-                  <input type="number" value={bv2} onChange={(e) => setBv2(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-                </div>
-              </div>
-
-              <button type="submit" style={{ backgroundColor: "#238636", border: "none", color: "#fff", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "14px", marginTop: "4px" }}>
-                + Add Unit to Roster
               </button>
             </form>
           </div>

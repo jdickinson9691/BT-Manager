@@ -1,0 +1,26 @@
+﻿[
+    {
+        "Id":  1,
+        "UnitType":  "Vehicle",
+        "Chassis":  "Demolisher",
+        "Model":  "Dual AC/20",
+        "Tonnage":  80,
+        "TechBase":  "Inner Sphere",
+        "BV2":  1046,
+        "ArmorDamage":  0,
+        "StructureDamage":  0,
+        "MotiveDamage":  0
+    },
+    {
+        "Id":  2,
+        "UnitType":  "Hover",
+        "Chassis":  "Savannah Master",
+        "Model":  "Standard",
+        "Tonnage":  5,
+        "TechBase":  "Inner Sphere",
+        "BV2":  215,
+        "ArmorDamage":  0,
+        "StructureDamage":  0,
+        "MotiveDamage":  0
+    }
+]
