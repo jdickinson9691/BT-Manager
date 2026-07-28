@@ -2,7 +2,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from packages.database.db import init_db, get_db
 from packages.database.models import Campaign, Unit, Mission, Pilot
@@ -34,6 +34,15 @@ class UnitCreate(BaseModel):
     tonnage: int
     tech_base: Optional[str] = "Inner Sphere"
     bv2: Optional[int] = 1000
+
+class CommitLoadoutRequest(BaseModel):
+    unit_id: Optional[int] = None
+    chassis: str
+    model: str
+    tonnage: int
+    bv2: int
+    sp_cost: float
+    cbill_cost: float
 
 class UnitDamageUpdate(BaseModel):
     armor_damage: int
@@ -105,6 +114,49 @@ def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_unit)
     return new_unit
+
+@app.post("/api/v1/builder/commit")
+def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign state not found")
+
+    if campaign.sp_balance < req.sp_cost or campaign.cbill_balance < req.cbill_cost:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient Treasury or SP! Requires {req.sp_cost} SP and  C-Bills."
+        )
+
+    # Deduct costs
+    campaign.sp_balance -= req.sp_cost
+    campaign.cbill_balance -= req.cbill_cost
+
+    # Update existing Mech or create new custom variant
+    if req.unit_id:
+        unit = db.query(Unit).filter(Unit.id == req.unit_id).first()
+        if unit:
+            unit.model = req.model
+            unit.bv2 = req.bv2
+            unit.tonnage = req.tonnage
+            db.commit()
+            db.refresh(unit)
+            return {"message": f"Successfully updated {unit.chassis} to custom variant {unit.model}!", "unit": unit}
+
+    # Otherwise create brand new unit
+    new_unit = Unit(
+        campaign_id=campaign.id,
+        chassis=req.chassis,
+        model=req.model,
+        tonnage=req.tonnage,
+        tech_base="Inner Sphere",
+        bv2=req.bv2,
+        armor_damage=0,
+        structure_damage=0
+    )
+    db.add(new_unit)
+    db.commit()
+    db.refresh(new_unit)
+    return {"message": f"Successfully commissioned new custom unit {new_unit.chassis} ({new_unit.model})!", "unit": new_unit}
 
 @app.patch("/api/v1/units/{unit_id}/damage")
 def update_unit_damage(unit_id: int, damage: UnitDamageUpdate, db: Session = Depends(get_db)):

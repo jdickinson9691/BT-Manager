@@ -3,7 +3,6 @@
 export default function Dashboard() {
   const [balance, setBalance] = useState({ WP: 1000, SP: 500, CBills: 15000000 });
   const [units, setUnits] = useState([]);
-  const [psRoster, setPsRoster] = useState([]);
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
 
@@ -34,7 +33,10 @@ export default function Dashboard() {
   const [refitCalc, setRefitCalc] = useState(null);
 
   // Custom Loadout Configurator State (PowerShell Engine)
+  const [builderChassis, setBuilderChassis] = useState("Marauder");
+  const [builderModel, setBuilderModel] = useState("MAD-3Custom");
   const [builderTonnage, setBuilderTonnage] = useState(75);
+  const [targetUnitId, setTargetUnitId] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("RA");
   const [selectedComponent, setSelectedComponent] = useState("PPC");
   const [locationLoadout, setLocationLoadout] = useState({
@@ -68,13 +70,6 @@ export default function Dashboard() {
       .catch(() => {});
   };
 
-  const fetchPsRoster = () => {
-    fetch("http://localhost:8085/roster")
-      .then((res) => res.json())
-      .then((data) => setPsRoster(Array.isArray(data) ? data : [data]))
-      .catch(() => {});
-  };
-
   const fetchMissions = () => {
     fetch("http://localhost:8000/api/v1/missions")
       .then((res) => res.json())
@@ -92,7 +87,6 @@ export default function Dashboard() {
   useEffect(() => {
     fetchBalance();
     fetchUnits();
-    fetchPsRoster();
     fetchMissions();
     fetchPilots();
   }, []);
@@ -126,7 +120,41 @@ export default function Dashboard() {
       setValidationResult(data);
     } catch (err) {
       console.error("Failed to connect to PowerShell API Server", err);
-      alert("PowerShell API Server not responding. Make sure API-Server.ps1 is running on port 8085!");
+      alert("PowerShell API Server not responding on port 8085!");
+    }
+  };
+
+  const handleCommitLoadoutToRoster = async () => {
+    if (!validationResult || !validationResult.Valid) {
+      alert("Please validate a valid loadout first!");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/builder/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unit_id: targetUnitId ? Number(targetUnitId) : null,
+          chassis: builderChassis,
+          model: builderModel,
+          tonnage: Number(builderTonnage),
+          bv2: Number(validationResult.EstimatedBV2 || 1000),
+          sp_cost: Number(validationResult.SPCost || 0),
+          cbill_cost: Number(validationResult.CBillEquipmentCost || 0),
+        }),
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        fetchUnits();
+        alert("Custom loadout successfully committed to Active Roster!");
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Failed to commit loadout.");
+      }
+    } catch (err) {
+      console.error("Failed to commit loadout", err);
     }
   };
 
@@ -400,16 +428,29 @@ export default function Dashboard() {
               <span style={{ fontSize: "11px", backgroundColor: "#1e293b", color: "#60a5fa", padding: "4px 8px", borderRadius: "4px", border: "1px solid #3b82f6" }}>PowerShell Engine</span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
               <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS MAX TONNAGE</label>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS NAME</label>
+                <input type="text" value={builderChassis} onChange={(e) => setBuilderChassis(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>VARIANT MODEL</label>
+                <input type="text" value={builderModel} onChange={(e) => setBuilderModel(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>MAX TONNAGE</label>
                 <input type="number" value={builderTonnage} onChange={(e) => setBuilderTonnage(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
               </div>
-              <div style={{ display: "flex", alignItems: "flex-end" }}>
-                <button onClick={handleValidatePowerShellLoadout} style={{ width: "100%", backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "9px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-                  Validate Loadout
-                </button>
-              </div>
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>OVERWRITE EXISTING ROSTER MECH (OPTIONAL)</label>
+              <select value={targetUnitId} onChange={(e) => setTargetUnitId(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
+                <option value="">Create Brand New Unit in Roster</option>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>{u.chassis} ({u.model}) - {u.tonnage}T</option>
+                ))}
+              </select>
             </div>
 
             {/* Component Picker Controls */}
@@ -470,7 +511,11 @@ export default function Dashboard() {
               })}
             </div>
 
-            {/* PowerShell Validation Results */}
+            <button onClick={handleValidatePowerShellLoadout} style={{ width: "100%", backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", marginTop: "12px" }}>
+              Validate Loadout
+            </button>
+
+            {/* PowerShell Validation & Commit Panel */}
             {validationResult && (
               <div style={{ marginTop: "14px", backgroundColor: "#0d1117", border: validationResult.Valid ? "1px solid #238636" : "1px solid #ef4444", padding: "12px", borderRadius: "6px", fontFamily: "monospace" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
@@ -479,7 +524,7 @@ export default function Dashboard() {
                   </strong>
                   <span style={{ color: "#fbbf24" }}>{validationResult.RefitClass}</span>
                 </div>
-                <div style={{ fontSize: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <div style={{ fontSize: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "10px" }}>
                   <span style={{ color: "#c9d1d9" }}>Tonnage: <strong>{validationResult.FinalTonnage} / {validationResult.MaxTonnage} T</strong></span>
                   <span style={{ color: "#c9d1d9" }}>Slots Used: <strong>{validationResult.TotalSlotsUsed}</strong></span>
                   <span style={{ color: "#60a5fa" }}>SP Cost: <strong>{validationResult.SPCost} SP</strong></span>
@@ -487,6 +532,12 @@ export default function Dashboard() {
                   <span style={{ color: "#a78bfa" }}>Labor Time: <strong>{validationResult.LaborHours} Hrs</strong></span>
                   <span style={{ color: "#fbbf24" }}>Est. BV2: <strong>{validationResult.EstimatedBV2}</strong></span>
                 </div>
+
+                {validationResult.Valid && (
+                  <button onClick={handleCommitLoadoutToRoster} style={{ width: "100%", backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+                    Commit Loadout to Active Roster &amp; Bill Treasury
+                  </button>
+                )}
 
                 {validationResult.ValidationErrors && validationResult.ValidationErrors.length > 0 && (
                   <div style={{ marginTop: "8px", borderTop: "1px solid #30363d", paddingTop: "6px", color: "#f87171", fontSize: "11px" }}>
