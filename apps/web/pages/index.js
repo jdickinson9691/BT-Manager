@@ -97,6 +97,42 @@ export default function Dashboard() {
     }
   };
 
+  const handleUpdateDamage = async (unitId, currentArmor, currentStruct, armorDelta, structDelta) => {
+    const newArmor = Math.max(0, currentArmor + armorDelta);
+    const newStruct = Math.max(0, currentStruct + structDelta);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units/" + unitId + "/damage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          armor_damage: newArmor,
+          structure_damage: newStruct,
+        }),
+      });
+      if (res.ok) fetchUnits();
+    } catch (err) {
+      console.error("Failed to update damage", err);
+    }
+  };
+
+  const handleRepairUnit = async (unitId) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units/" + unitId + "/repair", {
+        method: "POST",
+      });
+      if (res.ok) {
+        fetchBalance();
+        fetchUnits();
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Repair failed!");
+      }
+    } catch (err) {
+      console.error("Failed to execute unit repair", err);
+    }
+  };
+
   const handleCreateMission = async (e) => {
     e.preventDefault();
     if (!missionName) return;
@@ -222,18 +258,50 @@ export default function Dashboard() {
             {units.length === 0 ? (
               <p style={{ color: "#8b949e", fontSize: "14px", fontStyle: "italic", padding: "12px 0" }}>No active BattleMechs loaded.</p>
             ) : (
-              units.map((unit) => (
-                <div key={unit.id} style={{ display: "flex", justifyContent: "space-between", backgroundColor: "#0d1117", padding: "12px 16px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "10px" }}>
-                  <div>
-                    <strong style={{ color: "#ffffff", fontSize: "16px" }}>{unit.chassis}</strong> <span style={{ color: "#8b949e" }}>{unit.model}</span>
-                    <br />
-                    <small style={{ color: "#8b949e" }}>{unit.tonnage} Tons | {unit.tech_base}</small>
+              units.map((unit) => {
+                const isDamaged = (unit.armor_damage > 0) || (unit.structure_damage > 0);
+                return (
+                  <div key={unit.id} style={{ backgroundColor: "#0d1117", padding: "14px 16px", borderRadius: "6px", border: isDamaged ? "1px solid #ef4444" : "1px solid #30363d", marginBottom: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                      <div>
+                        <strong style={{ color: "#ffffff", fontSize: "16px" }}>{unit.chassis}</strong> <span style={{ color: "#8b949e" }}>{unit.model}</span>
+                        <br />
+                        <small style={{ color: "#8b949e" }}>{unit.tonnage} Tons | {unit.tech_base}</small>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{ color: "#fbbf24", fontFamily: "monospace", fontWeight: "bold" }}>{unit.bv2} BV2</span>
+                        <br />
+                        {isDamaged ? (
+                          <span style={{ color: "#ef4444", fontSize: "12px", fontWeight: "bold" }}>⚠ DAMAGED</span>
+                        ) : (
+                          <span style={{ color: "#3fb950", fontSize: "12px", fontWeight: "bold" }}>✔ READY</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Damage Controls Bar */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", border: "1px solid #30363d" }}>
+                      <div>
+                        <span style={{ color: unit.armor_damage > 0 ? "#f87171" : "#8b949e" }}>Armor Dmg: <strong>{unit.armor_damage}</strong></span>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 5, 0)} style={{ marginLeft: "6px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>+5</button>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, -5, 0)} style={{ marginLeft: "3px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>-5</button>
+                      </div>
+
+                      <div>
+                        <span style={{ color: unit.structure_damage > 0 ? "#f87171" : "#8b949e" }}>Struct Dmg: <strong>{unit.structure_damage}</strong></span>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 0, 1)} style={{ marginLeft: "6px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>+1</button>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 0, -1)} style={{ marginLeft: "3px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>-1</button>
+                      </div>
+
+                      {isDamaged && (
+                        <button onClick={() => handleRepairUnit(unit.id)} style={{ backgroundColor: "#d97706", color: "#000", border: "none", padding: "4px 8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                          Repair &amp; Bill Treasury
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span style={{ color: "#fbbf24", fontFamily: "monospace", fontWeight: "bold" }}>{unit.bv2} BV2</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

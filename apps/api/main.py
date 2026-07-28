@@ -29,6 +29,10 @@ class UnitCreate(BaseModel):
     tech_base: Optional[str] = "Inner Sphere"
     bv2: Optional[int] = 1000
 
+class UnitDamageUpdate(BaseModel):
+    armor_damage: int
+    structure_damage: int
+
 class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
@@ -67,12 +71,65 @@ def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
         model=unit_data.model,
         tonnage=unit_data.tonnage,
         tech_base=unit_data.tech_base,
-        bv2=unit_data.bv2
+        bv2=unit_data.bv2,
+        armor_damage=0,
+        structure_damage=0
     )
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
     return new_unit
+
+@app.patch("/api/v1/units/{unit_id}/damage")
+def update_unit_damage(unit_id: int, damage: UnitDamageUpdate, db: Session = Depends(get_db)):
+    unit = db.query(Unit).filter(Unit.id == unit_id).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+    
+    unit.armor_damage = max(0, damage.armor_damage)
+    unit.structure_damage = max(0, damage.structure_damage)
+    db.commit()
+    db.refresh(unit)
+    return unit
+
+@app.post("/api/v1/units/{unit_id}/repair")
+def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
+    unit = db.query(Unit).filter(Unit.id == unit_id).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    if unit.armor_damage == 0 and unit.structure_damage == 0:
+        raise HTTPException(status_code=400, detail="Unit has no active damage to repair.")
+
+    # Calculate costs for armor and structure
+    armor_req = RepairRequest(component_type="Armor", amount_damaged=unit.armor_damage, tech_base=unit.tech_base)
+    struct_req = RepairRequest(component_type="Structure", amount_damaged=unit.structure_damage, tech_base=unit.tech_base)
+
+    armor_est = calculate_repair_task(armor_req) if unit.armor_damage > 0 else None
+    struct_est = calculate_repair_task(struct_req) if unit.structure_damage > 0 else None
+
+    total_sp = (armor_est.sp_cost if armor_est else 0) + (struct_est.sp_cost if struct_est else 0)
+    total_cbills = (armor_est.cbill_cost if armor_est else 0.0) + (struct_est.cbill_cost if struct_est else 0.0)
+
+    campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
+    if campaign:
+        if campaign.sp_balance < total_sp or campaign.cbill_balance < total_cbills:
+            raise HTTPException(status_code=400, detail="Insufficient SP or C-Bills in treasury to perform full repairs!")
+        
+        campaign.sp_balance -= total_sp
+        campaign.cbill_balance -= total_cbills
+
+    # Reset unit damage status
+    unit.armor_damage = 0
+    unit.structure_damage = 0
+
+    db.commit()
+    return {
+        "message": f"Successfully repaired {unit.chassis} ({unit.model})!",
+        "sp_deducted": total_sp,
+        "cbills_deducted": total_cbills,
+        "unit": unit
+    }
 
 @app.get("/api/v1/missions")
 def get_missions(db: Session = Depends(get_db)):
