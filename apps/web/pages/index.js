@@ -51,6 +51,11 @@ export default function Dashboard() {
   });
   const [validationResult, setValidationResult] = useState(null);
 
+  // After-Action Report (AAR) State
+  const [aarMissionId, setAarMissionId] = useState("");
+  const [aarSalvage, setAarSalvage] = useState(500000);
+  const [aarLogs, setAarLogs] = useState({});
+
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
       .then((res) => res.json())
@@ -90,6 +95,53 @@ export default function Dashboard() {
     fetchMissions();
     fetchPilots();
   }, []);
+
+  const handleAarLogChange = (unitId, field, value) => {
+    setAarLogs((prev) => ({
+      ...prev,
+      [unitId]: {
+        ...prev[unitId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSubmitAAR = async () => {
+    const formattedLogs = units.map((u) => {
+      const log = aarLogs[u.id] || {};
+      return {
+        unit_id: u.id,
+        armor_loss: Number(log.armor_loss || 0),
+        structure_loss: Number(log.structure_loss || 0),
+        is_destroyed: Boolean(log.is_destroyed || false),
+      };
+    });
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission_id: aarMissionId ? Number(aarMissionId) : null,
+          unit_logs: formattedLogs,
+          salvage_cbill_value: Number(aarSalvage),
+        }),
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        fetchUnits();
+        fetchMissions();
+        setAarLogs({});
+        alert("After-Action Report successfully submitted and processed!");
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Failed to submit AAR");
+      }
+    } catch (err) {
+      console.error("Failed to submit AAR", err);
+    }
+  };
 
   const handleAddComponentToLocation = () => {
     if (!selectedLocation || !selectedComponent) return;
@@ -266,57 +318,6 @@ export default function Dashboard() {
     }
   };
 
-  const calculateRefit = async () => {
-    const targetUnit = units.find((u) => u.id === Number(refitUnitId));
-    if (!targetUnit) return;
-
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/engine/refit-cost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          refit_class: refitClass,
-          tech_base: targetUnit.tech_base,
-          tech_rating: refitTechRating,
-          tonnage: targetUnit.tonnage,
-        }),
-      });
-      const data = await res.json();
-      setRefitCalc(data);
-    } catch (e) {
-      console.error("Failed to estimate refit", e);
-    }
-  };
-
-  const handleApplyRefit = async () => {
-    if (!refitUnitId || !newModel) return;
-
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/units/" + refitUnitId + "/refit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          new_model: newModel,
-          new_bv2: Number(newBv2),
-          refit_class: refitClass,
-          tech_rating: refitTechRating,
-        }),
-      });
-
-      if (res.ok) {
-        setNewModel("");
-        fetchBalance();
-        fetchUnits();
-        alert("Refit successfully applied and billed!");
-      } else {
-        const errData = await res.json();
-        alert(errData.detail || "Refit failed!");
-      }
-    } catch (err) {
-      console.error("Failed to apply refit", err);
-    }
-  };
-
   const handleCreateMission = async (e) => {
     e.preventDefault();
     if (!missionName) return;
@@ -418,9 +419,55 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* Left Column: Roster & Loadout Configurator */}
+        {/* Left Column: AAR & Roster */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
+          {/* Mission After-Action Report (AAR) */}
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Mission After-Action Report (AAR)</h2>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>ATTACH COMPLETED CONTRACT</label>
+                <select value={aarMissionId} onChange={(e) => setAarMissionId(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
+                  <option value="">No Contract (Skirmish / Free Combat)</option>
+                  {missions.filter((m) => m.status === "Active").map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} (+{m.wp_reward} WP / ${m.cbill_reward.toLocaleString()})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>FIELD SALVAGE RECOVERY ($)</label>
+                <input type="number" value={aarSalvage} onChange={(e) => setAarSalvage(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+              </div>
+            </div>
+
+            <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Log Combat Damage Sustained</strong>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+              {units.map((u) => {
+                const log = aarLogs[u.id] || {};
+                return (
+                  <div key={u.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "10px 12px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "14px" }}>{u.chassis}</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>({u.model})</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <input type="number" placeholder="Armor Lost" value={log.armor_loss || ""} onChange={(e) => handleAarLogChange(u.id, "armor_loss", e.target.value)} style={{ width: "90px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                      <input type="number" placeholder="Struct Lost" value={log.structure_loss || ""} onChange={(e) => handleAarLogChange(u.id, "structure_loss", e.target.value)} style={{ width: "90px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                      <label style={{ fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                        <input type="checkbox" checked={log.is_destroyed || false} onChange={(e) => handleAarLogChange(u.id, "is_destroyed", e.target.checked)} /> Destroyed
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={handleSubmitAAR} style={{ width: "100%", backgroundColor: "#dc2626", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
+              Submit After-Action Report &amp; Process Battlefield Payouts
+            </button>
+          </div>
+
           {/* PowerShell Custom Loadout Configurator */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
@@ -604,7 +651,7 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Right Column: Marketplace, Refit Workshop & Personnel */}
+        {/* Right Column: Marketplace, Missions & Personnel */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
           {/* Salvage & Warchest Marketplace */}

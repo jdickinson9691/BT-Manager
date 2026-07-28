@@ -82,6 +82,17 @@ class MarketPurchaseSuppliesRequest(BaseModel):
     cbill_cost: float = 0.0
     wp_cost: int = 0
 
+class UnitCombatLog(BaseModel):
+    unit_id: int
+    armor_loss: int = 0
+    structure_loss: int = 0
+    is_destroyed: bool = False
+
+class AARSubmitRequest(BaseModel):
+    mission_id: Optional[int] = None
+    unit_logs: List[UnitCombatLog]
+    salvage_cbill_value: float = 0.0
+
 @app.get("/")
 def read_root():
     return {"status": "online", "system": "BT-Manager Core Engine"}
@@ -115,6 +126,37 @@ def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
     db.refresh(new_unit)
     return new_unit
 
+@app.post("/api/v1/aar/submit")
+def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign state not found")
+
+    # Process units battle logs
+    for log in aar.unit_logs:
+        unit = db.query(Unit).filter(Unit.id == log.unit_id).first()
+        if unit:
+            if log.is_destroyed:
+                db.delete(unit)
+            else:
+                unit.armor_damage += log.armor_loss
+                unit.structure_damage += log.structure_loss
+
+    # Process mission payouts if attached
+    if aar.mission_id:
+        mission = db.query(Mission).filter(Mission.id == aar.mission_id).first()
+        if mission and mission.status == "Active":
+            campaign.wp_balance += mission.wp_reward
+            campaign.cbill_balance += mission.cbill_reward
+            mission.status = "Completed"
+
+    # Add extra salvage payout to treasury
+    if aar.salvage_cbill_value > 0:
+        campaign.cbill_balance += aar.salvage_cbill_value
+
+    db.commit()
+    return {"message": "After-Action Report processed! Unit status and treasury updated."}
+
 @app.post("/api/v1/builder/commit")
 def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).first()
@@ -127,11 +169,9 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
             detail=f"Insufficient Treasury or SP! Requires {req.sp_cost} SP and  C-Bills."
         )
 
-    # Deduct costs
     campaign.sp_balance -= req.sp_cost
     campaign.cbill_balance -= req.cbill_cost
 
-    # Update existing Mech or create new custom variant
     if req.unit_id:
         unit = db.query(Unit).filter(Unit.id == req.unit_id).first()
         if unit:
@@ -142,7 +182,6 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
             db.refresh(unit)
             return {"message": f"Successfully updated {unit.chassis} to custom variant {unit.model}!", "unit": unit}
 
-    # Otherwise create brand new unit
     new_unit = Unit(
         campaign_id=campaign.id,
         chassis=req.chassis,
