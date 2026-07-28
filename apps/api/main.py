@@ -6,7 +6,13 @@ from typing import List, Optional
 
 from packages.database.db import init_db, get_db
 from packages.database.models import Campaign, Unit, Mission, Pilot
-from packages.engine.repair import RepairRequest, RepairEstimate, calculate_repair_task
+from packages.engine.repair import (
+    RepairRequest, 
+    RefitRequest, 
+    RepairEstimate, 
+    calculate_repair_task, 
+    calculate_refit_task
+)
 
 app = FastAPI(title="BT-Manager API", version="1.0.0")
 
@@ -46,6 +52,12 @@ class PilotCreate(BaseModel):
     gunnery: int = 4
     piloting: int = 5
     unit_id: Optional[int] = None
+
+class RefitApplyRequest(BaseModel):
+    new_model: str
+    new_bv2: int
+    refit_class: str
+    tech_rating: str = "Regular"
 
 @app.get("/")
 def read_root():
@@ -101,7 +113,6 @@ def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
     if unit.armor_damage == 0 and unit.structure_damage == 0:
         raise HTTPException(status_code=400, detail="Unit has no active damage to repair.")
 
-    # Calculate costs for armor and structure
     armor_req = RepairRequest(component_type="Armor", amount_damaged=unit.armor_damage, tech_base=unit.tech_base)
     struct_req = RepairRequest(component_type="Structure", amount_damaged=unit.structure_damage, tech_base=unit.tech_base)
 
@@ -114,22 +125,44 @@ def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
     if campaign:
         if campaign.sp_balance < total_sp or campaign.cbill_balance < total_cbills:
-            raise HTTPException(status_code=400, detail="Insufficient SP or C-Bills in treasury to perform full repairs!")
+            raise HTTPException(status_code=400, detail="Insufficient SP or C-Bills in treasury!")
         
         campaign.sp_balance -= total_sp
         campaign.cbill_balance -= total_cbills
 
-    # Reset unit damage status
     unit.armor_damage = 0
     unit.structure_damage = 0
 
     db.commit()
-    return {
-        "message": f"Successfully repaired {unit.chassis} ({unit.model})!",
-        "sp_deducted": total_sp,
-        "cbills_deducted": total_cbills,
-        "unit": unit
-    }
+    return {"message": f"Successfully repaired {unit.chassis}!", "unit": unit}
+
+@app.post("/api/v1/units/{unit_id}/refit")
+def apply_refit(unit_id: int, refit: RefitApplyRequest, db: Session = Depends(get_db)):
+    unit = db.query(Unit).filter(Unit.id == unit_id).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    refit_req = RefitRequest(
+        refit_class=refit.refit_class,
+        tech_base=unit.tech_base,
+        tech_rating=refit.tech_rating,
+        tonnage=unit.tonnage
+    )
+    estimate = calculate_refit_task(refit_req)
+
+    campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
+    if campaign:
+        if campaign.sp_balance < estimate.sp_cost or campaign.cbill_balance < estimate.cbill_cost:
+            raise HTTPException(status_code=400, detail="Insufficient SP or C-Bills for this Refit!")
+        
+        campaign.sp_balance -= estimate.sp_cost
+        campaign.cbill_balance -= estimate.cbill_cost
+
+    unit.model = refit.new_model
+    unit.bv2 = refit.new_bv2
+
+    db.commit()
+    return {"message": f"Refit complete! Variant updated to {unit.model}.", "estimate": estimate, "unit": unit}
 
 @app.get("/api/v1/missions")
 def get_missions(db: Session = Depends(get_db)):
@@ -167,7 +200,7 @@ def complete_mission(mission_id: int, db: Session = Depends(get_db)):
 
     mission.status = "Completed"
     db.commit()
-    return {"message": "Mission completed successfully! Contract reward payout added to treasury.", "mission": mission}
+    return {"message": "Mission completed successfully!", "mission": mission}
 
 @app.get("/api/v1/pilots")
 def get_pilots(db: Session = Depends(get_db)):
@@ -209,3 +242,7 @@ def create_pilot(pilot_data: PilotCreate, db: Session = Depends(get_db)):
 @app.post("/api/v1/engine/repair-cost", response_model=RepairEstimate)
 def estimate_repair(request: RepairRequest):
     return calculate_repair_task(request)
+
+@app.post("/api/v1/engine/refit-cost", response_model=RepairEstimate)
+def estimate_refit(request: RefitRequest):
+    return calculate_refit_task(request)

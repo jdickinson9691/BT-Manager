@@ -6,34 +6,32 @@ export default function Dashboard() {
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
 
-  // New Unit Form State
+  // Form States
   const [chassis, setChassis] = useState("");
   const [model, setModel] = useState("");
   const [tonnage, setTonnage] = useState(55);
   const [unitTechBase, setUnitTechBase] = useState("Inner Sphere");
   const [bv2, setBv2] = useState(1200);
 
-  // New Mission Form State
   const [missionName, setMissionName] = useState("");
   const [missionType, setMissionType] = useState("Raid");
   const [employer, setEmployer] = useState("House Davion");
   const [wpReward, setWpReward] = useState(350);
   const [cbillReward, setCbillReward] = useState(3000000);
 
-  // New Pilot Form State
   const [pilotName, setPilotName] = useState("");
   const [callsign, setCallsign] = useState("");
   const [gunnery, setGunnery] = useState(4);
   const [piloting, setPiloting] = useState(5);
   const [assignedUnitId, setAssignedUnitId] = useState("");
 
-  // Advanced Repair Form State
-  const [componentType, setComponentType] = useState("Armor");
-  const [amountDamaged, setAmountDamaged] = useState(10);
-  const [techBase, setTechBase] = useState("Inner Sphere");
-  const [techRating, setTechRating] = useState("Regular");
-  const [hasSalvage, setHasSalvage] = useState(false);
-  const [repairCalc, setRepairCalc] = useState(null);
+  // Refit Form State
+  const [refitUnitId, setRefitUnitId] = useState("");
+  const [newModel, setNewModel] = useState("");
+  const [newBv2, setNewBv2] = useState(1500);
+  const [refitClass, setRefitClass] = useState("Class A (Field Weapon Swap - Same Type)");
+  const [refitTechRating, setRefitTechRating] = useState("Regular");
+  const [refitCalc, setRefitCalc] = useState(null);
 
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -45,7 +43,12 @@ export default function Dashboard() {
   const fetchUnits = () => {
     fetch("http://localhost:8000/api/v1/units")
       .then((res) => res.json())
-      .then((data) => setUnits(data))
+      .then((data) => {
+        setUnits(data);
+        if (data.length > 0 && !refitUnitId) {
+          setRefitUnitId(data[0].id);
+        }
+      })
       .catch(() => {});
   };
 
@@ -133,6 +136,57 @@ export default function Dashboard() {
     }
   };
 
+  const calculateRefit = async () => {
+    const targetUnit = units.find((u) => u.id === Number(refitUnitId));
+    if (!targetUnit) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/engine/refit-cost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          refit_class: refitClass,
+          tech_base: targetUnit.tech_base,
+          tech_rating: refitTechRating,
+          tonnage: targetUnit.tonnage,
+        }),
+      });
+      const data = await res.json();
+      setRefitCalc(data);
+    } catch (e) {
+      console.error("Failed to estimate refit", e);
+    }
+  };
+
+  const handleApplyRefit = async () => {
+    if (!refitUnitId || !newModel) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units/" + refitUnitId + "/refit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_model: newModel,
+          new_bv2: Number(newBv2),
+          refit_class: refitClass,
+          tech_rating: refitTechRating,
+        }),
+      });
+
+      if (res.ok) {
+        setNewModel("");
+        fetchBalance();
+        fetchUnits();
+        alert("Refit successfully applied and billed!");
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Refit failed!");
+      }
+    } catch (err) {
+      console.error("Failed to apply refit", err);
+    }
+  };
+
   const handleCreateMission = async (e) => {
     e.preventDefault();
     if (!missionName) return;
@@ -200,26 +254,6 @@ export default function Dashboard() {
     }
   };
 
-  const calculateRepair = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/engine/repair-cost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          component_type: componentType,
-          amount_damaged: Number(amountDamaged),
-          tech_base: techBase,
-          tech_rating: techRating,
-          has_salvage_part: hasSalvage,
-        }),
-      });
-      const data = await res.json();
-      setRepairCalc(data);
-    } catch (e) {
-      console.error("Failed to connect to API", e);
-    }
-  };
-
   return (
     <div style={{ padding: "24px", fontFamily: "sans-serif", backgroundColor: "#0d1117", color: "#c9d1d9", minHeight: "100vh" }}>
       <header style={{ borderBottom: "1px solid #30363d", paddingBottom: "12px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -279,7 +313,6 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Damage Controls Bar */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", border: "1px solid #30363d" }}>
                       <div>
                         <span style={{ color: unit.armor_damage > 0 ? "#f87171" : "#8b949e" }}>Armor Dmg: <strong>{unit.armor_damage}</strong></span>
@@ -295,7 +328,7 @@ export default function Dashboard() {
 
                       {isDamaged && (
                         <button onClick={() => handleRepairUnit(unit.id)} style={{ backgroundColor: "#d97706", color: "#000", border: "none", padding: "4px 8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
-                          Repair &amp; Bill Treasury
+                          Repair &amp; Bill
                         </button>
                       )}
                     </div>
@@ -305,7 +338,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Mission & Contract Board */}
+          {/* Mission Board */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Campaign Missions &amp; Contracts</h2>
             {missions.length === 0 ? (
@@ -333,11 +366,10 @@ export default function Dashboard() {
               ))
             )}
 
-            {/* Create Contract Sub-form */}
             <form onSubmit={handleCreateMission} style={{ marginTop: "16px", borderTop: "1px solid #30363d", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <strong style={{ fontSize: "13px", color: "#f0f6fc" }}>Draft New Contract Offer</strong>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <input type="text" placeholder="Operation / Mission Title" value={missionName} onChange={(e) => setMissionName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
+                <input type="text" placeholder="Operation Title" value={missionName} onChange={(e) => setMissionName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
                 <input type="text" placeholder="Employer (e.g. House Davion)" value={employer} onChange={(e) => setEmployer(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
@@ -358,9 +390,77 @@ export default function Dashboard() {
 
         </div>
 
-        {/* Right Column: Personnel, Commission Form & Repair Engine */}
+        {/* Right Column: Refit Workshop & Personnel */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
+          {/* Chassis Refit Workshop */}
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Chassis Refit Workshop (Class A–F)</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TARGET MECH</label>
+                <select value={refitUnitId} onChange={(e) => setRefitUnitId(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>{u.chassis} ({u.model}) - {u.tonnage} T</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>NEW VARIANT MODEL</label>
+                  <input type="text" placeholder="e.g. WHM-6D" value={newModel} onChange={(e) => setNewModel(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>NEW BV2</label>
+                  <input type="number" value={newBv2} onChange={(e) => setNewBv2(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>REFIT CLASS</label>
+                <select value={refitClass} onChange={(e) => setRefitClass(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
+                  <option value="Class A (Field Weapon Swap - Same Type)">Class A (Field Weapon Swap - Same Type)</option>
+                  <option value="Class B (Field Weapon Swap - Diff Type)">Class B (Field Weapon Swap - Diff Type)</option>
+                  <option value="Class C (Maintenance - Armor/Heatsink Upgrade)">Class C (Maintenance - Armor/Heatsink)</option>
+                  <option value="Class D (Maintenance - Engine Rating/Location)">Class D (Maintenance - Engine/Location)</option>
+                  <option value="Class E (Factory - Structure/Gyro Replacement)">Class E (Factory - Structure/Gyro)</option>
+                  <option value="Class F (Factory - Tech Base / Major Overhaul)">Class F (Factory - Tech Base Overhaul)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>TECH RATING</label>
+                <select value={refitTechRating} onChange={(e) => setRefitTechRating(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
+                  <option value="Green">Green (TN 7+)</option>
+                  <option value="Regular">Regular (TN 6+)</option>
+                  <option value="Veteran">Veteran (TN 5+)</option>
+                  <option value="Elite">Elite (TN 4+)</option>
+                </select>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "4px" }}>
+                <button onClick={calculateRefit} style={{ backgroundColor: "#30363d", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+                  Estimate Refit
+                </button>
+                <button onClick={handleApplyRefit} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+                  Execute Refit &amp; Bill
+                </button>
+              </div>
+
+              {refitCalc && (
+                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "4px", fontFamily: "monospace", marginTop: "4px" }}>
+                  <p style={{ color: "#60a5fa", margin: "0 0 4px 0" }}>SP Cost: {refitCalc.sp_cost} SP</p>
+                  <p style={{ color: "#34d399", margin: "0 0 4px 0" }}>C-Bill Cost: ${(refitCalc.cbill_cost || 0).toLocaleString()}</p>
+                  <p style={{ color: "#fbbf24", margin: "0 0 4px 0" }}>Est. Time: {refitCalc.time_hours} Hours</p>
+                  <p style={{ color: "#a78bfa", margin: 0 }}>Target Roll: {refitCalc.base_target_number}+</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+
           {/* MechWarrior Personnel Roster */}
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
             <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel</h2>
@@ -384,12 +484,11 @@ export default function Dashboard() {
               ))
             )}
 
-            {/* Recruit Pilot Form */}
             <form onSubmit={handleRecruitPilot} style={{ marginTop: "14px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <strong style={{ fontSize: "13px", color: "#f0f6fc" }}>Recruit MechWarrior</strong>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <input type="text" placeholder="Pilot Name" value={pilotName} onChange={(e) => setPilotName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
-                <input type="text" placeholder='Callsign (e.g. "Maverick")' value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
+                <input type="text" placeholder='Callsign' value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "13px" }} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: "10px" }}>
                 <div>
@@ -453,66 +552,6 @@ export default function Dashboard() {
                 + Add Unit to Roster
               </button>
             </form>
-          </div>
-
-          {/* Repair & Refit Engine Panel */}
-          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px", height: "fit-content" }}>
-            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Repair &amp; Refit Engine</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Component Type</label>
-                <select value={componentType} onChange={(e) => setComponentType(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                  <option value="Armor">Armor</option>
-                  <option value="Structure">Structure</option>
-                  <option value="Engine">Engine Critical</option>
-                  <option value="Gyro">Gyro Critical</option>
-                  <option value="Actuator">Actuator</option>
-                  <option value="Weapon">Weapon Replacement</option>
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Tech Base</label>
-                  <select value={techBase} onChange={(e) => setTechBase(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                    <option value="Inner Sphere">Inner Sphere</option>
-                    <option value="Clan">Clan</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Tech Skill</label>
-                  <select value={techRating} onChange={(e) => setTechRating(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px" }}>
-                    <option value="Green">Green (TN 6+)</option>
-                    <option value="Regular">Regular (TN 5+)</option>
-                    <option value="Veteran">Veteran (TN 4+)</option>
-                    <option value="Elite">Elite (TN 3+)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>Amount / Critical Hits</label>
-                <input type="number" value={amountDamaged} onChange={(e) => setAmountDamaged(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "4px 0" }}>
-                <input type="checkbox" id="salvage" checked={hasSalvage} onChange={(e) => setHasSalvage(e.target.checked)} />
-                <label htmlFor="salvage" style={{ fontSize: "13px", color: "#c9d1d9", cursor: "pointer" }}>Use Salvaged Parts (75% C-Bill Discount)</label>
-              </div>
-
-              <button onClick={calculateRepair} style={{ backgroundColor: "#d97706", border: "none", color: "#000", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
-                Calculate Logistics
-              </button>
-
-              {repairCalc && (
-                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "4px", fontFamily: "monospace", marginTop: "4px" }}>
-                  <p style={{ color: "#60a5fa", margin: "0 0 4px 0" }}>SP Cost: {repairCalc.sp_cost} SP</p>
-                  <p style={{ color: "#34d399", margin: "0 0 4px 0" }}>C-Bill Cost: ${(repairCalc.cbill_cost || 0).toLocaleString()}</p>
-                  <p style={{ color: "#fbbf24", margin: "0 0 4px 0" }}>Est. Time: {repairCalc.time_hours} Hours</p>
-                  <p style={{ color: "#a78bfa", margin: 0 }}>Target Roll: {repairCalc.base_target_number}+</p>
-                </div>
-              )}
-            </div>
           </div>
 
         </div>
