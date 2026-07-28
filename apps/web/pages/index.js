@@ -25,7 +25,6 @@ export default function Dashboard() {
   const [piloting, setPiloting] = useState(5);
   const [assignedUnitId, setAssignedUnitId] = useState("");
 
-  // Refit Form State
   const [refitUnitId, setRefitUnitId] = useState("");
   const [newModel, setNewModel] = useState("");
   const [newBv2, setNewBv2] = useState(1500);
@@ -133,6 +132,51 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Failed to execute unit repair", err);
+    }
+  };
+
+  const handleBuyMarketUnit = async (unitData) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/market/buy-unit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(unitData),
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        fetchUnits();
+        alert(`Successfully procured ${unitData.chassis} (${unitData.model})!`);
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Market procurement failed!");
+      }
+    } catch (err) {
+      console.error("Failed to buy unit", err);
+    }
+  };
+
+  const handleBuyMarketSupplies = async (spAmount, cbillCost, wpCost) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/market/buy-supplies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sp_amount: spAmount,
+          cbill_cost: cbillCost,
+          wp_cost: wpCost,
+        }),
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        alert(`Purchased +${spAmount} Support Points!`);
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Supply purchase failed!");
+      }
+    } catch (err) {
+      console.error("Failed to buy supplies", err);
     }
   };
 
@@ -283,7 +327,7 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* Left Column: Force Roster & Missions */}
+        {/* Left Column: Force Roster, Missions & Marketplace */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
           {/* Active Roster */}
@@ -336,6 +380,50 @@ export default function Dashboard() {
                 );
               })
             )}
+          </div>
+
+          {/* Salvage & Warchest Marketplace */}
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+            <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Warchest Market</h2>
+            
+            <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>BattleMech Procurement List</strong>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "10px 12px", borderRadius: "6px", border: "1px solid #30363d" }}>
+                <div>
+                  <strong style={{ color: "#fff", fontSize: "14px" }}>Mad Cat (Timber Wolf)</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>Prime (75T Clan)</span>
+                  <br />
+                  <small style={{ color: "#34d399" }}>$12,500,000 C-Bills</small> | <small style={{ color: "#fbbf24" }}>200 WP</small>
+                </div>
+                <button onClick={() => handleBuyMarketUnit({ chassis: "Timber Wolf", model: "Prime", tonnage: 75, tech_base: "Clan", bv2: 2737, cbill_cost: 12500000, wp_cost: 200 })} style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  Buy Mech
+                </button>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "10px 12px", borderRadius: "6px", border: "1px solid #30363d" }}>
+                <div>
+                  <strong style={{ color: "#fff", fontSize: "14px" }}>Atlas</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>AS7-D (100T IS)</span>
+                  <br />
+                  <small style={{ color: "#34d399" }}>$9,600,000 C-Bills</small> | <small style={{ color: "#fbbf24" }}>150 WP</small>
+                </div>
+                <button onClick={() => handleBuyMarketUnit({ chassis: "Atlas", model: "AS7-D", tonnage: 100, tech_base: "Inner Sphere", bv2: 1897, cbill_cost: 9600000, wp_cost: 150 })} style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  Buy Mech
+                </button>
+              </div>
+            </div>
+
+            <strong style={{ fontSize: "13px", color: "#60a5fa", display: "block", marginBottom: "8px" }}>Supply Packages &amp; Technical Support</strong>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => handleBuyMarketSupplies(100, 250000, 25)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                +100 SP Crate
+                <br />
+                <small style={{ color: "#93c5fd" }}>$250k | 25 WP</small>
+              </button>
+              <button onClick={() => handleBuyMarketSupplies(500, 1000000, 100)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                +500 SP Depot Stock
+                <br />
+                <small style={{ color: "#93c5fd" }}>$1M | 100 WP</small>
+              </button>
+            </div>
           </div>
 
           {/* Mission Board */}

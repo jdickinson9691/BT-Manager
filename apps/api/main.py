@@ -59,6 +59,20 @@ class RefitApplyRequest(BaseModel):
     refit_class: str
     tech_rating: str = "Regular"
 
+class MarketPurchaseUnitRequest(BaseModel):
+    chassis: str
+    model: str
+    tonnage: int
+    tech_base: str
+    bv2: int
+    cbill_cost: float
+    wp_cost: int = 0
+
+class MarketPurchaseSuppliesRequest(BaseModel):
+    sp_amount: int = 0
+    cbill_cost: float = 0.0
+    wp_cost: int = 0
+
 @app.get("/")
 def read_root():
     return {"status": "online", "system": "BT-Manager Core Engine"}
@@ -163,6 +177,49 @@ def apply_refit(unit_id: int, refit: RefitApplyRequest, db: Session = Depends(ge
 
     db.commit()
     return {"message": f"Refit complete! Variant updated to {unit.model}.", "estimate": estimate, "unit": unit}
+
+@app.post("/api/v1/market/buy-unit")
+def market_buy_unit(purchase: MarketPurchaseUnitRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.cbill_balance < purchase.cbill_cost or campaign.wp_balance < purchase.wp_cost:
+        raise HTTPException(status_code=400, detail="Insufficient treasury funds or WP to procure this BattleMech!")
+
+    campaign.cbill_balance -= purchase.cbill_cost
+    campaign.wp_balance -= purchase.wp_cost
+
+    new_unit = Unit(
+        campaign_id=campaign.id,
+        chassis=purchase.chassis,
+        model=purchase.model,
+        tonnage=purchase.tonnage,
+        tech_base=purchase.tech_base,
+        bv2=purchase.bv2,
+        armor_damage=0,
+        structure_damage=0
+    )
+    db.add(new_unit)
+    db.commit()
+    db.refresh(new_unit)
+    return {"message": f"Procured {purchase.chassis} ({purchase.model})!", "unit": new_unit}
+
+@app.post("/api/v1/market/buy-supplies")
+def market_buy_supplies(purchase: MarketPurchaseSuppliesRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.cbill_balance < purchase.cbill_cost or campaign.wp_balance < purchase.wp_cost:
+        raise HTTPException(status_code=400, detail="Insufficient treasury funds or WP!")
+
+    campaign.cbill_balance -= purchase.cbill_cost
+    campaign.wp_balance -= purchase.wp_cost
+    campaign.sp_balance += purchase.sp_amount
+
+    db.commit()
+    return {"message": f"Supplies purchased! +{purchase.sp_amount} Support Points credited.", "sp_balance": campaign.sp_balance}
 
 @app.get("/api/v1/missions")
 def get_missions(db: Session = Depends(get_db)):
