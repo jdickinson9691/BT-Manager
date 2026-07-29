@@ -1,13 +1,41 @@
 ﻿import React, { useState, useEffect } from "react";
 
 export default function Dashboard() {
-  const [balance, setBalance] = useState({ WP: 1000, SP: 500, CBills: 15000000 });
+  const [balance, setBalance] = useState({ WP: 1000, SP: 500, CBills: 15000000, current_date: "3025-01-01", daily_overhead: 5000 });
   const [units, setUnits] = useState([]);
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [logs, setLogs] = useState([]);
 
-  // Form States
+  // Help Modal State
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Timeline State
+  const [customJournalNote, setCustomJournalNote] = useState("");
+
+  // Direct Unit Form State
+  const [chassis, setChassis] = useState("");
+  const [model, setModel] = useState("");
+  const [tonnage, setTonnage] = useState(55);
+  const [unitTechBase, setUnitTechBase] = useState("Inner Sphere");
+  const [bv2, setBv2] = useState(1200);
+
+  // Mission Draft Form State
+  const [missionName, setMissionName] = useState("");
+  const [missionType, setMissionType] = useState("Raid");
+  const [employer, setEmployer] = useState("House Davion");
+  const [wpReward, setWpReward] = useState(350);
+  const [cbillReward, setCbillReward] = useState(3000000);
+
+  // Pilot Recruit Form State
+  const [pilotName, setPilotName] = useState("");
+  const [callsign, setCallsign] = useState("");
+  const [gunnery, setGunnery] = useState(4);
+  const [piloting, setPiloting] = useState(5);
+  const [assignedUnitId, setAssignedUnitId] = useState("");
+
+  // Warehouse Manual Add State
   const [newItemName, setNewItemName] = useState("PPC");
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemCategory, setNewItemCategory] = useState("Weapon");
@@ -72,12 +100,20 @@ export default function Dashboard() {
       .catch(() => {});
   };
 
+  const fetchLogs = () => {
+    fetch("http://localhost:8000/api/v1/logs")
+      .then((res) => res.json())
+      .then((data) => setLogs(data))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchBalance();
     fetchUnits();
     fetchMissions();
     fetchPilots();
     fetchInventory();
+    fetchLogs();
   }, []);
 
   useEffect(() => {
@@ -98,6 +134,142 @@ export default function Dashboard() {
   const handlePrintWorkOrder = (unit) => {
     setSelectedWorkOrderUnit(unit);
     setPrintMode("work-order");
+  };
+
+  const handleAdvanceTime = async (daysToAdvance) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: Number(daysToAdvance) }),
+      });
+      if (res.ok) {
+        fetchBalance();
+        fetchLogs();
+      }
+    } catch (err) {
+      console.error("Failed to advance time", err);
+    }
+  };
+
+  const handleAddJournalEntry = async (e) => {
+    e.preventDefault();
+    if (!customJournalNote) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "Journal", description: customJournalNote }),
+      });
+      if (res.ok) {
+        setCustomJournalNote("");
+        fetchLogs();
+      }
+    } catch (err) {
+      console.error("Failed to add journal entry", err);
+    }
+  };
+
+  const handleAddUnit = async (e) => {
+    e.preventDefault();
+    if (!chassis || !model) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chassis,
+          model,
+          tonnage: Number(tonnage),
+          tech_base: unitTechBase,
+          bv2: Number(bv2),
+        }),
+      });
+
+      if (res.ok) {
+        setChassis("");
+        setModel("");
+        fetchUnits();
+      }
+    } catch (err) {
+      console.error("Failed to add unit", err);
+    }
+  };
+
+  const handleCreateMission = async (e) => {
+    e.preventDefault();
+    if (!missionName) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/missions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: missionName,
+          mission_type: missionType,
+          employer,
+          wp_reward: Number(wpReward),
+          cbill_reward: Number(cbillReward),
+        }),
+      });
+
+      if (res.ok) {
+        setMissionName("");
+        fetchMissions();
+      }
+    } catch (err) {
+      console.error("Failed to create mission", err);
+    }
+  };
+
+  const handleRecruitPilot = async (e) => {
+    e.preventDefault();
+    if (!pilotName || !callsign) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/pilots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pilotName,
+          callsign,
+          gunnery: Number(gunnery),
+          piloting: Number(piloting),
+          unit_id: assignedUnitId ? Number(assignedUnitId) : null,
+        }),
+      });
+
+      if (res.ok) {
+        setPilotName("");
+        setCallsign("");
+        fetchPilots();
+      }
+    } catch (err) {
+      console.error("Failed to recruit pilot", err);
+    }
+  };
+
+  const handleBuyMarketUnit = async (unitData) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/market/buy-unit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(unitData),
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        fetchUnits();
+        alert(`Successfully procured ${unitData.chassis} (${unitData.model})!`);
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Market procurement failed!");
+      }
+    } catch (err) {
+      console.error("Failed to buy unit", err);
+    }
   };
 
   const handleAddInventory = async (e) => {
@@ -158,8 +330,9 @@ export default function Dashboard() {
         fetchUnits();
         fetchMissions();
         fetchInventory();
+        fetchLogs();
         setAarLogs({});
-        alert("After-Action Report submitted! Treasury & Warehouse Inventory updated.");
+        alert("After-Action Report submitted! Treasury, Units, and Warehouse Inventory updated.");
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to submit AAR");
@@ -167,14 +340,6 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Failed to submit AAR", err);
     }
-  };
-
-  const handleAddComponentToLocation = () => {
-    if (!selectedLocation || !selectedComponent) return;
-    setLocationLoadout((prev) => ({
-      ...prev,
-      [selectedLocation]: [...(prev[selectedLocation] || []), selectedComponent],
-    }));
   };
 
   const handleClearLocation = (loc) => {
@@ -208,7 +373,6 @@ export default function Dashboard() {
       return;
     }
 
-    // Collect list of all mounted components across locations
     const allComponents = Object.values(locationLoadout).flat();
 
     try {
@@ -232,6 +396,7 @@ export default function Dashboard() {
         fetchBalance();
         fetchUnits();
         fetchInventory();
+        fetchLogs();
 
         let msg = "Custom loadout successfully committed to Active Roster!";
         if (data.used_from_warehouse && data.used_from_warehouse.length > 0) {
@@ -274,6 +439,7 @@ export default function Dashboard() {
       if (res.ok) {
         fetchBalance();
         fetchUnits();
+        fetchLogs();
       } else {
         const errData = await res.json();
         alert(errData.detail || "Repair failed!");
@@ -324,6 +490,7 @@ export default function Dashboard() {
   return (
     <div style={{ padding: "24px", fontFamily: "sans-serif", backgroundColor: "#0d1117", color: "#c9d1d9", minHeight: "100vh" }}>
       
+      {/* PRINT STYLES */}
       <style>{`
         @media print {
           body { background-color: #fff !important; color: #000 !important; font-family: monospace !important; }
@@ -377,20 +544,6 @@ export default function Dashboard() {
               </tr>
             </tbody>
           </table>
-
-          <br /><br />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "20px" }}>
-            <div>
-              <p style={{ margin: "0 0 8px 0" }}><strong>CHIEF TECH SIGN-OFF:</strong></p>
-              <p>Signature: ___________________________</p>
-              <p>Date: ________________________________</p>
-            </div>
-            <div>
-              <p style={{ margin: "0 0 8px 0" }}><strong>WORK DISPATCH STATUS:</strong></p>
-              <p>[  ] APPROVED FOR WORK</p>
-              <p>[  ] WORK COMPLETED</p>
-            </div>
-          </div>
         </div>
       )}
 
@@ -438,15 +591,141 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MAIN DASHBOARD */}
+      {/* IN-APP HELP FILE MODAL */}
+      {showHelpModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.85)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px" }}>
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "8px", width: "850px", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}>
+            
+            {/* Modal Header */}
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #30363d", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "20px" }}>📖</span>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#fbbf24" }}>BT-Manager Field Reference Manual &amp; Documentation</h2>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#30363d", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
+                ✖ Close
+              </button>
+            </div>
+
+            {/* Modal Content Scroll Area */}
+            <div style={{ padding: "20px", overflowY: "auto", fontSize: "13px", lineHeight: "1.6", color: "#c9d1d9" }}>
+              
+              {/* TABLE OF CONTENTS */}
+              <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "16px", borderRadius: "6px", marginBottom: "20px" }}>
+                <h3 style={{ margin: "0 0 10px 0", color: "#60a5fa", borderBottom: "1px solid #30363d", paddingBottom: "6px" }}>📑 Table of Contents</h3>
+                <ul style={{ margin: 0, paddingLeft: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  <li><a href="#help-overview" style={{ color: "#34d399", textDecoration: "none" }}>1. Command System Overview</a></li>
+                  <li><a href="#help-warchest" style={{ color: "#34d399", textDecoration: "none" }}>2. Warchest &amp; Treasury Ledger</a></li>
+                  <li><a href="#help-roster" style={{ color: "#34d399", textDecoration: "none" }}>3. Active Roster &amp; Damage Tracking</a></li>
+                  <li><a href="#help-builder" style={{ color: "#34d399", textDecoration: "none" }}>4. Location Loadout Configurator</a></li>
+                  <li><a href="#help-refits" style={{ color: "#34d399", textDecoration: "none" }}>5. Refit Classes &amp; Labor Rules</a></li>
+                  <li><a href="#help-aar" style={{ color: "#34d399", textDecoration: "none" }}>6. After-Action Reports (AAR)</a></li>
+                  <li><a href="#help-warehouse" style={{ color: "#34d399", textDecoration: "none" }}>7. Warehouse &amp; Stock Offsetting</a></li>
+                  <li><a href="#help-timeline" style={{ color: "#34d399", textDecoration: "none" }}>8. Timeline Calendar &amp; Overhead</a></li>
+                  <li><a href="#help-printing" style={{ color: "#34d399", textDecoration: "none" }}>9. Printable Work Orders</a></li>
+                  <li><a href="#help-sources" style={{ color: "#fbbf24", textDecoration: "none", fontWeight: "bold" }}>10. Reference Data Sources</a></li>
+                </ul>
+              </div>
+
+              <hr style={{ borderColor: "#30363d", margin: "20px 0" }} />
+
+              {/* SECTIONS */}
+              <section id="help-overview" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>1. Command System Overview</h3>
+                <p><strong>BT-Manager</strong> is an end-to-end tactical command and logistics desktop engine built for tabletop BattleTech campaign management. It automates force roster maintenance, structural damage tracking, custom refit validation, battlefield salvage recovery, warchest accounting, and printable tech work order generation.</p>
+              </section>
+
+              <section id="help-warchest" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>2. Warchest &amp; Treasury Ledger</h3>
+                <p>The campaign operates on three primary currencies:</p>
+                <ul>
+                  <li><strong>Warchest Points (WP):</strong> Abstract campaign points awarded by faction employers upon contract completion. Used to procure rare Clan/IS BattleMechs or acquire supply crates.</li>
+                  <li><strong>Support Points (SP):</strong> Consumable technical support credits deducted during unit armor/structure repairs and custom loadout refits.</li>
+                  <li><strong>C-Bill Treasury:</strong> Financial currency used for component purchasing, daily unit overhead payroll, and marketplace transactions.</li>
+                </ul>
+              </section>
+
+              <section id="help-roster" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>3. Active Roster &amp; Damage Tracking</h3>
+                <p>Units in your force roster track active <strong>Armor Damage</strong> and <strong>Internal Structure Damage</strong> points. Clicking <strong>+5 / -5 Armor</strong> or <strong>+1 / -1 Struct</strong> modifies damage state. Clicking <strong>Repair &amp; Bill</strong> calculates the total SP and C-Bill repair costs, bills the treasury, and restores the unit to 100% readiness.</p>
+              </section>
+
+              <section id="help-builder" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>4. Location Loadout Configurator</h3>
+                <p>Powered by a native PowerShell engine (running on port 8085), the Configurator validates equipment across 8 body locations: Head (HD), Center Torso (CT), Left Torso (LT), Right Torso (RT), Left Arm (LA), Right Arm (RA), Left Leg (LL), and Right Leg (RL). It validates location slot capacity limits, tonnage limits, calculates new BV2, and determines the Refit Class.</p>
+              </section>
+
+              <section id="help-refits" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>5. Refit Classes &amp; Labor Rules</h3>
+                <p>Refits are automatically classified according to official BattleTech rules:</p>
+                <ul>
+                  <li><strong>Class A (Field - Same Type Weapon Swap):</strong> Minimal labor hours and low SP cost.</li>
+                  <li><strong>Class B (Field - Weapon Type Swap):</strong> Moderate technical modification.</li>
+                  <li><strong>Class C (Maintenance Bay - Location Move):</strong> Requires a dedicated bay facility.</li>
+                  <li><strong>Class D-F (Factory Level - Engine/Gyro/Structure):</strong> Major overhaul requiring extensive labor and factory tools.</li>
+                </ul>
+              </section>
+
+              <section id="help-aar" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>6. After-Action Reports (AAR)</h3>
+                <p>Submit post-battle combat logs to update unit damage or mark destroyed Mechs. Attached contract rewards (WP and C-Bills) as well as cash salvage recovery are automatically processed and credited directly into your treasury ledger.</p>
+              </section>
+
+              <section id="help-warehouse" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>7. Warehouse &amp; Stock Offsetting</h3>
+                <p>Battlefield salvage items (PPCs, Lasers, Heat Sinks) recovered during AARs populate your <strong>Spare Parts Warehouse</strong>. When committing custom loadouts, the system checks warehouse stock first and auto-deducts available components, saving full C-Bill purchase costs.</p>
+              </section>
+
+              <section id="help-timeline" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>8. Timeline Calendar &amp; Overhead</h3>
+                <p>Advance the in-universe campaign calendar by <strong>+1 Day</strong>, <strong>+7 Days</strong>, or <strong>+30 Days</strong>. Time advancement automatically calculates and deducts daily operational overhead ($5,000 C-Bills/day for technician salaries, pilot hazard pay, and JumpShip transit) and logs entries in the <strong>Command Journal</strong>.</p>
+              </section>
+
+              <section id="help-printing" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>9. Printable Work Orders &amp; Summaries</h3>
+                <p>Generate clean, monochrome printouts for physical tabletop play using browser printing controls (`Ctrl + P`):</p>
+                <ul>
+                  <li><strong>Print Campaign Summary:</strong> Displays full campaign ledger status and unit readiness table.</li>
+                  <li><strong>Print Work Order:</strong> Generates a maintenance bay dispatch order complete with Target Numbers and chief tech sign-off blocks.</li>
+                </ul>
+              </section>
+
+              <section id="help-sources" style={{ marginBottom: "10px" }}>
+                <h3 style={{ color: "#fbbf24", borderBottom: "1px solid #fbbf24", paddingBottom: "4px" }}>10. Reference Data Sources</h3>
+                <p>All formulas, equipment costs, labor multipliers, and campaign logistics rules implemented in this application are derived from official BattleTech publications:</p>
+                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "6px", fontFamily: "monospace", fontSize: "12px" }}>
+                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Total Warfare (CAT35001)</strong> - Combat damage, armor/structure ratios, pilot Gunnery/Piloting skills.</p>
+                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: TechManual (CAT35002)</strong> - Component tonnages, critical slot allocations, and Battle Value (BV2) formulas.</p>
+                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Strategic Operations &amp; Campaign Operations (CAT35003/CAT35007)</strong> - Tech repair Target Numbers, labor hours, and Refit Classes (A–F).</p>
+                  <p style={{ margin: "0" }}>📚 <strong>BattleTech: Alpha Strike / Chaos Campaign Rules</strong> - Warchest Points (WP), Support Points (SP), and contract track rewards.</p>
+                </div>
+              </section>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #30363d", backgroundColor: "#0d1117", textAlign: "right" }}>
+              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                Got It
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* HEADER */}
       <header className="no-print" style={{ borderBottom: "1px solid #30363d", paddingBottom: "12px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ color: "#f59e0b", margin: 0, fontSize: "28px" }}>BT-MANAGER</h1>
           <p style={{ color: "#8b949e", margin: "4px 0 0 0", fontSize: "14px" }}>Tactical Campaign Command &amp; Logistics</p>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <button onClick={handlePrintSummary} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
             🖨 Print Campaign Summary
+          </button>
+          <button onClick={() => setShowHelpModal(true)} style={{ backgroundColor: "#d97706", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+            ❓ Help &amp; Reference Manual
           </button>
           <div style={{ border: "1px solid #238636", backgroundColor: "#0e2a1f", padding: "6px 14px", borderRadius: "20px", color: "#3fb950", fontSize: "12px", fontWeight: "bold" }}>
             ● FASTAPI ONLINE
@@ -457,68 +736,85 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Dashboard Grid */}
+      {/* MAIN DASHBOARD UI */}
       <div className="no-print">
-        {/* Stat Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        
+        {/* STAT CARDS & CALENDAR */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #3b82f6", padding: "16px", borderRadius: "8px" }}>
+            <p style={{ fontSize: "11px", color: "#60a5fa", margin: 0, textTransform: "uppercase" }}>Campaign Date</p>
+            <p style={{ fontSize: "24px", color: "#fff", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>{balance.current_date || "3025-01-01"}</p>
+          </div>
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "16px", borderRadius: "8px" }}>
             <p style={{ fontSize: "11px", color: "#8b949e", margin: 0, textTransform: "uppercase" }}>Warchest Balance</p>
-            <p style={{ fontSize: "26px", color: "#fbbf24", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>{balance.WP || 0} WP</p>
+            <p style={{ fontSize: "24px", color: "#fbbf24", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>{balance.WP || 0} WP</p>
           </div>
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "16px", borderRadius: "8px" }}>
             <p style={{ fontSize: "11px", color: "#8b949e", margin: 0, textTransform: "uppercase" }}>Support Points</p>
-            <p style={{ fontSize: "26px", color: "#60a5fa", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>{balance.SP || 0} SP</p>
+            <p style={{ fontSize: "24px", color: "#60a5fa", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>{balance.SP || 0} SP</p>
           </div>
           <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "16px", borderRadius: "8px" }}>
             <p style={{ fontSize: "11px", color: "#8b949e", margin: 0, textTransform: "uppercase" }}>C-Bill Treasury</p>
-            <p style={{ fontSize: "26px", color: "#34d399", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>${(balance.CBills || 0).toLocaleString()}</p>
+            <p style={{ fontSize: "24px", color: "#34d399", margin: "6px 0 0 0", fontFamily: "monospace", fontWeight: "bold" }}>${(balance.CBills || 0).toLocaleString()}</p>
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          {/* Left Column */}
+          
+          {/* LEFT COLUMN */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             
-            {/* Component Inventory & Salvage Warehouse Panel */}
+            {/* Campaign Timeline & Time Fast-Forward */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
-                <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Spare Parts Warehouse</h2>
-                <span style={{ fontSize: "11px", backgroundColor: "#0e2a1f", color: "#3fb950", padding: "4px 8px", borderRadius: "4px", border: "1px solid #238636" }}>Warehouse Stock</span>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Campaign Timeline &amp; Time Controls</h2>
+                <span style={{ fontSize: "11px", backgroundColor: "#1e293b", color: "#60a5fa", padding: "4px 8px", borderRadius: "4px", border: "1px solid #3b82f6" }}>In-Universe Calendar</span>
               </div>
 
-              {inventory.length === 0 ? (
-                <p style={{ color: "#8b949e", fontSize: "13px", fontStyle: "italic" }}>Warehouse stock empty. Log salvage from After-Action Reports to stock spare parts.</p>
+              <p style={{ fontSize: "12px", color: "#8b949e", margin: "0 0 12px 0" }}>
+                Daily Overhead: <strong style={{ color: "#ef4444" }}>${(balance.daily_overhead || 5000).toLocaleString()} C-Bills/day</strong>
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+                <button onClick={() => handleAdvanceTime(1)} style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  +1 Day (-$5k)
+                </button>
+                <button onClick={() => handleAdvanceTime(7)} style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  +7 Days (-$35k)
+                </button>
+                <button onClick={() => handleAdvanceTime(30)} style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  +30 Days (-$150k)
+                </button>
+              </div>
+
+              <form onSubmit={handleAddJournalEntry} style={{ borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", gap: "8px" }}>
+                <input type="text" placeholder="Write entry into Command Journal..." value={customJournalNote} onChange={(e) => setCustomJournalNote(e.target.value)} required style={{ flex: 1, backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", fontSize: "12px" }} />
+                <button type="submit" style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Log Entry
+                </button>
+              </form>
+            </div>
+
+            {/* Command Journal Feed */}
+            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+              <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Command Journal &amp; Event Log</h2>
+              {logs.length === 0 ? (
+                <p style={{ color: "#8b949e", fontSize: "13px", fontStyle: "italic" }}>No log entries recorded yet.</p>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
-                  {inventory.map((inv) => (
-                    <div key={inv.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 12px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <strong style={{ color: "#fff", fontSize: "13px" }}>{inv.component_name}</strong>
-                        <br />
-                        <small style={{ color: "#8b949e" }}>{inv.category}</small>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto" }}>
+                  {logs.map((log) => (
+                    <div key={log.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 12px", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "11px", color: "#60a5fa", fontFamily: "monospace" }}>[{log.log_date}]</span>
+                        <span style={{ fontSize: "10px", backgroundColor: "#1e293b", color: "#fbbf24", padding: "2px 6px", borderRadius: "4px", border: "1px solid #30363d" }}>
+                          {log.event_type}
+                        </span>
                       </div>
-                      <span style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold", fontSize: "12px" }}>
-                        x{inv.quantity}
-                      </span>
+                      <p style={{ margin: 0, fontSize: "12px", color: "#c9d1d9" }}>{log.description}</p>
                     </div>
                   ))}
                 </div>
               )}
-
-              {/* Manual Inventory Add Form */}
-              <form onSubmit={handleAddInventory} style={{ borderTop: "1px solid #30363d", paddingTop: "12px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "8px" }}>
-                <input type="text" placeholder="Component (e.g. PPC)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                <input type="number" min="1" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
-                  <option value="Weapon">Weapon</option>
-                  <option value="Equipment">Equipment</option>
-                  <option value="Ammo">Ammo</option>
-                  <option value="Salvage">Salvage</option>
-                </select>
-                <button type="submit" style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
-                  + Add Stock
-                </button>
-              </form>
             </div>
 
             {/* AAR Card */}
@@ -550,8 +846,8 @@ export default function Dashboard() {
                         <strong style={{ color: "#fff", fontSize: "14px" }}>{u.chassis}</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>({u.model})</span>
                       </div>
                       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <input type="number" placeholder="Armor Lost" value={log.armor_loss || ""} onChange={(e) => handleAarLogChange(u.id, "armor_loss", e.target.value)} style={{ width: "90px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                        <input type="number" placeholder="Struct Lost" value={log.structure_loss || ""} onChange={(e) => handleAarLogChange(u.id, "structure_loss", e.target.value)} style={{ width: "90px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                        <input type="number" placeholder="Armor Lost" value={log.armor_loss || ""} onChange={(e) => handleAarLogChange(u.id, "armor_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                        <input type="number" placeholder="Struct Lost" value={log.structure_loss || ""} onChange={(e) => handleAarLogChange(u.id, "structure_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
                         <label style={{ fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
                           <input type="checkbox" checked={log.is_destroyed || false} onChange={(e) => handleAarLogChange(u.id, "is_destroyed", e.target.checked)} /> Destroyed
                         </label>
@@ -575,11 +871,11 @@ export default function Dashboard() {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                 <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS NAME</label>
+                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>CHASSIS</label>
                   <input type="text" value={builderChassis} onChange={(e) => setBuilderChassis(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>VARIANT MODEL</label>
+                  <label style={{ fontSize: "11px", color: "#8b949e", display: "block", marginBottom: "4px" }}>MODEL</label>
                   <input type="text" value={builderModel} onChange={(e) => setBuilderModel(e.target.value)} style={{ width: "100%", backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "8px", borderRadius: "4px", boxSizing: "border-box" }} />
                 </div>
                 <div>
@@ -627,16 +923,62 @@ export default function Dashboard() {
               )}
             </div>
 
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            
+            {/* Warehouse */}
+            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Spare Parts Warehouse</h2>
+                <span style={{ fontSize: "11px", backgroundColor: "#0e2a1f", color: "#3fb950", padding: "4px 8px", borderRadius: "4px", border: "1px solid #238636" }}>Warehouse Stock</span>
+              </div>
+
+              {inventory.length === 0 ? (
+                <p style={{ color: "#8b949e", fontSize: "13px", fontStyle: "italic" }}>Warehouse stock empty.</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                  {inventory.map((inv) => (
+                    <div key={inv.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 12px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{inv.component_name}</strong>
+                        <br />
+                        <small style={{ color: "#8b949e" }}>{inv.category}</small>
+                      </div>
+                      <span style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold", fontSize: "12px" }}>
+                        x{inv.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleAddInventory} style={{ borderTop: "1px solid #30363d", paddingTop: "12px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "8px" }}>
+                <input type="text" placeholder="Component (e.g. PPC)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                <input type="number" min="1" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                  <option value="Weapon">Weapon</option>
+                  <option value="Equipment">Equipment</option>
+                  <option value="Ammo">Ammo</option>
+                  <option value="Salvage">Salvage</option>
+                </select>
+                <button type="submit" style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Add
+                </button>
+              </form>
+            </div>
+
             {/* Active Force Roster */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Active Force Roster</h2>
               {units.map((unit) => {
-                const isDamaged = (unit.armor_damage > 0) || (unit.structure_damage > 0);
+                const isDamaged = unit.armor_damage > 0 || unit.structure_damage > 0;
                 return (
-                  <div key={unit.id} style={{ backgroundColor: "#0d1117", padding: "14px 16px", borderRadius: "6px", border: isDamaged ? "1px solid #ef4444" : "1px solid #30363d", marginBottom: "12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <div key={unit.id} style={{ backgroundColor: "#0d1117", padding: "12px 14px", borderRadius: "6px", border: isDamaged ? "1px solid #ef4444" : "1px solid #30363d", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                       <div>
-                        <strong style={{ color: "#ffffff", fontSize: "16px" }}>{unit.chassis}</strong> <span style={{ color: "#8b949e" }}>{unit.model}</span>
+                        <strong style={{ color: "#ffffff", fontSize: "15px" }}>{unit.chassis}</strong> <span style={{ color: "#8b949e" }}>({unit.model})</span>
                         <br />
                         <small style={{ color: "#8b949e" }}>{unit.tonnage} Tons | {unit.tech_base}</small>
                       </div>
@@ -649,15 +991,14 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", border: "1px solid #30363d" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", border: "1px solid #30363d" }}>
                       <div>
-                        <span style={{ color: unit.armor_damage > 0 ? "#f87171" : "#8b949e" }}>Armor Dmg: <strong>{unit.armor_damage}</strong></span>
-                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 5, 0)} style={{ marginLeft: "6px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>+5</button>
-                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, -5, 0)} style={{ marginLeft: "3px", padding: "2px 6px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}>-5</button>
+                        <span>Armor Dmg: <strong>{unit.armor_damage}</strong></span>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 5, 0)} style={{ marginLeft: "6px", padding: "1px 5px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }}>+5</button>
+                        <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, -5, 0)} style={{ marginLeft: "2px", padding: "1px 5px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }}>-5</button>
                       </div>
-
                       {isDamaged && (
-                        <button onClick={() => handleRepairUnit(unit.id)} style={{ backgroundColor: "#d97706", color: "#000", border: "none", padding: "4px 8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                        <button onClick={() => handleRepairUnit(unit.id)} style={{ backgroundColor: "#d97706", color: "#000", border: "none", padding: "3px 6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}>
                           Repair &amp; Bill
                         </button>
                       )}
@@ -665,22 +1006,64 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+
+              {/* Direct Add Unit Form */}
+              <form onSubmit={handleAddUnit} style={{ marginTop: "12px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <strong style={{ fontSize: "12px", color: "#f0f6fc" }}>Direct Add Mech to Roster</strong>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <input type="text" placeholder="Chassis (e.g. Warhammer)" value={chassis} onChange={(e) => setChassis(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="text" placeholder="Model (e.g. WHM-6R)" value={model} onChange={(e) => setModel(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                  <input type="number" placeholder="Tonnage" value={tonnage} onChange={(e) => setTonnage(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <select value={unitTechBase} onChange={(e) => setUnitTechBase(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                    <option value="Inner Sphere">Inner Sphere</option>
+                    <option value="Clan">Clan</option>
+                  </select>
+                  <input type="number" placeholder="BV2" value={bv2} onChange={(e) => setBv2(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                </div>
+                <button type="submit" style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Add Mech
+                </button>
+              </form>
             </div>
 
-          </div>
-
-          {/* Right Column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            
-            {/* Salvage & Warchest Marketplace */}
+            {/* Salvage & Market */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Warchest Market</h2>
+              
+              <strong style={{ fontSize: "12px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Procure BattleMechs</strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "8px 10px", borderRadius: "6px", border: "1px solid #30363d" }}>
+                  <div>
+                    <strong style={{ color: "#fff", fontSize: "13px" }}>Timber Wolf (Mad Cat)</strong> <small style={{ color: "#8b949e" }}>Prime (75T Clan)</small>
+                    <br />
+                    <small style={{ color: "#34d399" }}>$12.5M C-Bills</small> | <small style={{ color: "#fbbf24" }}>200 WP</small>
+                  </div>
+                  <button onClick={() => handleBuyMarketUnit({ chassis: "Timber Wolf", model: "Prime", tonnage: 75, tech_base: "Clan", bv2: 2737, cbill_cost: 12500000, wp_cost: 200 })} style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                    Buy Mech
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "8px 10px", borderRadius: "6px", border: "1px solid #30363d" }}>
+                  <div>
+                    <strong style={{ color: "#fff", fontSize: "13px" }}>Atlas</strong> <small style={{ color: "#8b949e" }}>AS7-D (100T IS)</small>
+                    <br />
+                    <small style={{ color: "#34d399" }}>$9.6M C-Bills</small> | <small style={{ color: "#fbbf24" }}>150 WP</small>
+                  </div>
+                  <button onClick={() => handleBuyMarketUnit({ chassis: "Atlas", model: "AS7-D", tonnage: 100, tech_base: "Inner Sphere", bv2: 1897, cbill_cost: 9600000, wp_cost: 150 })} style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                    Buy Mech
+                  </button>
+                </div>
+              </div>
+
+              <strong style={{ fontSize: "12px", color: "#60a5fa", display: "block", marginBottom: "8px" }}>Supply Depot Stock</strong>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => handleBuyMarketSupplies(100, 250000, 25)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
-                  +100 SP Crate ($250k)
+                <button onClick={() => handleBuyMarketSupplies(100, 250000, 25)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "8px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                  +100 SP ($250k)
                 </button>
-                <button onClick={() => handleBuyMarketSupplies(500, 1000000, 100)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
-                  +500 SP Depot Stock ($1M)
+                <button onClick={() => handleBuyMarketSupplies(500, 1000000, 100)} style={{ flex: 1, backgroundColor: "#1e3a8a", color: "#60a5fa", border: "1px solid #3b82f6", padding: "8px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                  +500 SP ($1M)
                 </button>
               </div>
             </div>
@@ -689,38 +1072,81 @@ export default function Dashboard() {
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Campaign Missions &amp; Contracts</h2>
               {missions.map((mission) => (
-                <div key={mission.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "12px 16px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "10px" }}>
+                <div key={mission.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "10px 14px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "8px" }}>
                   <div>
-                    <strong style={{ color: "#ffffff", fontSize: "15px" }}>{mission.name}</strong>
+                    <strong style={{ color: "#ffffff", fontSize: "14px" }}>{mission.name}</strong>
                     <br />
                     <small style={{ color: "#8b949e" }}>Reward: <span style={{ color: "#fbbf24" }}>{mission.wp_reward} WP</span> + <span style={{ color: "#34d399" }}>${(mission.cbill_reward || 0).toLocaleString()}</span></small>
                   </div>
                   <div>
                     {mission.status === "Active" ? (
-                      <button onClick={() => handleCompleteMission(mission.id)} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "12px" }}>
+                      <button onClick={() => handleCompleteMission(mission.id)} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "11px" }}>
                         Complete
                       </button>
                     ) : (
-                      <span style={{ color: "#4ade80", fontSize: "12px", fontWeight: "bold" }}>✔ COMPLETED</span>
+                      <span style={{ color: "#4ade80", fontSize: "11px", fontWeight: "bold" }}>✔ COMPLETED</span>
                     )}
                   </div>
                 </div>
               ))}
+
+              {/* Draft Contract Form */}
+              <form onSubmit={handleCreateMission} style={{ marginTop: "12px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <strong style={{ fontSize: "12px", color: "#f0f6fc" }}>Draft New Contract</strong>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <input type="text" placeholder="Operation Title" value={missionName} onChange={(e) => setMissionName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="text" placeholder="Employer" value={employer} onChange={(e) => setEmployer(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                  <select value={missionType} onChange={(e) => setMissionType(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                    <option value="Raid">Raid</option>
+                    <option value="Garrison Duty">Garrison Duty</option>
+                    <option value="Assault">Assault</option>
+                  </select>
+                  <input type="number" placeholder="WP Reward" value={wpReward} onChange={(e) => setWpReward(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="number" placeholder="C-Bills" value={cbillReward} onChange={(e) => setCbillReward(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                </div>
+                <button type="submit" style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Issue Contract Offer
+                </button>
+              </form>
             </div>
 
             {/* Personnel */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel</h2>
               {pilots.map((p) => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "10px 14px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "8px" }}>
+                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "8px 12px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "6px" }}>
                   <div>
-                    <strong style={{ color: "#ffffff", fontSize: "15px" }}>{p.name}</strong> <span style={{ color: "#a78bfa" }}>"{p.callsign}"</span>
+                    <strong style={{ color: "#ffffff", fontSize: "14px" }}>{p.name}</strong> <span style={{ color: "#a78bfa" }}>"{p.callsign}"</span>
                   </div>
-                  <div style={{ textAlign: "right", fontFamily: "monospace", color: "#fbbf24" }}>
+                  <div style={{ textAlign: "right", fontFamily: "monospace", color: "#fbbf24", fontSize: "12px" }}>
                     G{p.gunnery} / P{p.piloting}
                   </div>
                 </div>
               ))}
+
+              {/* Recruit Pilot Form */}
+              <form onSubmit={handleRecruitPilot} style={{ marginTop: "12px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <strong style={{ fontSize: "12px", color: "#f0f6fc" }}>Recruit MechWarrior</strong>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <input type="text" placeholder="Pilot Name" value={pilotName} onChange={(e) => setPilotName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="text" placeholder='Callsign' value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: "8px" }}>
+                  <input type="number" min="0" max="8" placeholder="Gunnery" value={gunnery} onChange={(e) => setGunnery(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="number" min="0" max="8" placeholder="Piloting" value={piloting} onChange={(e) => setPiloting(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <select value={assignedUnitId} onChange={(e) => setAssignedUnitId(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                    <option value="">Unassigned</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>{u.chassis} ({u.model})</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Recruit MechWarrior
+                </button>
+              </form>
             </div>
 
           </div>

@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 
 from packages.database.db import init_db, get_db
-from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory
+from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory, CampaignLog
 from packages.engine.repair import (
     RepairRequest, 
     RefitRequest, 
@@ -27,6 +28,13 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+class AdvanceTimeRequest(BaseModel):
+    days: int = 1
+
+class CustomLogCreate(BaseModel):
+    event_type: str = "Journal"
+    description: str
 
 class UnitCreate(BaseModel):
     chassis: str
@@ -93,8 +101,67 @@ def read_root():
 def get_balance(db: Session = Depends(get_db)):
     campaign = db.query(Campaign).first()
     if not campaign:
-        return {"WP": 0, "SP": 0, "CBills": 0}
-    return {"WP": campaign.wp_balance, "SP": campaign.sp_balance, "CBills": campaign.cbill_balance}
+        return {"WP": 0, "SP": 0, "CBills": 0, "current_date": "3025-01-01", "daily_overhead": 5000.0}
+    return {
+        "WP": campaign.wp_balance, 
+        "SP": campaign.sp_balance, 
+        "CBills": campaign.cbill_balance,
+        "current_date": campaign.current_date,
+        "daily_overhead": campaign.daily_overhead
+    }
+
+@app.post("/api/v1/timeline/advance")
+def advance_campaign_time(req: AdvanceTimeRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign state not found")
+
+    # Advance In-Universe Date
+    current_dt = datetime.strptime(campaign.current_date, "%Y-%m-%d")
+    new_dt = current_dt + timedelta(days=req.days)
+    campaign.current_date = new_dt.strftime("%Y-%m-%d")
+
+    # Calculate Overhead Payroll/Maintenance
+    overhead_cost = campaign.daily_overhead * req.days
+    campaign.cbill_balance -= overhead_cost
+
+    # Add Log Entry
+    log_entry = CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Timeline",
+        description=f"Advanced campaign time by {req.days} days. Daily overhead incurred:  C-Bills."
+    )
+    db.add(log_entry)
+    db.commit()
+
+    return {
+        "message": f"Advanced {req.days} days to {campaign.current_date}",
+        "current_date": campaign.current_date,
+        "overhead_deducted": overhead_cost,
+        "cbill_balance": campaign.cbill_balance
+    }
+
+@app.get("/api/v1/logs")
+def get_campaign_logs(db: Session = Depends(get_db)):
+    return db.query(CampaignLog).order_by(CampaignLog.id.desc()).all()
+
+@app.post("/api/v1/logs")
+def add_custom_log(log_data: CustomLogCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign state not found")
+
+    new_log = CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type=log_data.event_type,
+        description=log_data.description
+    )
+    db.add(new_log)
+    db.commit()
+    db.refresh(new_log)
+    return new_log
 
 @app.get("/api/v1/units")
 def get_units(db: Session = Depends(get_db)):
@@ -173,6 +240,14 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             else:
                 db.add(Inventory(campaign_id=campaign.id, component_name=comp, quantity=1, category="Salvage"))
 
+    # Log AAR Event
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="AAR",
+        description=f"Submitted After-Action Report. Salvage value recovered:  C-Bills."
+    ))
+
     db.commit()
     return {"message": "After-Action Report processed! Treasury, Units, and Salvage Warehouse updated."}
 
@@ -182,7 +257,6 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign state not found")
 
-    # Consume components from Warehouse Stock to offset C-Bill cost
     discounted_cbill_cost = req.cbill_cost
     used_from_warehouse = []
 
@@ -204,36 +278,39 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
     campaign.sp_balance -= req.sp_cost
     campaign.cbill_balance -= discounted_cbill_cost
 
+    unit_name = f"{req.chassis} ({req.model})"
     if req.unit_id:
         unit = db.query(Unit).filter(Unit.id == req.unit_id).first()
         if unit:
             unit.model = req.model
             unit.bv2 = req.bv2
             unit.tonnage = req.tonnage
-            db.commit()
-            db.refresh(unit)
-            return {
-                "message": f"Successfully updated {unit.chassis} to {unit.model}!", 
-                "unit": unit,
-                "used_from_warehouse": used_from_warehouse
-            }
+            unit_name = f"{unit.chassis} ({unit.model})"
 
-    new_unit = Unit(
+    else:
+        unit = Unit(
+            campaign_id=campaign.id,
+            chassis=req.chassis,
+            model=req.model,
+            tonnage=req.tonnage,
+            tech_base="Inner Sphere",
+            bv2=req.bv2,
+            armor_damage=0,
+            structure_damage=0
+        )
+        db.add(unit)
+
+    # Add Refit Log Entry
+    db.add(CampaignLog(
         campaign_id=campaign.id,
-        chassis=req.chassis,
-        model=req.model,
-        tonnage=req.tonnage,
-        tech_base="Inner Sphere",
-        bv2=req.bv2,
-        armor_damage=0,
-        structure_damage=0
-    )
-    db.add(new_unit)
+        log_date=campaign.current_date,
+        event_type="Refit",
+        description=f"Custom loadout refit applied to {unit_name}. Billed {req.sp_cost} SP &  C-Bills."
+    ))
+
     db.commit()
-    db.refresh(new_unit)
     return {
-        "message": f"Successfully commissioned new custom unit {new_unit.chassis} ({new_unit.model})!", 
-        "unit": new_unit,
+        "message": f"Successfully commissioned custom unit {unit_name}!", 
         "used_from_warehouse": used_from_warehouse
     }
 
@@ -277,6 +354,14 @@ def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
 
     unit.armor_damage = 0
     unit.structure_damage = 0
+
+    # Log Repair Event
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Repair",
+        description=f"Repaired battle damage for {unit.chassis} ({unit.model}). Billed {total_sp} SP &  C-Bills."
+    ))
 
     db.commit()
     return {"message": f"Successfully repaired {unit.chassis}!", "unit": unit}

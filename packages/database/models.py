@@ -1,27 +1,42 @@
-﻿from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+﻿from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from packages.database.db import Base
 
 class Campaign(Base):
     __tablename__ = "campaigns"
 
-    id = Column(Integer, primary_order=True, primary_key=True, index=True)
-    name = Column(String, default="Mercenary Command")
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, default="Mercenary Unit")
     wp_balance = Column(Integer, default=1000)
     sp_balance = Column(Integer, default=500)
     cbill_balance = Column(Float, default=15000000.0)
+    current_date = Column(String, default="3025-01-01")
+    daily_overhead = Column(Float, default=5000.0)
 
     units = relationship("Unit", back_populates="campaign")
     missions = relationship("Mission", back_populates="campaign")
     pilots = relationship("Pilot", back_populates="campaign")
     inventory = relationship("Inventory", back_populates="campaign")
+    logs = relationship("CampaignLog", back_populates="campaign")
+
+class CampaignLog(Base):
+    __tablename__ = "campaign_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
+    log_date = Column(String)
+    event_type = Column(String) # e.g., "AAR", "Refit", "Payroll", "Contract"
+    description = Column(String)
+
+    campaign = relationship("Campaign", back_populates="logs")
 
 class Unit(Base):
     __tablename__ = "units"
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"))
-    chassis = Column(String, index=True)
+    chassis = Column(String)
     model = Column(String)
     tonnage = Column(Integer)
     tech_base = Column(String, default="Inner Sphere")
@@ -32,16 +47,27 @@ class Unit(Base):
     campaign = relationship("Campaign", back_populates="units")
     pilots = relationship("Pilot", back_populates="assigned_unit")
 
+class Inventory(Base):
+    __tablename__ = "inventory"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
+    component_name = Column(String)
+    quantity = Column(Integer, default=1)
+    category = Column(String, default="Weapon")
+
+    campaign = relationship("Campaign", back_populates="inventory")
+
 class Mission(Base):
     __tablename__ = "missions"
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"))
     name = Column(String)
-    mission_type = Column(String, default="Raid")
-    employer = Column(String, default="Mercenary Review Board")
-    wp_reward = Column(Integer, default=300)
-    cbill_reward = Column(Float, default=2500000.0)
+    mission_type = Column(String)
+    employer = Column(String)
+    wp_reward = Column(Integer)
+    cbill_reward = Column(Float)
     status = Column(String, default="Active")
 
     campaign = relationship("Campaign", back_populates="missions")
@@ -60,14 +86,3 @@ class Pilot(Base):
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
-
-class Inventory(Base):
-    __tablename__ = "inventory"
-
-    id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
-    component_name = Column(String, index=True)
-    quantity = Column(Integer, default=1)
-    category = Column(String, default="Weapon")  # Weapon, Equipment, Ammo
-
-    campaign = relationship("Campaign", back_populates="inventory")
