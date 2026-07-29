@@ -60,9 +60,13 @@ class UnitDamageUpdate(BaseModel):
 class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
-    employer: str = "Mercenary Review Board"
-    wp_reward: int = 300
-    cbill_reward: float = 2500000.0
+    employer: str = "House Davion"
+    base_cbill: float = 3000000.0
+    wp_reward: int = 350
+    salvage_rights: str = "Shared (50%)"
+    blc_coverage: float = 0.5
+    transport_allowance: float = 0.5
+    command_rights: str = "Integrated"
 
 class PilotCreate(BaseModel):
     name: str
@@ -70,9 +74,6 @@ class PilotCreate(BaseModel):
     gunnery: int = 4
     piloting: int = 5
     unit_id: Optional[int] = None
-
-class PilotInjuryUpdate(BaseModel):
-    injuries: int # 0 to 6
 
 class MarketPurchaseSuppliesRequest(BaseModel):
     sp_amount: int = 0
@@ -139,7 +140,6 @@ def advance_campaign_time(req: AdvanceTimeRequest, db: Session = Depends(get_db)
     overhead_cost = campaign.daily_overhead * req.days
     campaign.cbill_balance -= overhead_cost
 
-    # Process Pilot Medical Recoveries
     pilots = db.query(Pilot).filter(Pilot.status == "Injured").all()
     recovered_names = []
     for p in pilots:
@@ -256,6 +256,8 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign state not found")
 
+    total_est_repair_cost = 0.0
+
     for log in aar.unit_logs:
         unit = db.query(Unit).filter(Unit.id == log.unit_id).first()
         if unit:
@@ -264,6 +266,9 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             else:
                 unit.armor_damage += log.armor_loss
                 unit.structure_damage += log.structure_loss
+                
+                # Estimate repair cost for BLC calculations
+                total_est_repair_cost += (log.armor_loss * 500.0) + (log.structure_loss * 2500.0)
 
                 if log.critical_hits:
                     for crit in log.critical_hits:
@@ -273,8 +278,8 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                             component_name=crit.component_name,
                             is_destroyed=True
                         ))
+                        total_est_repair_cost += 100000.0
 
-    # Process Pilot Injury Logs
     if aar.pilot_logs:
         for plog in aar.pilot_logs:
             pilot = db.query(Pilot).filter(Pilot.id == plog.pilot_id).first()
@@ -285,8 +290,10 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                     pilot.days_remaining = 0
                 else:
                     pilot.status = "Injured"
-                    # 15 days recovery per injury hit taken
                     pilot.days_remaining = pilot.injuries * 15
+
+    blc_payout = 0.0
+    salvage_modifier = 1.0
 
     if aar.mission_id:
         mission = db.query(Mission).filter(Mission.id == aar.mission_id).first()
@@ -295,8 +302,21 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             campaign.cbill_balance += mission.cbill_reward
             mission.status = "Completed"
 
-    if aar.salvage_cbill_value > 0:
-        campaign.cbill_balance += aar.salvage_cbill_value
+            # Apply Battle Loss Compensation
+            blc_payout = total_est_repair_cost * mission.blc_coverage
+            campaign.cbill_balance += blc_payout
+
+            # Apply Negotiated Salvage Cap Modifier
+            if mission.salvage_rights == "Exchange":
+                salvage_modifier = 0.25
+            elif mission.salvage_rights == "Shared (50%)":
+                salvage_modifier = 0.50
+            else:
+                salvage_modifier = 1.00
+
+    effective_salvage_cash = aar.salvage_cbill_value * salvage_modifier
+    if effective_salvage_cash > 0:
+        campaign.cbill_balance += effective_salvage_cash
 
     if aar.salvage_items:
         for comp in aar.salvage_items:
@@ -306,15 +326,19 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             else:
                 db.add(Inventory(campaign_id=campaign.id, component_name=comp, quantity=1, category="Salvage"))
 
+    log_msg = f"Submitted AAR. Field Salvage:  C-Bills."
+    if blc_payout > 0:
+        log_msg += f" Employer BLC Reimbursement Credited: + C-Bills."
+
     db.add(CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,
         event_type="AAR",
-        description=f"Submitted After-Action Report. Salvage value recovered:  C-Bills."
+        description=log_msg
     ))
 
     db.commit()
-    return {"message": "After-Action Report processed! Treasury, Units, Pilot Medical Bay, and Warehouse Inventory updated."}
+    return {"message": "After-Action Report processed! Treasury, Battle Loss Compensation, and Salvage updated."}
 
 @app.post("/api/v1/units/repair-critical")
 def repair_critical_component(req: ComponentRepairRequest, db: Session = Depends(get_db)):
@@ -488,16 +512,37 @@ def get_missions(db: Session = Depends(get_db)):
 @app.post("/api/v1/missions")
 def create_mission(mission_data: MissionCreate, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).first()
+
+    # Calculate Negotiated Final C-Bills & WP based on terms
+    salvage_mult = 0.7 if mission_data.salvage_rights == "Full (100%)" else 0.85 if mission_data.salvage_rights == "Shared (50%)" else 1.15
+    blc_mult = 0.85 if mission_data.blc_coverage == 1.0 else 0.92 if mission_data.blc_coverage == 0.5 else 1.05
+    trans_mult = 1.10 if mission_data.transport_allowance == 1.0 else 1.05 if mission_data.transport_allowance == 0.5 else 1.0
+
+    final_cbills = mission_data.base_cbill * salvage_mult * blc_mult * trans_mult
+    final_wp = int(mission_data.wp_reward * (1.2 if mission_data.command_rights == "Independent" else 1.0))
+
     new_mission = Mission(
         campaign_id=campaign.id if campaign else 1,
         name=mission_data.name,
         mission_type=mission_data.mission_type,
         employer=mission_data.employer,
-        wp_reward=mission_data.wp_reward,
-        cbill_reward=mission_data.cbill_reward,
+        wp_reward=final_wp,
+        cbill_reward=final_cbills,
+        salvage_rights=mission_data.salvage_rights,
+        blc_coverage=mission_data.blc_coverage,
+        transport_allowance=mission_data.transport_allowance,
+        command_rights=mission_data.command_rights,
         status="Active"
     )
     db.add(new_mission)
+
+    db.add(CampaignLog(
+        campaign_id=campaign.id if campaign else 1,
+        log_date=campaign.current_date if campaign else "3025-01-01",
+        event_type="Contract",
+        description=f"Signed Contract: {mission_data.name} ({mission_data.employer}). Reward:  C-Bills | BLC: {int(mission_data.blc_coverage*100)}% | Salvage: {mission_data.salvage_rights}."
+    ))
+
     db.commit()
     db.refresh(new_mission)
     return new_mission
@@ -567,7 +612,7 @@ def treat_pilot_medical(pilot_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Pilot is not currently injured or in MedBay.")
 
     campaign = db.query(Campaign).filter(Campaign.id == pilot.campaign_id).first()
-    sp_cost = 50 # 50 SP for emergency medical treatment
+    sp_cost = 50
     if campaign.sp_balance < sp_cost:
         raise HTTPException(status_code=400, detail=f"Requires {sp_cost} Support Points for emergency medical treatment!")
 

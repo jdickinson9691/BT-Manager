@@ -79,6 +79,10 @@ class Mission(Base):
     employer = Column(String)
     wp_reward = Column(Integer)
     cbill_reward = Column(Float)
+    salvage_rights = Column(String, default="Shared (50%)") # Exchange, Shared (50%), Full (100%)
+    blc_coverage = Column(Float, default=0.5) # 0.0, 0.5, 1.0 (Battle Loss Comp %)
+    transport_allowance = Column(Float, default=0.5) # 0.0, 0.5, 1.0 (JumpShip Reimbursement %)
+    command_rights = Column(String, default="Integrated") # Integrated, House Command, Independent
     status = Column(String, default="Active")
 
     campaign = relationship("Campaign", back_populates="missions")
@@ -93,9 +97,9 @@ class Pilot(Base):
     gunnery = Column(Integer, default=4)
     piloting = Column(Integer, default=5)
     unit_id = Column(Integer, ForeignKey("units.id"), nullable=True)
-    status = Column(String, default="Active") # Active, Injured, Deceased
-    injuries = Column(Integer, default=0) # 0 to 6 hits
-    days_remaining = Column(Integer, default=0) # Days in MedBay
+    status = Column(String, default="Active")
+    injuries = Column(Integer, default=0)
+    days_remaining = Column(Integer, default=0)
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
