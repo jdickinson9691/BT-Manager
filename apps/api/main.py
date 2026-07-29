@@ -71,6 +71,9 @@ class PilotCreate(BaseModel):
     piloting: int = 5
     unit_id: Optional[int] = None
 
+class PilotInjuryUpdate(BaseModel):
+    injuries: int # 0 to 6
+
 class MarketPurchaseSuppliesRequest(BaseModel):
     sp_amount: int = 0
     cbill_cost: float = 0.0
@@ -92,9 +95,14 @@ class UnitCombatLog(BaseModel):
     is_destroyed: bool = False
     critical_hits: Optional[List[CriticalHitLog]] = []
 
+class PilotCombatLog(BaseModel):
+    pilot_id: int
+    injuries_sustained: int = 0
+
 class AARSubmitRequest(BaseModel):
     mission_id: Optional[int] = None
     unit_logs: List[UnitCombatLog]
+    pilot_logs: Optional[List[PilotCombatLog]] = []
     salvage_cbill_value: float = 0.0
     salvage_items: Optional[List[str]] = []
 
@@ -131,13 +139,27 @@ def advance_campaign_time(req: AdvanceTimeRequest, db: Session = Depends(get_db)
     overhead_cost = campaign.daily_overhead * req.days
     campaign.cbill_balance -= overhead_cost
 
-    log_entry = CampaignLog(
+    # Process Pilot Medical Recoveries
+    pilots = db.query(Pilot).filter(Pilot.status == "Injured").all()
+    recovered_names = []
+    for p in pilots:
+        if p.days_remaining > 0:
+            p.days_remaining = max(0, p.days_remaining - req.days)
+            if p.days_remaining == 0:
+                p.injuries = 0
+                p.status = "Active"
+                recovered_names.append(p.name)
+
+    log_desc = f"Advanced campaign time by {req.days} days. Daily overhead incurred:  C-Bills."
+    if recovered_names:
+        log_desc += f" MedBay Release: {', '.join(recovered_names)} fully healed and returned to Active Duty!"
+
+    db.add(CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,
         event_type="Timeline",
-        description=f"Advanced campaign time by {req.days} days. Daily overhead incurred:  C-Bills."
-    )
-    db.add(log_entry)
+        description=log_desc
+    ))
     db.commit()
 
     return {
@@ -243,7 +265,6 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                 unit.armor_damage += log.armor_loss
                 unit.structure_damage += log.structure_loss
 
-                # Record Critical Hits
                 if log.critical_hits:
                     for crit in log.critical_hits:
                         db.add(CriticalHit(
@@ -252,6 +273,20 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                             component_name=crit.component_name,
                             is_destroyed=True
                         ))
+
+    # Process Pilot Injury Logs
+    if aar.pilot_logs:
+        for plog in aar.pilot_logs:
+            pilot = db.query(Pilot).filter(Pilot.id == plog.pilot_id).first()
+            if pilot and plog.injuries_sustained > 0:
+                pilot.injuries += plog.injuries_sustained
+                if pilot.injuries >= 6:
+                    pilot.status = "Deceased"
+                    pilot.days_remaining = 0
+                else:
+                    pilot.status = "Injured"
+                    # 15 days recovery per injury hit taken
+                    pilot.days_remaining = pilot.injuries * 15
 
     if aar.mission_id:
         mission = db.query(Mission).filter(Mission.id == aar.mission_id).first()
@@ -279,7 +314,7 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
     ))
 
     db.commit()
-    return {"message": "After-Action Report processed! Treasury, Units, Critical Hits, and Warehouse Inventory updated."}
+    return {"message": "After-Action Report processed! Treasury, Units, Pilot Medical Bay, and Warehouse Inventory updated."}
 
 @app.post("/api/v1/units/repair-critical")
 def repair_critical_component(req: ComponentRepairRequest, db: Session = Depends(get_db)):
@@ -290,7 +325,6 @@ def repair_critical_component(req: ComponentRepairRequest, db: Session = Depends
     unit = db.query(Unit).filter(Unit.id == crit.unit_id).first()
     campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
 
-    # Check warehouse stock for replacement
     inv = db.query(Inventory).filter(Inventory.component_name == crit.component_name, Inventory.quantity > 0).first()
     used_warehouse = False
 
@@ -300,7 +334,6 @@ def repair_critical_component(req: ComponentRepairRequest, db: Session = Depends
             db.delete(inv)
         used_warehouse = True
     else:
-        # Bill replacement C-Bill cost ( standard default if missing stock)
         cost = 100000.0
         if campaign.cbill_balance < cost:
             raise HTTPException(status_code=400, detail=f"Insufficient C-Bills () or Warehouse stock to replace {crit.component_name}!")
@@ -501,6 +534,8 @@ def get_pilots(db: Session = Depends(get_db)):
             "gunnery": p.gunnery,
             "piloting": p.piloting,
             "status": p.status,
+            "injuries": p.injuries,
+            "days_remaining": p.days_remaining,
             "unit_id": p.unit_id,
             "assigned_unit": unit_info
         })
@@ -516,9 +551,39 @@ def create_pilot(pilot_data: PilotCreate, db: Session = Depends(get_db)):
         gunnery=pilot_data.gunnery,
         piloting=pilot_data.piloting,
         unit_id=pilot_data.unit_id if pilot_data.unit_id else None,
-        status="Active"
+        status="Active",
+        injuries=0,
+        days_remaining=0
     )
     db.add(new_pilot)
     db.commit()
     db.refresh(new_pilot)
     return new_pilot
+
+@app.post("/api/v1/pilots/{pilot_id}/treat")
+def treat_pilot_medical(pilot_id: int, db: Session = Depends(get_db)):
+    pilot = db.query(Pilot).filter(Pilot.id == pilot_id).first()
+    if not pilot or pilot.status != "Injured":
+        raise HTTPException(status_code=400, detail="Pilot is not currently injured or in MedBay.")
+
+    campaign = db.query(Campaign).filter(Campaign.id == pilot.campaign_id).first()
+    sp_cost = 50 # 50 SP for emergency medical treatment
+    if campaign.sp_balance < sp_cost:
+        raise HTTPException(status_code=400, detail=f"Requires {sp_cost} Support Points for emergency medical treatment!")
+
+    campaign.sp_balance -= sp_cost
+    pilot.days_remaining = max(0, pilot.days_remaining - 15)
+    
+    if pilot.days_remaining == 0:
+        pilot.injuries = 0
+        pilot.status = "Active"
+
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Medical",
+        description=f"Applied emergency MedBay treatment to {pilot.name}. Expedited recovery time by -15 days."
+    ))
+
+    db.commit()
+    return {"message": f"Emergency treatment applied to {pilot.name}!", "days_remaining": pilot.days_remaining}

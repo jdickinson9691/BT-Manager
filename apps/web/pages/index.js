@@ -45,8 +45,6 @@ export default function Dashboard() {
   const [builderModel, setBuilderModel] = useState("MAD-3Custom");
   const [builderTonnage, setBuilderTonnage] = useState(75);
   const [targetUnitId, setTargetUnitId] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("RA");
-  const [selectedComponent, setSelectedComponent] = useState("PPC");
   const [locationLoadout, setLocationLoadout] = useState({
     HD: [], CT: [], LT: [], RT: [],
     LA: ["PPC", "Medium Laser"],
@@ -55,13 +53,14 @@ export default function Dashboard() {
   });
   const [validationResult, setValidationResult] = useState(null);
 
-  // After-Action Report (AAR) State with Critical Hit Input
+  // After-Action Report (AAR) State
   const [aarMissionId, setAarMissionId] = useState("");
   const [aarSalvage, setAarSalvage] = useState(500000);
   const [aarSalvageItems, setAarSalvageItems] = useState(["PPC", "Medium Laser"]);
   const [aarLogs, setAarLogs] = useState({});
   const [aarCritComp, setAarCritComp] = useState({});
   const [aarCritLoc, setAarCritLoc] = useState({});
+  const [aarPilotInjuries, setAarPilotInjuries] = useState({});
 
   // Printable View Control
   const [printMode, setPrintMode] = useState(null);
@@ -147,6 +146,7 @@ export default function Dashboard() {
       });
       if (res.ok) {
         fetchBalance();
+        fetchPilots();
         fetchLogs();
       }
     } catch (err) {
@@ -253,6 +253,25 @@ export default function Dashboard() {
     }
   };
 
+  const handleTreatPilot = async (pilotId) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/pilots/${pilotId}/treat`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        fetchBalance();
+        fetchPilots();
+        fetchLogs();
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Medical treatment failed!");
+      }
+    } catch (err) {
+      console.error("Failed to treat pilot", err);
+    }
+  };
+
   const handleBuyMarketUnit = async (unitData) => {
     try {
       const res = await fetch("http://localhost:8000/api/v1/market/buy-unit", {
@@ -305,7 +324,7 @@ export default function Dashboard() {
   };
 
   const handleSubmitAAR = async () => {
-    const formattedLogs = units.map((u) => {
+    const formattedUnitLogs = units.map((u) => {
       const log = aarLogs[u.id] || {};
       const critComp = aarCritComp[u.id];
       const critLoc = aarCritLoc[u.id] || "RA";
@@ -321,13 +340,19 @@ export default function Dashboard() {
       };
     });
 
+    const formattedPilotLogs = pilots.map((p) => ({
+      pilot_id: p.id,
+      injuries_sustained: Number(aarPilotInjuries[p.id] || 0),
+    }));
+
     try {
       const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mission_id: aarMissionId ? Number(aarMissionId) : null,
-          unit_logs: formattedLogs,
+          unit_logs: formattedUnitLogs,
+          pilot_logs: formattedPilotLogs,
           salvage_cbill_value: Number(aarSalvage),
           salvage_items: aarSalvageItems,
         }),
@@ -337,11 +362,13 @@ export default function Dashboard() {
         fetchBalance();
         fetchUnits();
         fetchMissions();
+        fetchPilots();
         fetchInventory();
         fetchLogs();
         setAarLogs({});
         setAarCritComp({});
-        alert("After-Action Report submitted! Critical hits and damage states recorded.");
+        setAarPilotInjuries({});
+        alert("After-Action Report submitted! Unit damage, Pilot injuries, and MedBay recovery times updated.");
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to submit AAR");
@@ -436,9 +463,6 @@ export default function Dashboard() {
           msg += `\n\nConsumed spare parts from Warehouse: ${data.used_from_warehouse.join(", ")}`;
         }
         alert(msg);
-      } else {
-        const errData = await res.json();
-        alert(errData.detail || "Failed to commit loadout.");
       }
     } catch (err) {
       console.error("Failed to commit loadout", err);
@@ -624,6 +648,74 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* IN-APP HELP FILE MODAL */}
+      {showHelpModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.85)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px" }}>
+          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "8px", width: "850px", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}>
+            
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #30363d", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "20px" }}>📖</span>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#fbbf24" }}>BT-Manager Field Reference Manual &amp; Documentation</h2>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#30363d", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
+                ✖ Close
+              </button>
+            </div>
+
+            <div style={{ padding: "20px", overflowY: "auto", fontSize: "13px", lineHeight: "1.6", color: "#c9d1d9" }}>
+              <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "16px", borderRadius: "6px", marginBottom: "20px" }}>
+                <h3 style={{ margin: "0 0 10px 0", color: "#60a5fa", borderBottom: "1px solid #30363d", paddingBottom: "6px" }}>📑 Table of Contents</h3>
+                <ul style={{ margin: 0, paddingLeft: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  <li><a href="#help-overview" style={{ color: "#34d399", textDecoration: "none" }}>1. Command System Overview</a></li>
+                  <li><a href="#help-warchest" style={{ color: "#34d399", textDecoration: "none" }}>2. Warchest &amp; Treasury Ledger</a></li>
+                  <li><a href="#help-roster" style={{ color: "#34d399", textDecoration: "none" }}>3. Active Roster &amp; Damage Tracking</a></li>
+                  <li><a href="#help-builder" style={{ color: "#34d399", textDecoration: "none" }}>4. Location Loadout Configurator</a></li>
+                  <li><a href="#help-refits" style={{ color: "#34d399", textDecoration: "none" }}>5. Refit Classes &amp; Labor Rules</a></li>
+                  <li><a href="#help-aar" style={{ color: "#34d399", textDecoration: "none" }}>6. After-Action Reports (AAR)</a></li>
+                  <li><a href="#help-warehouse" style={{ color: "#34d399", textDecoration: "none" }}>7. Warehouse &amp; Stock Offsetting</a></li>
+                  <li><a href="#help-medbay" style={{ color: "#34d399", textDecoration: "none" }}>8. Medical Bay &amp; Injury Tracking</a></li>
+                  <li><a href="#help-timeline" style={{ color: "#34d399", textDecoration: "none" }}>9. Timeline Calendar &amp; Overhead</a></li>
+                  <li><a href="#help-sources" style={{ color: "#fbbf24", textDecoration: "none", fontWeight: "bold" }}>10. Reference Data Sources</a></li>
+                </ul>
+              </div>
+
+              <hr style={{ borderColor: "#30363d", margin: "20px 0" }} />
+
+              <section id="help-overview" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>1. Command System Overview</h3>
+                <p><strong>BT-Manager</strong> is an end-to-end tactical command and logistics desktop engine built for tabletop BattleTech campaign management. It automates force roster maintenance, structural damage tracking, custom refit validation, battlefield salvage recovery, warchest accounting, and printable tech work order generation.</p>
+              </section>
+
+              <section id="help-warchest" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>2. Warchest &amp; Treasury Ledger</h3>
+                <p>The campaign operates on Warchest Points (WP), Support Points (SP), and C-Bill Treasury balances.</p>
+              </section>
+
+              <section id="help-medbay" style={{ marginBottom: "24px" }}>
+                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>8. Medical Bay &amp; Injury Tracking</h3>
+                <p>Tracks MechWarrior injuries (0–6 hits). Sustaining 6 hits causes Pilot Death. Injured pilots require 15 days of MedBay rest per injury hit. Fast-forwarding campaign time automatically ticks down recovery days, releasing healed pilots back to Active duty.</p>
+              </section>
+
+              <section id="help-sources" style={{ marginBottom: "10px" }}>
+                <h3 style={{ color: "#fbbf24", borderBottom: "1px solid #fbbf24", paddingBottom: "4px" }}>10. Reference Data Sources</h3>
+                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "6px", fontFamily: "monospace", fontSize: "12px" }}>
+                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Total Warfare (CAT35001)</strong> - Combat damage, armor ratios, pilot skill rules.</p>
+                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Strategic Operations &amp; Campaign Operations (CAT35003/CAT35007)</strong> - Tech repair Target Numbers, MedBay convalescence, and Refit Classes (A–F).</p>
+                  <p style={{ margin: "0" }}>📚 <strong>BattleTech: Alpha Strike / Chaos Campaign Rules</strong> - Warchest Points (WP) and Support Points (SP).</p>
+                </div>
+              </section>
+            </div>
+
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #30363d", backgroundColor: "#0d1117", textAlign: "right" }}>
+              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="no-print" style={{ borderBottom: "1px solid #30363d", paddingBottom: "12px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
@@ -674,7 +766,7 @@ export default function Dashboard() {
           {/* LEFT COLUMN */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             
-            {/* Campaign Timeline & Time Fast-Forward */}
+            {/* Campaign Timeline & Time Controls */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
                 <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Campaign Timeline &amp; Time Controls</h2>
@@ -727,7 +819,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* AAR Card with Critical Hit Entry */}
+            {/* AAR Card with Unit Damage, Critical Hits & Pilot Injury Logging */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Mission After-Action Report (AAR)</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
@@ -746,7 +838,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Log Combat Damage &amp; Critical Hits Sustained</strong>
+              {/* Unit Damage & Critical Hit Entry */}
+              <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Log Unit Combat Damage &amp; Critical Hits</strong>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "14px" }}>
                 {units.map((u) => {
                   const log = aarLogs[u.id] || {};
@@ -765,7 +858,6 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Critical Hit Input Row */}
                       <div style={{ borderTop: "1px dashed #30363d", paddingTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
                         <span style={{ fontSize: "10px", color: "#ef4444", fontWeight: "bold" }}>⚡ CRITICAL HIT:</span>
                         <select value={aarCritLoc[u.id] || "RA"} onChange={(e) => setAarCritLoc({ ...aarCritLoc, [u.id]: e.target.value })} style={{ backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "4px", borderRadius: "4px", fontSize: "11px" }}>
@@ -783,6 +875,22 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* MechWarrior Injury Logging in AAR */}
+              <strong style={{ fontSize: "13px", color: "#ef4444", display: "block", marginBottom: "8px" }}>Log MechWarrior Pilot Injuries Sustained</strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
+                {pilots.map((p) => (
+                  <div key={p.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 12px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "13px" }}>{p.name}</strong> <span style={{ color: "#a78bfa", fontSize: "11px" }}>"{p.callsign}"</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", color: "#8b949e" }}>Hits Sustained:</span>
+                      <input type="number" min="0" max="6" value={aarPilotInjuries[p.id] || 0} onChange={(e) => setAarPilotInjuries({ ...aarPilotInjuries, [p.id]: e.target.value })} style={{ width: "50px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "4px", borderRadius: "4px", fontSize: "12px", textAlign: "center" }} />
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <button onClick={handleSubmitAAR} style={{ width: "100%", backgroundColor: "#dc2626", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
@@ -812,7 +920,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Location Slots Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
                 {["HD", "CT", "LT", "RT", "LA", "RA", "LL", "RL"].map((loc) => {
                   const items = locationLoadout[loc] || [];
@@ -897,7 +1004,7 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* Active Force Roster with Critical Hit Badges */}
+            {/* Active Force Roster */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Active Force Roster</h2>
               {units.map((unit) => {
@@ -919,7 +1026,6 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Critical Hits List */}
                     {unit.critical_hits && unit.critical_hits.length > 0 && (
                       <div style={{ marginBottom: "8px", borderTop: "1px solid #30363d", paddingTop: "6px" }}>
                         <strong style={{ fontSize: "11px", color: "#f87171" }}>DESTROYED COMPONENTS:</strong>
@@ -973,7 +1079,7 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* Salvage & Market */}
+            {/* Salvage & Warchest Market */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Warchest Market</h2>
               
@@ -1057,26 +1163,51 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* Personnel */}
+            {/* MechWarrior Personnel & Medical Bay Panel */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
-              <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel</h2>
-              {pilots.map((p) => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117", padding: "8px 12px", borderRadius: "6px", border: "1px solid #30363d", marginBottom: "6px" }}>
-                  <div>
-                    <strong style={{ color: "#ffffff", fontSize: "14px" }}>{p.name}</strong> <span style={{ color: "#a78bfa" }}>"{p.callsign}"</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>MechWarrior Personnel &amp; Medical Bay</h2>
+                <span style={{ fontSize: "11px", backgroundColor: "#1e293b", color: "#fbbf24", padding: "4px 8px", borderRadius: "4px", border: "1px solid #30363d" }}>Medical Bay Active</span>
+              </div>
+
+              {pilots.map((p) => {
+                const isInjured = p.status === "Injured";
+                const isDeceased = p.status === "Deceased";
+                return (
+                  <div key={p.id} style={{ backgroundColor: "#0d1117", padding: "10px 14px", borderRadius: "6px", border: isDeceased ? "1px solid #ef4444" : isInjured ? "1px solid #f59e0b" : "1px solid #30363d", marginBottom: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ color: "#ffffff", fontSize: "14px" }}>{p.name}</strong> <span style={{ color: "#a78bfa", fontSize: "12px" }}>"{p.callsign}"</span>
+                        <br />
+                        <small style={{ color: "#8b949e" }}>Assigned: {p.assigned_unit || "Unassigned"}</small>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{ fontFamily: "monospace", color: "#fbbf24", fontSize: "12px" }}>G{p.gunnery} / P{p.piloting}</span>
+                        <br />
+                        <span style={{ fontSize: "10px", fontWeight: "bold", padding: "2px 6px", borderRadius: "4px", backgroundColor: isDeceased ? "#7f1d1d" : isInjured ? "#78350f" : "#064e3b", color: isDeceased ? "#f87171" : isInjured ? "#fbbf24" : "#34d399" }}>
+                          {p.status} {isInjured && `(${p.injuries} Hits / ${p.days_remaining}d Left)`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {isInjured && (
+                      <div style={{ marginTop: "8px", borderTop: "1px dashed #30363d", paddingTop: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <small style={{ color: "#fbbf24" }}>🏥 In MedBay: Needs {p.days_remaining} days rest</small>
+                        <button onClick={() => handleTreatPilot(p.id)} style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "3px 8px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>
+                          Emergency Treatment (-50 SP / -15 Days)
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ textAlign: "right", fontFamily: "monospace", color: "#fbbf24", fontSize: "12px" }}>
-                    G{p.gunnery} / P{p.piloting}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Recruit Pilot Form */}
               <form onSubmit={handleRecruitPilot} style={{ marginTop: "12px", borderTop: "1px solid #30363d", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <strong style={{ fontSize: "12px", color: "#f0f6fc" }}>Recruit MechWarrior</strong>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   <input type="text" placeholder="Pilot Name" value={pilotName} onChange={(e) => setPilotName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                  <input type="text" placeholder='Callsign' value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                  <input type="text" placeholder="Callsign" value={callsign} onChange={(e) => setCallsign(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: "8px" }}>
                   <input type="number" min="0" max="8" placeholder="Gunnery" value={gunnery} onChange={(e) => setGunnery(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />

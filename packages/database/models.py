@@ -52,8 +52,8 @@ class CriticalHit(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     unit_id = Column(Integer, ForeignKey("units.id"))
-    location = Column(String) # HD, CT, LT, RT, LA, RA, LL, RL
-    component_name = Column(String) # e.g. "PPC", "Engine", "Gyro", "Shoulder"
+    location = Column(String)
+    component_name = Column(String)
     is_destroyed = Column(Boolean, default=True)
 
     unit = relationship("Unit", back_populates="critical_hits")
@@ -93,7 +93,9 @@ class Pilot(Base):
     gunnery = Column(Integer, default=4)
     piloting = Column(Integer, default=5)
     unit_id = Column(Integer, ForeignKey("units.id"), nullable=True)
-    status = Column(String, default="Active")
+    status = Column(String, default="Active") # Active, Injured, Deceased
+    injuries = Column(Integer, default=0) # 0 to 6 hits
+    days_remaining = Column(Integer, default=0) # Days in MedBay
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
