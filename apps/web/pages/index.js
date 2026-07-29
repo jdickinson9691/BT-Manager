@@ -5,6 +5,7 @@ export default function Dashboard() {
   const [units, setUnits] = useState([]);
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
+  const [inventory, setInventory] = useState([]);
 
   // Form States
   const [chassis, setChassis] = useState("");
@@ -25,6 +26,11 @@ export default function Dashboard() {
   const [piloting, setPiloting] = useState(5);
   const [assignedUnitId, setAssignedUnitId] = useState("");
 
+  // Warehouse Manual Add State
+  const [newItemName, setNewItemName] = useState("PPC");
+  const [newItemQty, setNewItemQty] = useState(1);
+  const [newItemCategory, setNewItemCategory] = useState("Weapon");
+
   // Custom Loadout Configurator State (PowerShell Engine)
   const [builderChassis, setBuilderChassis] = useState("Marauder");
   const [builderModel, setBuilderModel] = useState("MAD-3Custom");
@@ -43,9 +49,10 @@ export default function Dashboard() {
   // After-Action Report (AAR) State
   const [aarMissionId, setAarMissionId] = useState("");
   const [aarSalvage, setAarSalvage] = useState(500000);
+  const [aarSalvageItems, setAarSalvageItems] = useState(["PPC", "Medium Laser"]);
   const [aarLogs, setAarLogs] = useState({});
 
-  // Printable View Control ('summary', 'work-order', or null)
+  // Printable View Control
   const [printMode, setPrintMode] = useState(null);
   const [selectedWorkOrderUnit, setSelectedWorkOrderUnit] = useState(null);
 
@@ -77,19 +84,25 @@ export default function Dashboard() {
       .catch(() => {});
   };
 
+  const fetchInventory = () => {
+    fetch("http://localhost:8000/api/v1/inventory")
+      .then((res) => res.json())
+      .then((data) => setInventory(data))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchBalance();
     fetchUnits();
     fetchMissions();
     fetchPilots();
+    fetchInventory();
   }, []);
 
-  // Trigger print dialog after state updates render
   useEffect(() => {
     if (printMode) {
       const timer = setTimeout(() => {
         window.print();
-        // Reset after print window closes
         setPrintMode(null);
       }, 100);
       return () => clearTimeout(timer);
@@ -104,6 +117,26 @@ export default function Dashboard() {
   const handlePrintWorkOrder = (unit) => {
     setSelectedWorkOrderUnit(unit);
     setPrintMode("work-order");
+  };
+
+  const handleAddInventory = async (e) => {
+    e.preventDefault();
+    if (!newItemName) return;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          component_name: newItemName,
+          quantity: Number(newItemQty),
+          category: newItemCategory,
+        }),
+      });
+      if (res.ok) fetchInventory();
+    } catch (err) {
+      console.error("Failed to add inventory", err);
+    }
   };
 
   const handleAarLogChange = (unitId, field, value) => {
@@ -135,6 +168,7 @@ export default function Dashboard() {
           mission_id: aarMissionId ? Number(aarMissionId) : null,
           unit_logs: formattedLogs,
           salvage_cbill_value: Number(aarSalvage),
+          salvage_items: aarSalvageItems,
         }),
       });
 
@@ -142,8 +176,9 @@ export default function Dashboard() {
         fetchBalance();
         fetchUnits();
         fetchMissions();
+        fetchInventory();
         setAarLogs({});
-        alert("After-Action Report successfully submitted and processed!");
+        alert("After-Action Report successfully submitted! Treasury & Warehouse Inventory updated.");
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to submit AAR");
@@ -412,7 +447,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MAIN DASHBOARD (HIDDEN ON PRINT) */}
+      {/* MAIN DASHBOARD */}
       <header className="no-print" style={{ borderBottom: "1px solid #30363d", paddingBottom: "12px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ color: "#f59e0b", margin: 0, fontSize: "28px" }}>BT-MANAGER</h1>
@@ -453,6 +488,48 @@ export default function Dashboard() {
           {/* Left Column */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             
+            {/* Component Inventory & Salvage Warehouse Panel */}
+            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #30363d", paddingBottom: "10px", marginBottom: "14px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", color: "#f0f6fc" }}>Salvage &amp; Spare Parts Warehouse</h2>
+                <span style={{ fontSize: "11px", backgroundColor: "#0e2a1f", color: "#3fb950", padding: "4px 8px", borderRadius: "4px", border: "1px solid #238636" }}>Warehouse Stock</span>
+              </div>
+
+              {inventory.length === 0 ? (
+                <p style={{ color: "#8b949e", fontSize: "13px", fontStyle: "italic" }}>Warehouse stock empty. Log salvage from After-Action Reports to stock spare parts.</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                  {inventory.map((inv) => (
+                    <div key={inv.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "8px 12px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{inv.component_name}</strong>
+                        <br />
+                        <small style={{ color: "#8b949e" }}>{inv.category}</small>
+                      </div>
+                      <span style={{ backgroundColor: "#1e293b", color: "#60a5fa", border: "1px solid #3b82f6", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold", fontSize: "12px" }}>
+                        x{inv.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Manual Inventory Add Form */}
+              <form onSubmit={handleAddInventory} style={{ borderTop: "1px solid #30363d", paddingTop: "12px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "8px" }}>
+                <input type="text" placeholder="Component (e.g. PPC)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} required style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                <input type="number" min="1" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                <select value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}>
+                  <option value="Weapon">Weapon</option>
+                  <option value="Equipment">Equipment</option>
+                  <option value="Ammo">Ammo</option>
+                  <option value="Salvage">Salvage</option>
+                </select>
+                <button type="submit" style={{ backgroundColor: "#059669", color: "#fff", border: "none", padding: "6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                  + Add Stock
+                </button>
+              </form>
+            </div>
+
             {/* AAR Card */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Mission After-Action Report (AAR)</h2>

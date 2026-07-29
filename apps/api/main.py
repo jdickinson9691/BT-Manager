@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 from packages.database.db import init_db, get_db
-from packages.database.models import Campaign, Unit, Mission, Pilot
+from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory
 from packages.engine.repair import (
     RepairRequest, 
     RefitRequest, 
@@ -82,6 +82,11 @@ class MarketPurchaseSuppliesRequest(BaseModel):
     cbill_cost: float = 0.0
     wp_cost: int = 0
 
+class InventoryAddRequest(BaseModel):
+    component_name: str
+    quantity: int = 1
+    category: str = "Weapon"
+
 class UnitCombatLog(BaseModel):
     unit_id: int
     armor_loss: int = 0
@@ -92,6 +97,7 @@ class AARSubmitRequest(BaseModel):
     mission_id: Optional[int] = None
     unit_logs: List[UnitCombatLog]
     salvage_cbill_value: float = 0.0
+    salvage_items: Optional[List[str]] = []
 
 @app.get("/")
 def read_root():
@@ -126,13 +132,34 @@ def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
     db.refresh(new_unit)
     return new_unit
 
+@app.get("/api/v1/inventory")
+def get_inventory(db: Session = Depends(get_db)):
+    return db.query(Inventory).all()
+
+@app.post("/api/v1/inventory")
+def add_inventory_item(item: InventoryAddRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    existing = db.query(Inventory).filter(Inventory.component_name == item.component_name).first()
+    if existing:
+        existing.quantity += item.quantity
+    else:
+        existing = Inventory(
+            campaign_id=campaign.id if campaign else 1,
+            component_name=item.component_name,
+            quantity=item.quantity,
+            category=item.category
+        )
+        db.add(existing)
+    db.commit()
+    db.refresh(existing)
+    return existing
+
 @app.post("/api/v1/aar/submit")
 def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign state not found")
 
-    # Process units battle logs
     for log in aar.unit_logs:
         unit = db.query(Unit).filter(Unit.id == log.unit_id).first()
         if unit:
@@ -142,7 +169,6 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                 unit.armor_damage += log.armor_loss
                 unit.structure_damage += log.structure_loss
 
-    # Process mission payouts if attached
     if aar.mission_id:
         mission = db.query(Mission).filter(Mission.id == aar.mission_id).first()
         if mission and mission.status == "Active":
@@ -150,12 +176,20 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             campaign.cbill_balance += mission.cbill_reward
             mission.status = "Completed"
 
-    # Add extra salvage payout to treasury
     if aar.salvage_cbill_value > 0:
         campaign.cbill_balance += aar.salvage_cbill_value
 
+    # Process battlefield salvage items into Warehouse
+    if aar.salvage_items:
+        for comp in aar.salvage_items:
+            inv = db.query(Inventory).filter(Inventory.component_name == comp).first()
+            if inv:
+                inv.quantity += 1
+            else:
+                db.add(Inventory(campaign_id=campaign.id, component_name=comp, quantity=1, category="Salvage"))
+
     db.commit()
-    return {"message": "After-Action Report processed! Unit status and treasury updated."}
+    return {"message": "After-Action Report processed! Treasury, Units, and Salvage Warehouse updated."}
 
 @app.post("/api/v1/builder/commit")
 def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_db)):
@@ -240,61 +274,6 @@ def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
 
     db.commit()
     return {"message": f"Successfully repaired {unit.chassis}!", "unit": unit}
-
-@app.post("/api/v1/units/{unit_id}/refit")
-def apply_refit(unit_id: int, refit: RefitApplyRequest, db: Session = Depends(get_db)):
-    unit = db.query(Unit).filter(Unit.id == unit_id).first()
-    if not unit:
-        raise HTTPException(status_code=404, detail="Unit not found")
-
-    refit_req = RefitRequest(
-        refit_class=refit.refit_class,
-        tech_base=unit.tech_base,
-        tech_rating=refit.tech_rating,
-        tonnage=unit.tonnage
-    )
-    estimate = calculate_refit_task(refit_req)
-
-    campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
-    if campaign:
-        if campaign.sp_balance < estimate.sp_cost or campaign.cbill_balance < estimate.cbill_cost:
-            raise HTTPException(status_code=400, detail="Insufficient SP or C-Bills for this Refit!")
-        
-        campaign.sp_balance -= estimate.sp_cost
-        campaign.cbill_balance -= estimate.cbill_cost
-
-    unit.model = refit.new_model
-    unit.bv2 = refit.new_bv2
-
-    db.commit()
-    return {"message": f"Refit complete! Variant updated to {unit.model}.", "estimate": estimate, "unit": unit}
-
-@app.post("/api/v1/market/buy-unit")
-def market_buy_unit(purchase: MarketPurchaseUnitRequest, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    if campaign.cbill_balance < purchase.cbill_cost or campaign.wp_balance < purchase.wp_cost:
-        raise HTTPException(status_code=400, detail="Insufficient treasury funds or WP to procure this BattleMech!")
-
-    campaign.cbill_balance -= purchase.cbill_cost
-    campaign.wp_balance -= purchase.wp_cost
-
-    new_unit = Unit(
-        campaign_id=campaign.id,
-        chassis=purchase.chassis,
-        model=purchase.model,
-        tonnage=purchase.tonnage,
-        tech_base=purchase.tech_base,
-        bv2=purchase.bv2,
-        armor_damage=0,
-        structure_damage=0
-    )
-    db.add(new_unit)
-    db.commit()
-    db.refresh(new_unit)
-    return {"message": f"Procured {purchase.chassis} ({purchase.model})!", "unit": new_unit}
 
 @app.post("/api/v1/market/buy-supplies")
 def market_buy_supplies(purchase: MarketPurchaseSuppliesRequest, db: Session = Depends(get_db)):
@@ -386,11 +365,3 @@ def create_pilot(pilot_data: PilotCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_pilot)
     return new_pilot
-
-@app.post("/api/v1/engine/repair-cost", response_model=RepairEstimate)
-def estimate_repair(request: RepairRequest):
-    return calculate_repair_task(request)
-
-@app.post("/api/v1/engine/refit-cost", response_model=RepairEstimate)
-def estimate_refit(request: RefitRequest):
-    return calculate_refit_task(request)
