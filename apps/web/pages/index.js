@@ -55,11 +55,13 @@ export default function Dashboard() {
   });
   const [validationResult, setValidationResult] = useState(null);
 
-  // After-Action Report (AAR) State
+  // After-Action Report (AAR) State with Critical Hit Input
   const [aarMissionId, setAarMissionId] = useState("");
   const [aarSalvage, setAarSalvage] = useState(500000);
   const [aarSalvageItems, setAarSalvageItems] = useState(["PPC", "Medium Laser"]);
   const [aarLogs, setAarLogs] = useState({});
+  const [aarCritComp, setAarCritComp] = useState({});
+  const [aarCritLoc, setAarCritLoc] = useState({});
 
   // Printable View Control
   const [printMode, setPrintMode] = useState(null);
@@ -305,11 +307,17 @@ export default function Dashboard() {
   const handleSubmitAAR = async () => {
     const formattedLogs = units.map((u) => {
       const log = aarLogs[u.id] || {};
+      const critComp = aarCritComp[u.id];
+      const critLoc = aarCritLoc[u.id] || "RA";
+
+      const crits = critComp ? [{ location: critLoc, component_name: critComp }] : [];
+
       return {
         unit_id: u.id,
         armor_loss: Number(log.armor_loss || 0),
         structure_loss: Number(log.structure_loss || 0),
         is_destroyed: Boolean(log.is_destroyed || false),
+        critical_hits: crits,
       };
     });
 
@@ -332,13 +340,38 @@ export default function Dashboard() {
         fetchInventory();
         fetchLogs();
         setAarLogs({});
-        alert("After-Action Report submitted! Treasury, Units, and Warehouse Inventory updated.");
+        setAarCritComp({});
+        alert("After-Action Report submitted! Critical hits and damage states recorded.");
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to submit AAR");
       }
     } catch (err) {
       console.error("Failed to submit AAR", err);
+    }
+  };
+
+  const handleReplaceCriticalComponent = async (critId) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units/repair-critical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ critical_hit_id: Number(critId) }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        fetchBalance();
+        fetchUnits();
+        fetchInventory();
+        fetchLogs();
+        alert(data.message);
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Critical replacement failed!");
+      }
+    } catch (err) {
+      console.error("Failed to replace critical component", err);
     }
   };
 
@@ -573,14 +606,14 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {units.map((u) => {
-                const isDamaged = u.armor_damage > 0 || u.structure_damage > 0;
+                const isDamaged = u.armor_damage > 0 || u.structure_damage > 0 || (u.critical_hits && u.critical_hits.length > 0);
                 return (
                   <tr key={u.id} style={{ borderBottom: "1px solid #000" }}>
                     <td style={{ padding: "6px", borderRight: "1px solid #000" }}>{u.chassis} ({u.model})</td>
                     <td style={{ padding: "6px", borderRight: "1px solid #000" }}>{u.tonnage}T</td>
                     <td style={{ padding: "6px", borderRight: "1px solid #000" }}>{u.bv2}</td>
                     <td style={{ padding: "6px", borderRight: "1px solid #000" }}>
-                      {isDamaged ? `Armor: -${u.armor_damage} | Struct: -${u.structure_damage}` : "None"}
+                      {isDamaged ? `Armor: -${u.armor_damage} | Crits: ${u.critical_hits?.length || 0}` : "None"}
                     </td>
                     <td style={{ padding: "6px" }}>{isDamaged ? "DAMAGED" : "READY"}</td>
                   </tr>
@@ -588,129 +621,6 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* IN-APP HELP FILE MODAL */}
-      {showHelpModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.85)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px" }}>
-          <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "8px", width: "850px", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}>
-            
-            {/* Modal Header */}
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #30363d", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0d1117" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontSize: "20px" }}>📖</span>
-                <h2 style={{ margin: 0, fontSize: "18px", color: "#fbbf24" }}>BT-Manager Field Reference Manual &amp; Documentation</h2>
-              </div>
-              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#30363d", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
-                ✖ Close
-              </button>
-            </div>
-
-            {/* Modal Content Scroll Area */}
-            <div style={{ padding: "20px", overflowY: "auto", fontSize: "13px", lineHeight: "1.6", color: "#c9d1d9" }}>
-              
-              {/* TABLE OF CONTENTS */}
-              <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "16px", borderRadius: "6px", marginBottom: "20px" }}>
-                <h3 style={{ margin: "0 0 10px 0", color: "#60a5fa", borderBottom: "1px solid #30363d", paddingBottom: "6px" }}>📑 Table of Contents</h3>
-                <ul style={{ margin: 0, paddingLeft: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                  <li><a href="#help-overview" style={{ color: "#34d399", textDecoration: "none" }}>1. Command System Overview</a></li>
-                  <li><a href="#help-warchest" style={{ color: "#34d399", textDecoration: "none" }}>2. Warchest &amp; Treasury Ledger</a></li>
-                  <li><a href="#help-roster" style={{ color: "#34d399", textDecoration: "none" }}>3. Active Roster &amp; Damage Tracking</a></li>
-                  <li><a href="#help-builder" style={{ color: "#34d399", textDecoration: "none" }}>4. Location Loadout Configurator</a></li>
-                  <li><a href="#help-refits" style={{ color: "#34d399", textDecoration: "none" }}>5. Refit Classes &amp; Labor Rules</a></li>
-                  <li><a href="#help-aar" style={{ color: "#34d399", textDecoration: "none" }}>6. After-Action Reports (AAR)</a></li>
-                  <li><a href="#help-warehouse" style={{ color: "#34d399", textDecoration: "none" }}>7. Warehouse &amp; Stock Offsetting</a></li>
-                  <li><a href="#help-timeline" style={{ color: "#34d399", textDecoration: "none" }}>8. Timeline Calendar &amp; Overhead</a></li>
-                  <li><a href="#help-printing" style={{ color: "#34d399", textDecoration: "none" }}>9. Printable Work Orders</a></li>
-                  <li><a href="#help-sources" style={{ color: "#fbbf24", textDecoration: "none", fontWeight: "bold" }}>10. Reference Data Sources</a></li>
-                </ul>
-              </div>
-
-              <hr style={{ borderColor: "#30363d", margin: "20px 0" }} />
-
-              {/* SECTIONS */}
-              <section id="help-overview" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>1. Command System Overview</h3>
-                <p><strong>BT-Manager</strong> is an end-to-end tactical command and logistics desktop engine built for tabletop BattleTech campaign management. It automates force roster maintenance, structural damage tracking, custom refit validation, battlefield salvage recovery, warchest accounting, and printable tech work order generation.</p>
-              </section>
-
-              <section id="help-warchest" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>2. Warchest &amp; Treasury Ledger</h3>
-                <p>The campaign operates on three primary currencies:</p>
-                <ul>
-                  <li><strong>Warchest Points (WP):</strong> Abstract campaign points awarded by faction employers upon contract completion. Used to procure rare Clan/IS BattleMechs or acquire supply crates.</li>
-                  <li><strong>Support Points (SP):</strong> Consumable technical support credits deducted during unit armor/structure repairs and custom loadout refits.</li>
-                  <li><strong>C-Bill Treasury:</strong> Financial currency used for component purchasing, daily unit overhead payroll, and marketplace transactions.</li>
-                </ul>
-              </section>
-
-              <section id="help-roster" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>3. Active Roster &amp; Damage Tracking</h3>
-                <p>Units in your force roster track active <strong>Armor Damage</strong> and <strong>Internal Structure Damage</strong> points. Clicking <strong>+5 / -5 Armor</strong> or <strong>+1 / -1 Struct</strong> modifies damage state. Clicking <strong>Repair &amp; Bill</strong> calculates the total SP and C-Bill repair costs, bills the treasury, and restores the unit to 100% readiness.</p>
-              </section>
-
-              <section id="help-builder" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>4. Location Loadout Configurator</h3>
-                <p>Powered by a native PowerShell engine (running on port 8085), the Configurator validates equipment across 8 body locations: Head (HD), Center Torso (CT), Left Torso (LT), Right Torso (RT), Left Arm (LA), Right Arm (RA), Left Leg (LL), and Right Leg (RL). It validates location slot capacity limits, tonnage limits, calculates new BV2, and determines the Refit Class.</p>
-              </section>
-
-              <section id="help-refits" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>5. Refit Classes &amp; Labor Rules</h3>
-                <p>Refits are automatically classified according to official BattleTech rules:</p>
-                <ul>
-                  <li><strong>Class A (Field - Same Type Weapon Swap):</strong> Minimal labor hours and low SP cost.</li>
-                  <li><strong>Class B (Field - Weapon Type Swap):</strong> Moderate technical modification.</li>
-                  <li><strong>Class C (Maintenance Bay - Location Move):</strong> Requires a dedicated bay facility.</li>
-                  <li><strong>Class D-F (Factory Level - Engine/Gyro/Structure):</strong> Major overhaul requiring extensive labor and factory tools.</li>
-                </ul>
-              </section>
-
-              <section id="help-aar" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>6. After-Action Reports (AAR)</h3>
-                <p>Submit post-battle combat logs to update unit damage or mark destroyed Mechs. Attached contract rewards (WP and C-Bills) as well as cash salvage recovery are automatically processed and credited directly into your treasury ledger.</p>
-              </section>
-
-              <section id="help-warehouse" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>7. Warehouse &amp; Stock Offsetting</h3>
-                <p>Battlefield salvage items (PPCs, Lasers, Heat Sinks) recovered during AARs populate your <strong>Spare Parts Warehouse</strong>. When committing custom loadouts, the system checks warehouse stock first and auto-deducts available components, saving full C-Bill purchase costs.</p>
-              </section>
-
-              <section id="help-timeline" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>8. Timeline Calendar &amp; Overhead</h3>
-                <p>Advance the in-universe campaign calendar by <strong>+1 Day</strong>, <strong>+7 Days</strong>, or <strong>+30 Days</strong>. Time advancement automatically calculates and deducts daily operational overhead ($5,000 C-Bills/day for technician salaries, pilot hazard pay, and JumpShip transit) and logs entries in the <strong>Command Journal</strong>.</p>
-              </section>
-
-              <section id="help-printing" style={{ marginBottom: "24px" }}>
-                <h3 style={{ color: "#f0f6fc", borderBottom: "1px solid #30363d", paddingBottom: "4px" }}>9. Printable Work Orders &amp; Summaries</h3>
-                <p>Generate clean, monochrome printouts for physical tabletop play using browser printing controls (`Ctrl + P`):</p>
-                <ul>
-                  <li><strong>Print Campaign Summary:</strong> Displays full campaign ledger status and unit readiness table.</li>
-                  <li><strong>Print Work Order:</strong> Generates a maintenance bay dispatch order complete with Target Numbers and chief tech sign-off blocks.</li>
-                </ul>
-              </section>
-
-              <section id="help-sources" style={{ marginBottom: "10px" }}>
-                <h3 style={{ color: "#fbbf24", borderBottom: "1px solid #fbbf24", paddingBottom: "4px" }}>10. Reference Data Sources</h3>
-                <p>All formulas, equipment costs, labor multipliers, and campaign logistics rules implemented in this application are derived from official BattleTech publications:</p>
-                <div style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "12px", borderRadius: "6px", fontFamily: "monospace", fontSize: "12px" }}>
-                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Total Warfare (CAT35001)</strong> - Combat damage, armor/structure ratios, pilot Gunnery/Piloting skills.</p>
-                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: TechManual (CAT35002)</strong> - Component tonnages, critical slot allocations, and Battle Value (BV2) formulas.</p>
-                  <p style={{ margin: "0 0 6px 0" }}>📚 <strong>BattleTech: Strategic Operations &amp; Campaign Operations (CAT35003/CAT35007)</strong> - Tech repair Target Numbers, labor hours, and Refit Classes (A–F).</p>
-                  <p style={{ margin: "0" }}>📚 <strong>BattleTech: Alpha Strike / Chaos Campaign Rules</strong> - Warchest Points (WP), Support Points (SP), and contract track rewards.</p>
-                </div>
-              </section>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid #30363d", backgroundColor: "#0d1117", textAlign: "right" }}>
-              <button onClick={() => setShowHelpModal(false)} style={{ backgroundColor: "#2563eb", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
-                Got It
-              </button>
-            </div>
-
-          </div>
         </div>
       )}
 
@@ -817,7 +727,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* AAR Card */}
+            {/* AAR Card with Critical Hit Entry */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Mission After-Action Report (AAR)</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
@@ -836,21 +746,39 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Log Combat Damage Sustained</strong>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+              <strong style={{ fontSize: "13px", color: "#fbbf24", display: "block", marginBottom: "8px" }}>Log Combat Damage &amp; Critical Hits Sustained</strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "14px" }}>
                 {units.map((u) => {
                   const log = aarLogs[u.id] || {};
                   return (
-                    <div key={u.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "10px 12px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <strong style={{ color: "#fff", fontSize: "14px" }}>{u.chassis}</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>({u.model})</span>
+                    <div key={u.id} style={{ backgroundColor: "#0d1117", border: "1px solid #30363d", padding: "10px 12px", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <div>
+                          <strong style={{ color: "#fff", fontSize: "14px" }}>{u.chassis}</strong> <span style={{ color: "#8b949e", fontSize: "12px" }}>({u.model})</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <input type="number" placeholder="Armor Lost" value={log.armor_loss || ""} onChange={(e) => handleAarLogChange(u.id, "armor_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                          <input type="number" placeholder="Struct Lost" value={log.structure_loss || ""} onChange={(e) => handleAarLogChange(u.id, "structure_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
+                          <label style={{ fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                            <input type="checkbox" checked={log.is_destroyed || false} onChange={(e) => handleAarLogChange(u.id, "is_destroyed", e.target.checked)} /> Destroyed
+                          </label>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <input type="number" placeholder="Armor Lost" value={log.armor_loss || ""} onChange={(e) => handleAarLogChange(u.id, "armor_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                        <input type="number" placeholder="Struct Lost" value={log.structure_loss || ""} onChange={(e) => handleAarLogChange(u.id, "structure_loss", e.target.value)} style={{ width: "80px", backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }} />
-                        <label style={{ fontSize: "11px", color: "#ef4444", display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-                          <input type="checkbox" checked={log.is_destroyed || false} onChange={(e) => handleAarLogChange(u.id, "is_destroyed", e.target.checked)} /> Destroyed
-                        </label>
+
+                      {/* Critical Hit Input Row */}
+                      <div style={{ borderTop: "1px dashed #30363d", paddingTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
+                        <span style={{ fontSize: "10px", color: "#ef4444", fontWeight: "bold" }}>⚡ CRITICAL HIT:</span>
+                        <select value={aarCritLoc[u.id] || "RA"} onChange={(e) => setAarCritLoc({ ...aarCritLoc, [u.id]: e.target.value })} style={{ backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "4px", borderRadius: "4px", fontSize: "11px" }}>
+                          <option value="HD">Head (HD)</option>
+                          <option value="CT">Center Torso (CT)</option>
+                          <option value="LT">Left Torso (LT)</option>
+                          <option value="RT">Right Torso (RT)</option>
+                          <option value="LA">Left Arm (LA)</option>
+                          <option value="RA">Right Arm (RA)</option>
+                          <option value="LL">Left Leg (LL)</option>
+                          <option value="RL">Right Leg (RL)</option>
+                        </select>
+                        <input type="text" placeholder="Component (e.g. PPC, Gyro)" value={aarCritComp[u.id] || ""} onChange={(e) => setAarCritComp({ ...aarCritComp, [u.id]: e.target.value })} style={{ flex: 1, backgroundColor: "#161b22", border: "1px solid #30363d", color: "#fff", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }} />
                       </div>
                     </div>
                   );
@@ -969,11 +897,11 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* Active Force Roster */}
+            {/* Active Force Roster with Critical Hit Badges */}
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", padding: "20px", borderRadius: "8px" }}>
               <h2 style={{ borderBottom: "1px solid #30363d", paddingBottom: "10px", marginTop: 0, fontSize: "18px", color: "#f0f6fc" }}>Active Force Roster</h2>
               {units.map((unit) => {
-                const isDamaged = unit.armor_damage > 0 || unit.structure_damage > 0;
+                const isDamaged = unit.armor_damage > 0 || unit.structure_damage > 0 || (unit.critical_hits && unit.critical_hits.length > 0);
                 return (
                   <div key={unit.id} style={{ backgroundColor: "#0d1117", padding: "12px 14px", borderRadius: "6px", border: isDamaged ? "1px solid #ef4444" : "1px solid #30363d", marginBottom: "10px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
@@ -991,13 +919,30 @@ export default function Dashboard() {
                       </div>
                     </div>
 
+                    {/* Critical Hits List */}
+                    {unit.critical_hits && unit.critical_hits.length > 0 && (
+                      <div style={{ marginBottom: "8px", borderTop: "1px solid #30363d", paddingTop: "6px" }}>
+                        <strong style={{ fontSize: "11px", color: "#f87171" }}>DESTROYED COMPONENTS:</strong>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
+                          {unit.critical_hits.map((crit) => (
+                            <div key={crit.id} style={{ backgroundColor: "#1e1e2e", border: "1px solid #ef4444", padding: "4px 8px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+                              <span>⚡ <strong>[{crit.location}]</strong> {crit.component_name}</span>
+                              <button onClick={() => handleReplaceCriticalComponent(crit.id)} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "2px 6px", borderRadius: "3px", cursor: "pointer", fontWeight: "bold", fontSize: "10px" }}>
+                                Replace Component
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", border: "1px solid #30363d" }}>
                       <div>
                         <span>Armor Dmg: <strong>{unit.armor_damage}</strong></span>
                         <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, 5, 0)} style={{ marginLeft: "6px", padding: "1px 5px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }}>+5</button>
                         <button onClick={() => handleUpdateDamage(unit.id, unit.armor_damage, unit.structure_damage, -5, 0)} style={{ marginLeft: "2px", padding: "1px 5px", backgroundColor: "#30363d", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }}>-5</button>
                       </div>
-                      {isDamaged && (
+                      {(unit.armor_damage > 0 || unit.structure_damage > 0) && (
                         <button onClick={() => handleRepairUnit(unit.id)} style={{ backgroundColor: "#d97706", color: "#000", border: "none", padding: "3px 6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}>
                           Repair &amp; Bill
                         </button>

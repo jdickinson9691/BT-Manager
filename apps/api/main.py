@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from packages.database.db import init_db, get_db
-from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory, CampaignLog
+from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory, CampaignLog, CriticalHit
 from packages.engine.repair import (
     RepairRequest, 
     RefitRequest, 
@@ -81,17 +81,25 @@ class InventoryAddRequest(BaseModel):
     quantity: int = 1
     category: str = "Weapon"
 
+class CriticalHitLog(BaseModel):
+    location: str
+    component_name: str
+
 class UnitCombatLog(BaseModel):
     unit_id: int
     armor_loss: int = 0
     structure_loss: int = 0
     is_destroyed: bool = False
+    critical_hits: Optional[List[CriticalHitLog]] = []
 
 class AARSubmitRequest(BaseModel):
     mission_id: Optional[int] = None
     unit_logs: List[UnitCombatLog]
     salvage_cbill_value: float = 0.0
     salvage_items: Optional[List[str]] = []
+
+class ComponentRepairRequest(BaseModel):
+    critical_hit_id: int
 
 @app.get("/")
 def read_root():
@@ -116,16 +124,13 @@ def advance_campaign_time(req: AdvanceTimeRequest, db: Session = Depends(get_db)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign state not found")
 
-    # Advance In-Universe Date
     current_dt = datetime.strptime(campaign.current_date, "%Y-%m-%d")
     new_dt = current_dt + timedelta(days=req.days)
     campaign.current_date = new_dt.strftime("%Y-%m-%d")
 
-    # Calculate Overhead Payroll/Maintenance
     overhead_cost = campaign.daily_overhead * req.days
     campaign.cbill_balance -= overhead_cost
 
-    # Add Log Entry
     log_entry = CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,
@@ -165,7 +170,23 @@ def add_custom_log(log_data: CustomLogCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/v1/units")
 def get_units(db: Session = Depends(get_db)):
-    return db.query(Unit).all()
+    units = db.query(Unit).all()
+    results = []
+    for u in units:
+        crits = [{"id": c.id, "location": c.location, "component_name": c.component_name} for c in u.critical_hits]
+        results.append({
+            "id": u.id,
+            "campaign_id": u.campaign_id,
+            "chassis": u.chassis,
+            "model": u.model,
+            "tonnage": u.tonnage,
+            "tech_base": u.tech_base,
+            "bv2": u.bv2,
+            "armor_damage": u.armor_damage,
+            "structure_damage": u.structure_damage,
+            "critical_hits": crits
+        })
+    return results
 
 @app.post("/api/v1/units")
 def add_unit(unit_data: UnitCreate, db: Session = Depends(get_db)):
@@ -222,6 +243,16 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
                 unit.armor_damage += log.armor_loss
                 unit.structure_damage += log.structure_loss
 
+                # Record Critical Hits
+                if log.critical_hits:
+                    for crit in log.critical_hits:
+                        db.add(CriticalHit(
+                            unit_id=unit.id,
+                            location=crit.location,
+                            component_name=crit.component_name,
+                            is_destroyed=True
+                        ))
+
     if aar.mission_id:
         mission = db.query(Mission).filter(Mission.id == aar.mission_id).first()
         if mission and mission.status == "Active":
@@ -240,7 +271,6 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
             else:
                 db.add(Inventory(campaign_id=campaign.id, component_name=comp, quantity=1, category="Salvage"))
 
-    # Log AAR Event
     db.add(CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,
@@ -249,7 +279,45 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
     ))
 
     db.commit()
-    return {"message": "After-Action Report processed! Treasury, Units, and Salvage Warehouse updated."}
+    return {"message": "After-Action Report processed! Treasury, Units, Critical Hits, and Warehouse Inventory updated."}
+
+@app.post("/api/v1/units/repair-critical")
+def repair_critical_component(req: ComponentRepairRequest, db: Session = Depends(get_db)):
+    crit = db.query(CriticalHit).filter(CriticalHit.id == req.critical_hit_id).first()
+    if not crit:
+        raise HTTPException(status_code=404, detail="Critical hit record not found")
+
+    unit = db.query(Unit).filter(Unit.id == crit.unit_id).first()
+    campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
+
+    # Check warehouse stock for replacement
+    inv = db.query(Inventory).filter(Inventory.component_name == crit.component_name, Inventory.quantity > 0).first()
+    used_warehouse = False
+
+    if inv:
+        inv.quantity -= 1
+        if inv.quantity <= 0:
+            db.delete(inv)
+        used_warehouse = True
+    else:
+        # Bill replacement C-Bill cost ( standard default if missing stock)
+        cost = 100000.0
+        if campaign.cbill_balance < cost:
+            raise HTTPException(status_code=400, detail=f"Insufficient C-Bills () or Warehouse stock to replace {crit.component_name}!")
+        campaign.cbill_balance -= cost
+
+    component_name = crit.component_name
+    db.delete(crit)
+
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Repair",
+        description=f"Replaced destroyed {component_name} on {unit.chassis} ({unit.model}) using {'Warehouse Stock' if used_warehouse else ',000 C-Bills'}."
+    ))
+
+    db.commit()
+    return {"message": f"Successfully replaced {component_name}!", "used_warehouse": used_warehouse}
 
 @app.post("/api/v1/builder/commit")
 def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_db)):
@@ -300,7 +368,6 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
         )
         db.add(unit)
 
-    # Add Refit Log Entry
     db.add(CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,
@@ -355,7 +422,6 @@ def repair_and_bill_unit(unit_id: int, db: Session = Depends(get_db)):
     unit.armor_damage = 0
     unit.structure_damage = 0
 
-    # Log Repair Event
     db.add(CampaignLog(
         campaign_id=campaign.id,
         log_date=campaign.current_date,

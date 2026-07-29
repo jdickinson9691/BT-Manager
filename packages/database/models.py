@@ -1,6 +1,5 @@
-﻿from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
+﻿from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from packages.database.db import Base
 
 class Campaign(Base):
@@ -26,7 +25,7 @@ class CampaignLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"))
     log_date = Column(String)
-    event_type = Column(String) # e.g., "AAR", "Refit", "Payroll", "Contract"
+    event_type = Column(String)
     description = Column(String)
 
     campaign = relationship("Campaign", back_populates="logs")
@@ -46,6 +45,18 @@ class Unit(Base):
 
     campaign = relationship("Campaign", back_populates="units")
     pilots = relationship("Pilot", back_populates="assigned_unit")
+    critical_hits = relationship("CriticalHit", back_populates="unit", cascade="all, delete-orphan")
+
+class CriticalHit(Base):
+    __tablename__ = "critical_hits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    unit_id = Column(Integer, ForeignKey("units.id"))
+    location = Column(String) # HD, CT, LT, RT, LA, RA, LL, RL
+    component_name = Column(String) # e.g. "PPC", "Engine", "Gyro", "Shoulder"
+    is_destroyed = Column(Boolean, default=True)
+
+    unit = relationship("Unit", back_populates="critical_hits")
 
 class Inventory(Base):
     __tablename__ = "inventory"
