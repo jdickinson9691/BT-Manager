@@ -43,6 +43,7 @@ class CommitLoadoutRequest(BaseModel):
     bv2: int
     sp_cost: float
     cbill_cost: float
+    components_used: Optional[List[str]] = []
 
 class UnitDamageUpdate(BaseModel):
     armor_damage: int
@@ -61,21 +62,6 @@ class PilotCreate(BaseModel):
     gunnery: int = 4
     piloting: int = 5
     unit_id: Optional[int] = None
-
-class RefitApplyRequest(BaseModel):
-    new_model: str
-    new_bv2: int
-    refit_class: str
-    tech_rating: str = "Regular"
-
-class MarketPurchaseUnitRequest(BaseModel):
-    chassis: str
-    model: str
-    tonnage: int
-    tech_base: str
-    bv2: int
-    cbill_cost: float
-    wp_cost: int = 0
 
 class MarketPurchaseSuppliesRequest(BaseModel):
     sp_amount: int = 0
@@ -179,7 +165,6 @@ def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_
     if aar.salvage_cbill_value > 0:
         campaign.cbill_balance += aar.salvage_cbill_value
 
-    # Process battlefield salvage items into Warehouse
     if aar.salvage_items:
         for comp in aar.salvage_items:
             inv = db.query(Inventory).filter(Inventory.component_name == comp).first()
@@ -197,14 +182,27 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign state not found")
 
-    if campaign.sp_balance < req.sp_cost or campaign.cbill_balance < req.cbill_cost:
+    # Consume components from Warehouse Stock to offset C-Bill cost
+    discounted_cbill_cost = req.cbill_cost
+    used_from_warehouse = []
+
+    if req.components_used:
+        for comp in req.components_used:
+            inv = db.query(Inventory).filter(Inventory.component_name == comp, Inventory.quantity > 0).first()
+            if inv:
+                inv.quantity -= 1
+                used_from_warehouse.append(comp)
+                if inv.quantity <= 0:
+                    db.delete(inv)
+
+    if campaign.sp_balance < req.sp_cost or campaign.cbill_balance < discounted_cbill_cost:
         raise HTTPException(
             status_code=400, 
             detail=f"Insufficient Treasury or SP! Requires {req.sp_cost} SP and  C-Bills."
         )
 
     campaign.sp_balance -= req.sp_cost
-    campaign.cbill_balance -= req.cbill_cost
+    campaign.cbill_balance -= discounted_cbill_cost
 
     if req.unit_id:
         unit = db.query(Unit).filter(Unit.id == req.unit_id).first()
@@ -214,7 +212,11 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
             unit.tonnage = req.tonnage
             db.commit()
             db.refresh(unit)
-            return {"message": f"Successfully updated {unit.chassis} to custom variant {unit.model}!", "unit": unit}
+            return {
+                "message": f"Successfully updated {unit.chassis} to {unit.model}!", 
+                "unit": unit,
+                "used_from_warehouse": used_from_warehouse
+            }
 
     new_unit = Unit(
         campaign_id=campaign.id,
@@ -229,7 +231,11 @@ def commit_custom_loadout(req: CommitLoadoutRequest, db: Session = Depends(get_d
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
-    return {"message": f"Successfully commissioned new custom unit {new_unit.chassis} ({new_unit.model})!", "unit": new_unit}
+    return {
+        "message": f"Successfully commissioned new custom unit {new_unit.chassis} ({new_unit.model})!", 
+        "unit": new_unit,
+        "used_from_warehouse": used_from_warehouse
+    }
 
 @app.patch("/api/v1/units/{unit_id}/damage")
 def update_unit_damage(unit_id: int, damage: UnitDamageUpdate, db: Session = Depends(get_db)):

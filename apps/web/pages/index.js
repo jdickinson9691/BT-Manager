@@ -8,25 +8,6 @@ export default function Dashboard() {
   const [inventory, setInventory] = useState([]);
 
   // Form States
-  const [chassis, setChassis] = useState("");
-  const [model, setModel] = useState("");
-  const [tonnage, setTonnage] = useState(55);
-  const [unitTechBase, setUnitTechBase] = useState("Inner Sphere");
-  const [bv2, setBv2] = useState(1200);
-
-  const [missionName, setMissionName] = useState("");
-  const [missionType, setMissionType] = useState("Raid");
-  const [employer, setEmployer] = useState("House Davion");
-  const [wpReward, setWpReward] = useState(350);
-  const [cbillReward, setCbillReward] = useState(3000000);
-
-  const [pilotName, setPilotName] = useState("");
-  const [callsign, setCallsign] = useState("");
-  const [gunnery, setGunnery] = useState(4);
-  const [piloting, setPiloting] = useState(5);
-  const [assignedUnitId, setAssignedUnitId] = useState("");
-
-  // Warehouse Manual Add State
   const [newItemName, setNewItemName] = useState("PPC");
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemCategory, setNewItemCategory] = useState("Weapon");
@@ -178,7 +159,7 @@ export default function Dashboard() {
         fetchMissions();
         fetchInventory();
         setAarLogs({});
-        alert("After-Action Report successfully submitted! Treasury & Warehouse Inventory updated.");
+        alert("After-Action Report submitted! Treasury & Warehouse Inventory updated.");
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to submit AAR");
@@ -227,6 +208,9 @@ export default function Dashboard() {
       return;
     }
 
+    // Collect list of all mounted components across locations
+    const allComponents = Object.values(locationLoadout).flat();
+
     try {
       const res = await fetch("http://localhost:8000/api/v1/builder/commit", {
         method: "POST",
@@ -239,13 +223,21 @@ export default function Dashboard() {
           bv2: Number(validationResult.EstimatedBV2 || 1000),
           sp_cost: Number(validationResult.SPCost || 0),
           cbill_cost: Number(validationResult.CBillEquipmentCost || 0),
+          components_used: allComponents,
         }),
       });
 
       if (res.ok) {
+        const data = await res.json();
         fetchBalance();
         fetchUnits();
-        alert("Custom loadout successfully committed to Active Roster!");
+        fetchInventory();
+
+        let msg = "Custom loadout successfully committed to Active Roster!";
+        if (data.used_from_warehouse && data.used_from_warehouse.length > 0) {
+          msg += `\n\nConsumed spare parts from Warehouse: ${data.used_from_warehouse.join(", ")}`;
+        }
+        alert(msg);
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to commit loadout.");
@@ -332,7 +324,6 @@ export default function Dashboard() {
   return (
     <div style={{ padding: "24px", fontFamily: "sans-serif", backgroundColor: "#0d1117", color: "#c9d1d9", minHeight: "100vh" }}>
       
-      {/* Printable CSS Rules */}
       <style>{`
         @media print {
           body { background-color: #fff !important; color: #000 !important; font-family: monospace !important; }
@@ -629,7 +620,7 @@ export default function Dashboard() {
                   </div>
                   {validationResult.Valid && (
                     <button onClick={handleCommitLoadoutToRoster} style={{ width: "100%", backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", marginTop: "8px" }}>
-                      Commit Loadout to Active Roster &amp; Bill Treasury
+                      Commit Loadout (Use Warehouse Stock First)
                     </button>
                   )}
                 </div>
