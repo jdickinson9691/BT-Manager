@@ -200,10 +200,11 @@ lbl_system = ctk.CTkLabel(header, text="SYSTEM: Outreach [ONLINE - MUL CONNECTED
 lbl_system.pack(side="left", padx=15, pady=10)
 
 mode_frame = ctk.CTkFrame(header, fg_color="#1E293B", corner_radius=6)
-mode_frame.pack(side="right", padx=15, pady=8)
+mode_frame.pack(side="right", padx=10, pady=8)
 
-ctk.CTkButton(mode_frame, text="Offline", font=("Arial", 10), fg_color="transparent", text_color="#CBD5E1", width=55, height=26, corner_radius=4).pack(side="left", padx=2, pady=2)
-ctk.CTkButton(mode_frame, text="Online (MUL API)", font=("Arial", 10, "bold"), fg_color="#0284C7", text_color="#FFFFFF", width=105, height=26, corner_radius=4).pack(side="right", padx=2, pady=2)
+ctk.CTkButton(mode_frame, text="🌐 MUL: Online", font=("Arial", 10, "bold"), fg_color="#0284C7", text_color="#FFFFFF", width=95, height=26, corner_radius=4).pack(side="left", padx=2, pady=2)
+ctk.CTkButton(mode_frame, text="📖 Sarna: Online", font=("Arial", 10, "bold"), fg_color="#0284C7", text_color="#FFFFFF", width=100, height=26, corner_radius=4).pack(side="left", padx=2, pady=2)
+ctk.CTkButton(mode_frame, text="⚙️ MegaMek: Online", font=("Arial", 10, "bold"), fg_color="#F59E0B", text_color="#0F172A", width=115, height=26, corner_radius=4).pack(side="left", padx=2, pady=2)
 
 lbl_treasury = ctk.CTkLabel(header, text="C-BILLS: $15,000,000", font=("Arial", 13, "bold"), text_color="#10B981")
 lbl_treasury.pack(side="right", padx=15, pady=10)

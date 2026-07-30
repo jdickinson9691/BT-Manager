@@ -21,6 +21,8 @@ export default function Dashboard() {
   });
 
   const [onlineMulMode, setOnlineMulMode] = useState(true);
+  const [onlineSarnaMode, setOnlineSarnaMode] = useState(true);
+  const [onlineMegamekMode, setOnlineMegamekMode] = useState(true);
   
   // STEP-BY-STEP CAMPAIGN WORKFLOW NAVIGATION
   const [activeStep, setActiveStep] = useState(1); // 1: Contract & Transit, 2: Deployment & Lances, 3: Combat AAR & Salvage, 4: Tech Bay & MechLab, 5: Personnel & MedBay, 6: Financial Ledger
@@ -464,22 +466,47 @@ export default function Dashboard() {
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span className="font-mono" style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold" }}>
             C-BILLS: ${(balance.CBills || 15000000).toLocaleString()}
           </span>
-          <div style={{ background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px", display: "flex", padding: "2px" }}>
+
+          {/* INTEGRATION NETWORK STATUS TOGGLES */}
+          <div style={{ display: "flex", gap: "6px", background: "rgba(0,0,0,0.3)", padding: "4px 8px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+            {/* MUL TOGGLE */}
             <button
-              onClick={() => setOnlineMulMode(false)}
-              style={{ background: !onlineMulMode ? "rgba(255,255,255,0.2)" : "transparent", border: "none", color: "#cbd5e1", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
+              onClick={() => setOnlineMulMode(!onlineMulMode)}
+              style={{
+                background: onlineMulMode ? "#0284c7" : "rgba(255,255,255,0.1)",
+                color: onlineMulMode ? "#fff" : "#cbd5e1",
+                border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+              }}
             >
-              Offline
+              🌐 MUL: {onlineMulMode ? "Online" : "Cached"}
             </button>
+
+            {/* SARNA TOGGLE */}
             <button
-              onClick={() => setOnlineMulMode(true)}
-              style={{ background: onlineMulMode ? "#0284c7" : "transparent", border: "none", color: "#fff", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer", fontWeight: "bold" }}
+              onClick={() => setOnlineSarnaMode(!onlineSarnaMode)}
+              style={{
+                background: onlineSarnaMode ? "#38bdf8" : "rgba(255,255,255,0.1)",
+                color: onlineSarnaMode ? "#0f172a" : "#cbd5e1",
+                border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+              }}
             >
-              Online (MUL API)
+              📖 Sarna: {onlineSarnaMode ? "Online" : "Cached"}
+            </button>
+
+            {/* MEGAMEK TOGGLE */}
+            <button
+              onClick={() => setOnlineMegamekMode(!onlineMegamekMode)}
+              style={{
+                background: onlineMegamekMode ? "#f59e0b" : "rgba(255,255,255,0.1)",
+                color: onlineMegamekMode ? "#0f172a" : "#cbd5e1",
+                border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+              }}
+            >
+              ⚙️ MegaMek: {onlineMegamekMode ? "Online" : "Cached"}
             </button>
           </div>
 
