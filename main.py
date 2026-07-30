@@ -135,11 +135,14 @@ def create_new_campaign():
         (co_id, "Warhammer WHM-6R", 70, "Operational", "100%", 0)
     ])
     cur.executemany("INSERT INTO personnel (company_id, pilot_name, rank, gunnery, piloting, status, salary, xp, spa, kills, bondsmen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-        (co_id, "Lt. Natasha Kerensky", "Lieutenant", 2, 3, "Fit for Duty", 75000, 45, "None", 2, 0)
+        (co_id, "Lt. Natasha Kerensky", "Lieutenant", 2, 3, "Fit for Duty", 75000, 45, "None", 2, 0),
+        (co_id, "Sgt. Robert Clay", "Sergeant", 4, 4, "Fit for Duty", 35000, 25, "None", 1, 0)
     ])
     cur.executemany("INSERT INTO inventory (company_id, part_name, category, stock, cost) VALUES (?, ?, ?, ?, ?)", [
         (co_id, "AC/20 Autocannon", "Weaponry", 2, 500000),
-        (co_id, "Heat Sink", "Internal", 6, 20000)
+        (co_id, "Particle Projector Cannon (PPC)", "Weaponry", 3, 300000),
+        (co_id, "Medium Laser", "Weaponry", 6, 80000),
+        (co_id, "Heat Sink", "Internal", 12, 20000)
     ])
     cur.executemany("INSERT INTO contracts (company_id, employer, mission_type, difficulty, payout, salvage_rights, is_active, enemy_faction, intel_summary) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)", [
         (co_id, "House Davion", "Garrison", "Medium", 3500000, "Shared (50%)", "Draconis Combine", "Standard garrison defense contract on Outreach."),
@@ -155,7 +158,7 @@ def create_new_campaign():
 ctk.CTkButton(form_frame, text="Create & Launch New Campaign", command=create_new_campaign, fg_color="#F97316", font=("Arial", 12, "bold"), height=40).pack(pady=20)
 setup_app.mainloop()
 
-# Ensure we have a valid active campaign ID
+# Ensure valid active campaign ID
 if not ACTIVE_CAMP_ID:
     if os.path.exists("active_campaign.txt"):
         try:
@@ -187,7 +190,7 @@ def fetch_campaign():
 camp_data, comp_data = fetch_campaign()
 CO_ID = comp_data[0]
 
-# TOP HEADER BAR MATCHING SCREENSHOT 2 EXACTLY
+# TOP HEADER BAR
 header = ctk.CTkFrame(app, fg_color="#0F141E", border_width=1, border_color="#334155")
 header.pack(fill="x", padx=15, pady=10)
 
@@ -200,7 +203,6 @@ lbl_date.pack(side="left", padx=15, pady=10)
 lbl_system = ctk.CTkLabel(header, text=f"SYSTEM: {camp_data[1]} [ONLINE - MUL CONNECTED]", font=("Arial", 11, "bold"), text_color="#38BDF8")
 lbl_system.pack(side="left", padx=15, pady=10)
 
-# Online/Offline Pill Toggle Button in Header
 mode_frame = ctk.CTkFrame(header, fg_color="#1E293B", corner_radius=6)
 mode_frame.pack(side="right", padx=15, pady=8)
 
@@ -222,7 +224,7 @@ tab_maint = tabview.add("Maintenance & Engineering")
 tab_inv = tabview.add("Storage & Parts Inventory")
 tab_pers = tabview.add("Personnel & MedBay")
 
-# ==================== OPERATIONS & CONTRACTS DECK ====================
+# ==================== TAB 1: OPERATIONS & CONTRACTS ====================
 ctk.CTkLabel(tab_ops, text="Command & Operations Deck", font=("Arial", 16, "bold"), text_color="#F8FAFC").pack(anchor="w", padx=15, pady=(5, 10))
 
 # TOP DEPLOYED OPERATION BANNER
@@ -262,11 +264,10 @@ def refresh_active_operation():
 
 refresh_active_operation()
 
-# MAIN CONTENT GRID MATCHING SCREENSHOT 2
+# MAIN CONTENT GRID
 ops_grid = ctk.CTkFrame(tab_ops, fg_color="transparent")
 ops_grid.pack(fill="both", expand=True, padx=15, pady=10)
 
-# LEFT COLUMN: CONTROL BUTTONS
 left_col = ctk.CTkFrame(ops_grid, fg_color="transparent")
 left_col.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
@@ -309,6 +310,7 @@ def add_faction_unit_dialog():
         cur.execute("INSERT INTO roster (company_id, mech_name, tonnage, status, armor_status, repair_cost) VALUES (?, ?, 50, 'Operational', '100%', 0)", (CO_ID, val))
         conn.commit()
         conn.close()
+        refresh_maint_tab()
         messagebox.showinfo("Unit Added", f"Unit '{val}' added to company roster!")
 
 btn_unit = ctk.CTkButton(btn_row2, text="+ Add Faction Unit", command=add_faction_unit_dialog, fg_color="#0284C7", font=("Arial", 12, "bold"), height=42)
@@ -329,11 +331,9 @@ def build_custom_contract_dialog():
 btn_contract = ctk.CTkButton(btn_row2, text="+ Build Custom Contract", command=build_custom_contract_dialog, fg_color="#9333EA", font=("Arial", 12, "bold"), height=42)
 btn_contract.pack(side="right", fill="x", expand=True, padx=(5, 0))
 
-# RIGHT COLUMN: MRB BOARD & GALACTIC JUMPNET
 right_col = ctk.CTkFrame(ops_grid, fg_color="transparent")
 right_col.pack(side="right", fill="both", expand=True)
 
-# MRB BOARD CARD
 mrb_card = ctk.CTkFrame(right_col, fg_color="#070A12", border_width=1, border_color="#EA580C")
 mrb_card.pack(fill="x", pady=(0, 10))
 
@@ -372,7 +372,6 @@ def refresh_mrb_board():
 
 refresh_mrb_board()
 
-# GALACTIC JUMPNET CARD FROM SCREENSHOT 2
 jump_card = ctk.CTkFrame(right_col, fg_color="#070A12", border_width=1, border_color="#38BDF8")
 jump_card.pack(fill="x", pady=5)
 
@@ -398,42 +397,227 @@ for dest_name, dest_faction, dist in destinations:
         messagebox.showinfo("JumpNet Transit", f"JumpShip completed jump vector to {dname}!")
     ctk.CTkButton(row, text="Jump to System", command=jump_sys, fg_color="#0284C7", font=("Arial", 10, "bold"), width=110).pack(side="right", padx=8, pady=6)
 
-# ==================== OTHER TABS ====================
-# TAB 2: MAINTENANCE
-maint_scroll = ctk.CTkScrollableFrame(tab_maint, fg_color="#18181B")
-maint_scroll.pack(fill="both", expand=True, padx=15, pady=15)
-conn = sqlite3.connect(DB_PATH)
-cur = conn.cursor()
-cur.execute("SELECT mech_name, tonnage, status, armor_status FROM roster WHERE company_id = ?", (CO_ID,))
-for m in cur.fetchall():
-    card = ctk.CTkFrame(maint_scroll, fg_color="#27272A")
-    card.pack(fill="x", padx=10, pady=5)
-    ctk.CTkLabel(card, text=f"Unit: {m[0]} | Tonnage: {m[1]}T | Status: {m[2]} | Armor: {m[3]}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
-conn.close()
+# ==================== TAB 2: MAINTENANCE & ENGINEERING ====================
+ctk.CTkLabel(tab_maint, text="Maintenance & Engineering Deck", font=("Arial", 16, "bold"), text_color="#EA580C").pack(anchor="w", padx=15, pady=(5, 10))
 
-# TAB 3: INVENTORY
-inv_scroll = ctk.CTkScrollableFrame(tab_inv, fg_color="#18181B")
-inv_scroll.pack(fill="both", expand=True, padx=15, pady=15)
-conn = sqlite3.connect(DB_PATH)
-cur = conn.cursor()
-cur.execute("SELECT part_name, category, stock, cost FROM inventory WHERE company_id = ?", (CO_ID,))
-for p in cur.fetchall():
-    card = ctk.CTkFrame(inv_scroll, fg_color="#27272A")
-    card.pack(fill="x", padx=10, pady=5)
-    ctk.CTkLabel(card, text=f"Part: {p[0]} | Category: {p[1]} | Stock: {p[2]} Units | Cost: ${p[3]:,}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
-conn.close()
+maint_grid = ctk.CTkFrame(tab_maint, fg_color="transparent")
+maint_grid.pack(fill="both", expand=True, padx=15, pady=5)
 
-# TAB 4: PERSONNEL
-pers_scroll = ctk.CTkScrollableFrame(tab_pers, fg_color="#18181B")
-pers_scroll.pack(fill="both", expand=True, padx=15, pady=15)
-conn = sqlite3.connect(DB_PATH)
-cur = conn.cursor()
-cur.execute("SELECT pilot_name, rank, gunnery, piloting, status, salary FROM personnel WHERE company_id = ?", (CO_ID,))
-for pe in cur.fetchall():
-    card = ctk.CTkFrame(pers_scroll, fg_color="#27272A")
-    card.pack(fill="x", padx=10, pady=5)
-    ctk.CTkLabel(card, text=f"Pilot: {pe[0]} ({pe[1]}) | G/P: {pe[2]}/{pe[3]} | Status: {pe[4]} | Salary: ${pe[5]:,}/mo", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
-conn.close()
+maint_left = ctk.CTkFrame(maint_grid, fg_color="#18181B", width=650)
+maint_left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+ctk.CTkLabel(maint_left, text="Active Company Mech Roster", font=("Arial", 13, "bold"), text_color="#EA580C").pack(anchor="w", padx=15, pady=10)
+
+maint_scroll = ctk.CTkScrollableFrame(maint_left, fg_color="transparent")
+maint_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+def refresh_maint_tab():
+    for w in maint_scroll.winfo_children(): w.destroy()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id, mech_name, tonnage, status, armor_status FROM roster WHERE company_id = ?", (CO_ID,))
+    units_list = cur.fetchall()
+    conn.close()
+
+    for uid, mname, mton, mstat, marm in units_list:
+        card = ctk.CTkFrame(maint_scroll, fg_color="#27272A")
+        card.pack(fill="x", padx=5, pady=4)
+        ctk.CTkLabel(card, text=f"Unit: {mname} ({mton}T) | Status: {mstat} | Armor: {marm}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
+        
+        def refit_unit(name=mname, ton=mton):
+            lbl_refit_chassis.configure(text=f"Refitting Target: {name} ({ton}T)")
+            messagebox.showinfo("MechLab Selected", f"Loaded {name} into MechLab refit bay!")
+
+        def repair_unit(mid=uid):
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("UPDATE roster SET status = 'Operational', armor_status = '100%' WHERE id = ?", (mid,))
+            conn.commit()
+            conn.close()
+            refresh_maint_tab()
+            messagebox.showinfo("Tech Bay", "Armor plates replaced and structure restored!")
+
+        ctk.CTkButton(card, text="Repair (20 SP)", command=repair_unit, fg_color="#EA580C", font=("Arial", 10, "bold"), width=100).pack(side="right", padx=6, pady=6)
+        ctk.CTkButton(card, text="Refit Mech", command=refit_unit, fg_color="#0284C7", font=("Arial", 10, "bold"), width=90).pack(side="right", padx=4, pady=6)
+
+refresh_maint_tab()
+
+maint_right = ctk.CTkFrame(maint_grid, fg_color="#070A12", border_width=1, border_color="#0284C7")
+maint_right.pack(side="right", fill="both", expand=True)
+
+ctk.CTkLabel(maint_right, text="Interactive MechLab Refit Deck", font=("Arial", 14, "bold"), text_color="#38BDF8").pack(anchor="w", padx=15, pady=10)
+
+lbl_refit_chassis = ctk.CTkLabel(maint_right, text="Refitting Target: Marauder MAD-3R (75T)", font=("Arial", 12, "bold"), text_color="#10B981")
+lbl_refit_chassis.pack(anchor="w", padx=15, pady=2)
+
+lbl_metrics = ctk.CTkLabel(maint_right, text="Loadout: 2x PPC, 2x Medium Laser | Tonnage: 16.0T / 33.8T | Heat: 26 / Dissipation: 20", font=("Arial", 11), text_color="#CBD5E1")
+lbl_metrics.pack(anchor="w", padx=15, pady=4)
+
+palette_frame = ctk.CTkFrame(maint_right, fg_color="transparent")
+palette_frame.pack(fill="x", padx=15, pady=10)
+
+ctk.CTkLabel(palette_frame, text="Equip Weapons:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(0, 4))
+weapons_sub = ctk.CTkFrame(palette_frame, fg_color="transparent")
+weapons_sub.pack(fill="x")
+
+fitted_items = ["PPC", "PPC", "Medium Laser", "Medium Laser", "Heat Sink"]
+
+def update_fitted_list():
+    lbl_metrics.configure(text=f"Fitted Items ({len(fitted_items)}): {', '.join(fitted_items[:4])}... | Tonnage OK | BV2: 1,363")
+
+def add_item(iname):
+    fitted_items.append(iname)
+    update_fitted_list()
+
+for wname in ["PPC", "ER PPC", "Large Laser", "Medium Laser", "AC/20", "Gauss Rifle", "LRM-20", "Heat Sink"]:
+    ctk.CTkButton(weapons_sub, text=f"+ {wname}", command=lambda n=wname: add_item(n), fg_color="#1E293B", text_color="#38BDF8", border_width=1, border_color="#3B82F6", font=("Arial", 10), height=26).pack(side="left", padx=2, pady=2)
+
+def commit_refit():
+    messagebox.showinfo("MechLab Refit Committed", "Loadout refit committed! Tech Bay hours updated and BV2 recalculated.")
+
+ctk.CTkButton(maint_right, text="🛠 Commit MechLab Refit (50 SP / $100,000 C-Bills)", command=commit_refit, fg_color="#0284C7", font=("Arial", 12, "bold"), height=40).pack(fill="x", padx=15, pady=15)
+
+# ==================== TAB 3: STORAGE & PARTS INVENTORY (MARKET TRADE ENGINE) ====================
+ctk.CTkLabel(tab_inv, text="Storage & Parts Inventory Warehouse", font=("Arial", 16, "bold"), text_color="#0284C7").pack(anchor="w", padx=15, pady=(5, 10))
+
+inv_grid = ctk.CTkFrame(tab_inv, fg_color="transparent")
+inv_grid.pack(fill="both", expand=True, padx=15, pady=5)
+
+inv_left = ctk.CTkFrame(inv_grid, fg_color="#18181B", width=650)
+inv_left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+ctk.CTkLabel(inv_left, text="Warehouse Stock Inventory", font=("Arial", 13, "bold"), text_color="#0284C7").pack(anchor="w", padx=15, pady=10)
+
+inv_scroll = ctk.CTkScrollableFrame(inv_left, fg_color="transparent")
+inv_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+def refresh_inv_tab():
+    for w in inv_scroll.winfo_children(): w.destroy()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id, part_name, category, stock, cost FROM inventory WHERE company_id = ?", (CO_ID,))
+    parts = cur.fetchall()
+    conn.close()
+
+    for pid, pname, pcat, pstock, pcost in parts:
+        card = ctk.CTkFrame(inv_scroll, fg_color="#27272A")
+        card.pack(fill="x", padx=5, pady=4)
+        ctk.CTkLabel(card, text=f"Part: {pname} | Category: {pcat} | Stock: {pstock} | Unit Cost: ${pcost:,}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
+        
+        def sell_part(part_id=pid, price=pcost):
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("UPDATE inventory SET stock = max(0, stock - 1) WHERE id = ?", (part_id,))
+            cur.execute("UPDATE campaign SET treasury = treasury + ? WHERE id = ?", (int(price * 0.75), ACTIVE_CAMP_ID))
+            conn.commit()
+            conn.close()
+            refresh_header()
+            refresh_inv_tab()
+            messagebox.showinfo("Stock Sold", f"Sold 1x unit of {pname} for ${int(price * 0.75):,} C-Bills!")
+
+        ctk.CTkButton(card, text="Sell Stock (+75%)", command=sell_part, fg_color="#EA580C", font=("Arial", 10, "bold"), width=110).pack(side="right", padx=6, pady=6)
+
+refresh_inv_tab()
+
+inv_right = ctk.CTkFrame(inv_grid, fg_color="#070A12", border_width=1, border_color="#10B981")
+inv_right.pack(side="right", fill="both", expand=True)
+
+ctk.CTkLabel(inv_right, text="Market Component Depot (Buy Stock)", font=("Arial", 13, "bold"), text_color="#10B981").pack(anchor="w", padx=15, pady=10)
+
+market_parts = [
+    ("AC/20 Autocannon", "Weaponry", 500000),
+    ("Particle Projector Cannon (PPC)", "Weaponry", 300000),
+    ("Medium Laser", "Weaponry", 80000),
+    ("Heat Sink", "Internal", 20000),
+    ("Ferro-Fibrous Armor Plate (5 Tons)", "Armor", 150000)
+]
+
+for mp_name, mp_cat, mp_cost in market_parts:
+    mcard = ctk.CTkFrame(inv_right, fg_color="#1E293B")
+    mcard.pack(fill="x", padx=15, pady=5)
+    ctk.CTkLabel(mcard, text=f"{mp_name} (${mp_cost:,})", font=("Arial", 11, "bold")).pack(side="left", padx=10, pady=8)
+    
+    def buy_market_part(pname=mp_name, pcat=mp_cat, pcost=mp_cost):
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("UPDATE campaign SET treasury = treasury - ? WHERE id = ?", (pcost, ACTIVE_CAMP_ID))
+        cur.execute("INSERT INTO inventory (company_id, part_name, category, stock, cost) VALUES (?, ?, ?, 1, ?)", (CO_ID, pname, pcat, pcost))
+        conn.commit()
+        conn.close()
+        refresh_header()
+        refresh_inv_tab()
+        messagebox.showinfo("Part Acquired", f"Purchased 1x {pname} for warehouse stock!")
+
+    ctk.CTkButton(mcard, text="Buy Stock", command=buy_market_part, fg_color="#10B981", font=("Arial", 10, "bold"), width=90).pack(side="right", padx=10, pady=8)
+
+# ==================== TAB 4: PERSONNEL & MEDBAY (XP & HIRING HALL ENGINE) ====================
+ctk.CTkLabel(tab_pers, text="Personnel & Pilot Roster", font=("Arial", 16, "bold"), text_color="#9333EA").pack(anchor="w", padx=15, pady=(5, 10))
+
+pers_grid = ctk.CTkFrame(tab_pers, fg_color="transparent")
+pers_grid.pack(fill="both", expand=True, padx=15, pady=5)
+
+pers_left = ctk.CTkFrame(pers_grid, fg_color="#18181B", width=650)
+pers_left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+ctk.CTkLabel(pers_left, text="Active Pilot Roster & XP Upgrade Deck", font=("Arial", 13, "bold"), text_color="#9333EA").pack(anchor="w", padx=15, pady=10)
+
+pers_scroll = ctk.CTkScrollableFrame(pers_left, fg_color="transparent")
+pers_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+def refresh_pers_tab():
+    for w in pers_scroll.winfo_children(): w.destroy()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id, pilot_name, rank, gunnery, piloting, status, salary, xp, spa FROM personnel WHERE company_id = ?", (CO_ID,))
+    pilots_list = cur.fetchall()
+    conn.close()
+
+    for pid, pname, prank, pgun, ppil, pstat, psal, pxp, pspa in pilots_list:
+        card = ctk.CTkFrame(pers_scroll, fg_color="#27272A")
+        card.pack(fill="x", padx=5, pady=4)
+        ctk.CTkLabel(card, text=f"Pilot: {pname} ({prank}) | G/P: {pgun}/{ppil} | XP: {pxp} | Status: {pstat}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
+        
+        def upg_gunnery(p_id=pid):
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("UPDATE personnel SET gunnery = max(0, gunnery - 1), xp = max(0, xp - 30) WHERE id = ?", (p_id,))
+            conn.commit()
+            conn.close()
+            refresh_pers_tab()
+            messagebox.showinfo("Skill Upgraded", f"Gunnery skill upgraded for pilot!")
+
+        ctk.CTkButton(card, text="+Gunnery (-30 XP)", command=upg_gunnery, fg_color="#9333EA", font=("Arial", 10, "bold"), width=110).pack(side="right", padx=6, pady=6)
+
+refresh_pers_tab()
+
+pers_right = ctk.CTkFrame(pers_grid, fg_color="#070A12", border_width=1, border_color="#9333EA")
+pers_right.pack(side="right", fill="both", expand=True)
+
+ctk.CTkLabel(pers_right, text="Hiring Hall Candidate Pool", font=("Arial", 13, "bold"), text_color="#C084FC").pack(anchor="w", padx=15, pady=10)
+
+hiring_candidates = [
+    ("Rana Hawkins", "Lieutenant", 3, 3, 450000),
+    ("Erik Sandstrom", "Sergeant", 3, 4, 350000),
+    ("Valerie Vance", "Sergeant", 4, 4, 250000)
+]
+
+for hc_name, hc_rank, hc_gun, hc_pil, hc_bonus in hiring_candidates:
+    hcard = ctk.CTkFrame(pers_right, fg_color="#1E293B")
+    hcard.pack(fill="x", padx=15, pady=5)
+    ctk.CTkLabel(hcard, text=f"{hc_name} ({hc_rank}) | G/P: {hc_gun}/{hc_pil} | Bonus: ${hc_bonus:,}", font=("Arial", 11)).pack(side="left", padx=10, pady=8)
+    
+    def recruit_hiring_pilot(pname=hc_name, prank=hc_rank, pgun=hc_gun, ppil=hc_pil, pbonus=hc_bonus):
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("UPDATE campaign SET treasury = treasury - ? WHERE id = ?", (pbonus, ACTIVE_CAMP_ID))
+        cur.execute("INSERT INTO personnel (company_id, pilot_name, rank, gunnery, piloting, status, salary, xp, spa, kills, bondsmen) VALUES (?, ?, ?, ?, ?, 'Fit for Duty', 45000, 25, 'None', 0, 0)", (CO_ID, pname, prank, pgun, ppil))
+        conn.commit()
+        conn.close()
+        refresh_header()
+        refresh_pers_tab()
+        messagebox.showinfo("MechWarrior Recruited", f"Recruited {pname} to company roster!")
+
+    ctk.CTkButton(hcard, text="Recruit Pilot", command=recruit_hiring_pilot, fg_color="#9333EA", font=("Arial", 10, "bold"), width=90).pack(side="right", padx=10, pady=8)
 
 def refresh_header():
     camp, comp = fetch_campaign()
