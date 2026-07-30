@@ -171,6 +171,7 @@ export default function Dashboard() {
 
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpActiveTab, setHelpActiveTab] = useState("tutorial");
+  const [expandedHelpSection, setExpandedHelpSection] = useState(null);
 
   const [aarUnitDamage, setAarUnitDamage] = useState({});
 
@@ -2109,104 +2110,458 @@ export default function Dashboard() {
 
             {/* TAB CONTENT: STEP 1 */}
             {helpActiveTab === "step1" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#ea580c", margin: 0 }}>Step 1: Contract &amp; Transit Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>MRB Contract Hall Cards</strong>: Displays available mercenary contracts with House employer, mission type, base reward, Warchest WP, and salvage tier.</li>
-                  <li><strong>+ Build Custom Contract Button</strong>: Opens an 11-field negotiation dialog allowing custom creation of operations (Operation Name, Employer, OpFor, Mission Type, Planetary Climate, Base C-Bills, Warchest WP, Salvage Rights, BLC Coverage).</li>
-                  <li><strong>View Tactical Intel Button</strong>: Displays planetary climate heat penalties, environmental conditions, and OpFor threat assessment.</li>
-                  <li><strong>Formally Accept Contract Button</strong>: Signs the contract and moves it into Active Deployment status.</li>
-                  <li><strong>🚀 Initiate Jump Transit ($120,000 / 7 Days) Button</strong>: Routes JumpShip transit to destination system on the Starmap, deducting $120,000 C-Bills and advancing stardate +7 days.</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#ea580c", margin: "0 0 4px 0", fontSize: "15px" }}>Step 1: Contract &amp; Transit Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step1_mrb",
+                    title: "📋 MRB Procedural Contract Hall Cards",
+                    summary: "Browse procedurally generated mercenary contracts from Great Houses with employer, payout, Warchest WP, and salvage clauses.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Official Rulebook Mechanics (Campaign Operations v5.0)</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Contract generation evaluates your mercenary unit's MRB Rating (F through A*). Higher MRB ratings unlock higher base C-Bill payouts (up to 1.25x multiplier), full salvage rights clauses, and higher Warchest WP rewards.
+                        </p>
+                        <strong style={{ color: "#38bdf8" }}>User Instructions</strong>
+                        <p style={{ margin: "4px 0 0 0" }}>
+                          Click <strong>Formally Accept Contract</strong> on any available card to sign the contract and set it to Active status. Click <strong>View Tactical Intel</strong> to inspect planetary climate conditions and OpFor threat ratings before signing.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step1_custom",
+                    title: "⚙️ + Build Custom Contract & Negotiation Suite",
+                    summary: "Opens an 11-field negotiation dialog allowing custom creation and posting of operations to the MRB board.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Official Rulebook Mechanics (Campaign Operations v5.0)</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Contract negotiation balances base cash payout against Battle Loss Compensation (BLC) coverage (50% to 100%) and Salvage Rights (Exchange 25%, Shared 50%, Full 100%). Negotiating 100% salvage or BLC reduces cash payout by 15-25%.
+                        </p>
+                        <strong style={{ color: "#38bdf8" }}>User Instructions</strong>
+                        <p style={{ margin: "4px 0 0 0" }}>
+                          Fill in Operation Name, Employer (Davion, Kurita, Steiner, Liao, Marik, Pirates), OpFor, Mission Type, Planetary Climate, Base Payout, and WP Reward. Click <strong>🚀 Post Contract to MRB Board</strong> to generate the custom mission.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step1_intel",
+                    title: "📖 Tactical Intel Briefings & Environmental Climate Modifiers",
+                    summary: "Displays planetary climate heat dissipation penalties, environmental hazards, and OpFor threat assessment.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Official Rulebook Mechanics (Tactical Operations v7.0)</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Planetary climates apply environmental heat dissipation modifiers during combat:
+                          <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                            <li><em>Arid / Extreme Heat</em>: +20% heat generated by all weapon fire.</li>
+                            <li><em>Sub-Zero Ice World</em>: -10% heat generation bonus (rapid cooling).</li>
+                            <li><em>Vacuum / Airless Moon</em>: +1 heat per energy weapon fired.</li>
+                            <li><em>Low Gravity (0.5g)</em>: +1 Jump MP bonus, but increases piloting hazard rolls.</li>
+                          </ul>
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step1_transit",
+                    title: "🚀 Initiate Jump Transit ($120,000 / +7 Days)",
+                    summary: "Routes JumpShip transit to destination solar system on the Starmap, deducting charter fees and advancing time.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Operational JumpShip Logistics</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Deducts $120,000 C-Bills for JumpShip K-M drive recharge charter and advances campaign stardate by +7 days. Automatically debits 7 days of base daily operational overhead ($35,000).
+                        </p>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #ea580c" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#f97316" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#ea580c" : "rgba(51, 65, 85, 0.8)", color: "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* TAB CONTENT: STEP 2 */}
             {helpActiveTab === "step2" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#0284c7", margin: 0 }}>Step 2: Force Deployment Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>Command Lance Roster</strong>: Displays deployed Mechs and assigned MechWarriors, calculating total tonnage and Battle Value (BV2).</li>
-                  <li><strong>Force Readiness Gauge</strong>: Live status bar indicating whether force is <code>✅ 100% Operational</code> or flagging <code>⚠️ Readiness Alerts</code> for damaged units or injured personnel.</li>
-                  <li><strong>DropZone (LZ) Terrain Cards</strong>: Selects atmospheric entry vector:
-                    <ul>
-                      <li><em>Alpha DZ (Flat Plains)</em>: Standard insertion (+0 accuracy).</li>
-                      <li><em>Bravo DZ (Dense Forest)</em>: Defensive cover (-1 enemy accuracy, +1 MP cost).</li>
-                      <li><em>Charlie DZ (Mountain Ridge)</em>: High ground (+1 range accuracy).</li>
-                      <li><em>Delta DZ (Hot Drop)</em>: Orbital combat drop (+10% salvage bonus, high risk).</li>
-                    </ul>
-                  </li>
-                  <li><strong>🚀 Confirm DropZone &amp; Launch Combat Drop Button</strong>: Deploys lance to combat zone, logs event in campaign journal, and advances to Step 3.</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#0284c7", margin: "0 0 4px 0", fontSize: "15px" }}>Step 2: Force Deployment Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step2_lance",
+                    title: "⚔️ Command Lance Roster & BV2 Force Balancing",
+                    summary: "Assigns active Mechs and MechWarriors to the operational Command Lance, calculating total tonnage and BV2.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Battle Value 2.0 (BV2) Math Engine</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Calculates combined Battle Value 2.0 (BV2) for your deployed force based on Mech chassis specifications, weapon loadouts, and assigned MechWarrior Gunnery/Piloting skill rating multipliers (per Campaign Operations v5.0).
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step2_readiness",
+                    title: "⚠️ Force Readiness Gauge & Pre-Deployment Alerts",
+                    summary: "Live status bar indicating operational readiness and flagging damage or injury warnings before drop.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Operational Readiness Algorithm</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Evaluates units with armor/structure damage or injured pilots. If damage or injuries exist, displays a prominent <strong>Readiness Alert Modal</strong> offering choice to proceed (<em>⚠️ Deploy Damaged Force</em>) or repair (<em>🔧 Tech Bay Repairs</em>).
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step2_dropzone",
+                    title: "🛩️ DropZone (LZ) Insertion Vector Cards & Selection",
+                    summary: "Selects atmospheric entry vector and terrain deployment zone with tactical accuracy/movement modifiers.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Tactical Operations v7.0 LZ Insertion Vectors</strong>
+                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                          <li><em>Alpha DZ (Flat Plains)</em>: Standard insertion (+0 accuracy modifier).</li>
+                          <li><em>Bravo DZ (Dense Forest)</em>: Heavy cover provides +1 defensive accuracy bonus against enemy fire, but adds +1 MP terrain movement cost.</li>
+                          <li><em>Charlie DZ (Mountain Ridge)</em>: Tactical high ground elevation grants +1 To-Hit range accuracy bonus for indirect support weapons.</li>
+                          <li><em>Delta DZ (Hot Drop)</em>: Direct orbital combat drop into hostile lines (+10% salvage bonus, but high structural strain risk).</li>
+                        </ul>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #0284c7" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#38bdf8" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#0284c7" : "rgba(51, 65, 85, 0.8)", color: "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* TAB CONTENT: STEP 3 */}
             {helpActiveTab === "step3" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#f59e0b", margin: 0 }}>Step 3: Combat AAR &amp; Salvage Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>🏆 Process Combat AAR Button</strong>: Opens the After-Action Report modal to record battle metrics.</li>
-                  <li><strong>Kill Tracker Inputs</strong>: Logs enemy Mechs destroyed by each pilot (Chassis, Model, Tonnage).</li>
-                  <li><strong>Bondsmen Capture Checkbox</strong>: Records captured enemy MechWarriors into pilot records as bondsmen.</li>
-                  <li><strong>🔧 Mech Combat Damage &amp; Critical Hits Inputs (Feature 3.1)</strong>: Inputs armor loss, structure loss, and destroyed critical hits per Mech, transferring them automatically to the Tech Bay repair queue!</li>
-                  <li><strong>A Time of War XP Badges</strong>: Calculates XP automatically (15 base + 10-15 kill + 15 bondsman).</li>
-                  <li><strong>Itemized Salvage Pool</strong>: Claims weapons (PPC, AC/20, Medium Lasers) and C-Bills from battlefield recovery.</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#f59e0b", margin: "0 0 4px 0", fontSize: "15px" }}>Step 3: Combat AAR &amp; Salvage Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step3_aar",
+                    title: "🏆 Process Combat AAR Dialog",
+                    summary: "Opens After-Action Report modal to record battle metrics, pilot kills, captured bondsmen, and unit damage.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>After-Action Settlement Protocol</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Processes battle outcomes, updates mission status to `Completed`, awards contract C-Bills and Warchest WP, and logs combat story narrative to the campaign journal.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step3_damage",
+                    title: "🔧 Mech Combat Damage & Critical Hits Transfer (Feature 3.1)",
+                    summary: "Inputs armor loss, structure loss, and destroyed critical hits per Mech, transferring them to Tech Bay.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Automated Damage Queue Integration</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          For every Mech in the deployed lance, enter sustained **Armor Loss** (points), **Structure Loss** (points), and **Destroyed Critical Hit Components** (PPC, AC/20, Engine Core, Gyro). Automatically updates SQLite `units` table and populates Step 4 Tech Bay repair cards!
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step3_xp",
+                    title: "⚔️ Pilot Kill Tracker & A Time of War XP Engine",
+                    summary: "Logs enemy Mechs destroyed and captured bondsmen, calculating combat experience (XP) automatically.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>A Time of War v4.0 XP Formula</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Earned XP = `15 Base Participation XP + (10 XP for Medium / 15 XP for Heavy/Assault Mech kill) + 15 XP for Captured Bondsman`. Kills and XP are recorded directly to pilot records.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step3_salvage",
+                    title: "📦 Itemized Salvage Pool & Cash Scrap Recovery",
+                    summary: "Claims component scrap (PPCs, Autocannons, Lasers) and cash payouts from battlefield recovery.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Salvage Rights Clause Enforcement</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Enforces accepted contract salvage clause (Full 100%, Shared 50%, Exchange 25%). Claimed component scrap is placed into warehouse storage inventory for Tech Bay repairs or market resale.
+                        </p>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#fbbf24" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#f59e0b" : "rgba(51, 65, 85, 0.8)", color: isExp ? "#0f172a" : "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* TAB CONTENT: STEP 4 */}
             {helpActiveTab === "step4" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#10b981", margin: 0 }}>Step 4: Tech Bay &amp; MechLab Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>🔧 Repair All Damage Button</strong>: Spends 20 Support Points (SP) and $150,000 C-Bills to repair all armor and structure damage to 100%.</li>
-                  <li><strong>⏱️ Tech Repair &amp; Refit Duration Clock (Feature 4.1)</strong>: Displays estimated repair duration badges (<code>⏱️ Est. Time: +2 Days</code>). Repairing damage automatically advances the campaign date clock and debits operational overhead!</li>
-                  <li><strong>Critical Hit Component Replacement Table</strong>: Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them (+3 to +7 Days) using stock inventory or market procurement.</li>
-                  <li><strong>Procure Mech ($) Button</strong>: Opens the procurement market to purchase new Mechs (Centurion, Hunchback, Catapult, Atlas, Timber Wolf).</li>
-                  <li><strong>Interactive MechLab Loadout Fitting Engine</strong>: Calculates tonnage headroom, weapon alpha strike heat, and heat sink dissipation curves.</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#10b981", margin: "0 0 4px 0", fontSize: "15px" }}>Step 4: Tech Bay &amp; MechLab Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step4_repair",
+                    title: "🔧 Repair All Armor & Structure Damage",
+                    summary: "Spends Support Points (20 SP) and C-Bills ($150,000) to repair armor and structure damage to 100%.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Armor &amp; Structure Maintenance Protocol</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Consumes 20 Warchest Support Points (SP) and $150,000 C-Bills to replace damaged armor plates and repair internal structural framework across all body locations.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step4_clock",
+                    title: "⏱️ Tech Repair & Refit Duration Clock (Feature 4.1)",
+                    summary: "Displays estimated repair duration badges (`⏱️ Est. Time: +2 Days`) and advances campaign date clock.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>TechManual v3.0 Engineering Work Formulas</strong>
+                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                          <li><em>Armor / Structure Repair</em>: `max(1, (armor_damage + structure_damage) // 10)` Days.</li>
+                          <li><em>Standard Weapon Component Replacement</em>: +3 Days.</li>
+                          <li><em>Engine Core / Gyroscope Component Replacement</em>: +7 Days.</li>
+                          <li><em>Custom MechLab Loadout Refit</em>: +5 Days.</li>
+                        </ul>
+                        <p style={{ margin: "4px 0 0 0" }}>
+                          Executing a repair automatically advances `Campaign.current_date` on the timeline clock and debits $5,000/day base daily operational overhead.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step4_crits",
+                    title: "⚙️ Critical Hit Component Replacement Table",
+                    summary: "Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them using stock or market purchase.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Warehouse Stock &amp; Market Procurement</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Replaces destroyed critical components. If matching component stock exists in warehouse inventory, it is consumed for free. Otherwise, purchases replacement component from the market depot for $100,000 C-Bills.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step4_mechlab",
+                    title: "🛠️ Interactive MechLab Loadout Fitting Engine",
+                    summary: "Fits custom weapon loadouts, checks heat dissipation curves, and validates tonnage headroom.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>MechLab Engineering Validation</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Calculates free tonnage headroom, weapon alpha strike heat output vs double heat sink dissipation curves, and equipment slot allocation. Committing a custom loadout costs 50 SP and $100,000 C-Bills (+5 Days).
+                        </p>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #10b981" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#34d399" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#10b981" : "rgba(51, 65, 85, 0.8)", color: isExp ? "#0f172a" : "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* TAB CONTENT: STEP 5 */}
             {helpActiveTab === "step5" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#c084fc", margin: 0 }}>Step 5: Personnel &amp; MedBay Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>🏥 Administer Medical Treatment Button</strong>: Expends Support Points (50 SP) to accelerate injured pilot healing (+15 days recovery).</li>
-                  <li><strong>🎖️ Captured Bondsmen Rehabilitation &amp; Ransom Suite (Feature 5.1)</strong>:
-                    <ul>
-                      <li><em>💰 Ransom Bondsman</em>: Returns a captive to their employer for an immediate $250,000 C-Bill payout.</li>
-                      <li><em>🎖️ Recruit as Active Pilot</em>: Rehabilitates the captive into an active MechWarrior (Gunnery 4 / Piloting 5) on your roster.</li>
-                    </ul>
-                  </li>
-                  <li><strong>Gunnery Upgrade (-1) Button</strong>: Decreases Gunnery target number by 1 in exchange for 30 XP.</li>
-                  <li><strong>Piloting Upgrade (-1) Button</strong>: Decreases Piloting target number by 1 in exchange for 20 XP.</li>
-                  <li><strong>Assign SPA Perk Dropdown</strong>: Assigns Special Pilot Ability perks (e.g. <em>Sharpshooter</em>, <em>Tactical Genius</em>, <em>Marksman</em>).</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#c084fc", margin: "0 0 4px 0", fontSize: "15px" }}>Step 5: Personnel &amp; MedBay Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step5_medbay",
+                    title: "🏥 MedBay Triage & Pilot Medical Treatment",
+                    summary: "Administers medical treatment to heal wounded MechWarriors and accelerate recovery.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>MedBay Medical Treatment Rules</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Expends Support Points (50 SP) to treat injured pilots in MedBay, reducing recovery duration by -15 days per treatment session until fully healed.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step5_bondsmen",
+                    title: "🎖️ Captured Bondsmen Rehabilitation & Ransom Suite (Feature 5.1)",
+                    summary: "Ransoms captured enemy MechWarriors for $250k C-Bills or recruits them as active pilots.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Bondsmen Handling Operations</strong>
+                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                          <li><em>💰 Ransom Bondsman ($250,000 C-Bills)</em>: Returns captive MechWarrior to their House employer for an immediate **$250,000 C-Bill cash payout**.</li>
+                          <li><em>🎖️ Recruit as Active Pilot</em>: Rehabilitates captive into an active MechWarrior (`Gunnery 4 / Piloting 5`) on your mercenary roster.</li>
+                        </ul>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step5_xp",
+                    title: "🎯 Skill Target Rating Upgrade Engine (Gunnery & Piloting)",
+                    summary: "Upgrades Gunnery (-1 for 30 XP) and Piloting (-1 for 20 XP) target numbers using earned combat XP.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>A Time of War v4.0 Skill Advancement Table</strong>
+                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                          <li><em>Gunnery Target Rating (-1 Upgrade)</em>: Costs 30 XP (e.g. upgrades Gunnery 4+ to 3+).</li>
+                          <li><em>Piloting Target Rating (-1 Upgrade)</em>: Costs 20 XP (e.g. upgrades Piloting 5+ to 4+).</li>
+                        </ul>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step5_spa",
+                    title: "🌟 Special Pilot Abilities (SPAs) & Hiring Hall Candidates",
+                    summary: "Assigns SPA perks (Sharpshooter, Tactical Genius, Marksman) and recruits candidate pilots.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>SPA Perks &amp; Personnel Recruitment</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Assigns Special Pilot Ability (SPA) perks to veteran pilots (`Sharpshooter`: +1 accuracy to called shots, `Tactical Genius`: reroll initiative once per engagement). Hire new pilots from the candidate pool.
+                        </p>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #c084fc" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#e9d5ff" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#c084fc" : "rgba(51, 65, 85, 0.8)", color: isExp ? "#0f172a" : "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* TAB CONTENT: STEP 6 */}
             {helpActiveTab === "step6" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-                <h4 style={{ color: "#ec4899", margin: 0 }}>Step 6: Financial Ledger Functions</h4>
-                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <li><strong>Ledger Metric Cards</strong>: Displays total C-Bill treasury balance, Warchest WP, Support Points (SP), daily overhead, and MRB Rating.</li>
-                  <li><strong>🏦 ComStar &amp; MRB Bank Loan Suite (Feature 6.1)</strong>:
-                    <ul>
-                      <li><em>🚀 Finance Emergency Credit Line</em>: Secures $1,000,000 C-Bills @ 5% monthly interest.</li>
-                      <li><em>🚀 Finance Capital Expansion Loan</em>: Secures $5,000,000 C-Bills @ 7.5% monthly interest.</li>
-                      <li><em>💰 Debt Repayment Facility</em>: Pays down $500,000 principal debt.</li>
-                    </ul>
-                  </li>
-                  <li><strong>📅 Advance Stardate (+1 Day) Button</strong>: Advances campaign date clock by 1 day, processing $5,000 base daily operational overhead.</li>
-                  <li><strong>⏩ Advance Timeline (+7 Days) Button</strong>: Advances calendar by 7 days ($35,000 overhead).</li>
-                  <li><strong>Monthly Payroll Processing</strong>: Automatically debits $150,000 monthly payroll and active loan interest on the 1st of each month.</li>
-                  <li><strong>Campaign Timeline Journal</strong>: Historical event log recording all jump transits, contract signings, combat drops, AAR reports, and procurement.</li>
-                </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                <h4 style={{ color: "#ec4899", margin: "0 0 4px 0", fontSize: "15px" }}>Step 6: Financial Ledger Functions (Click titles for deep-dive details)</h4>
+                
+                {[
+                  {
+                    id: "step6_audit",
+                    title: "📊 Treasury Ledger Audit & Financial Metrics",
+                    summary: "Audits liquid C-Bill treasury, Warchest WP, Support Points (SP), and MRB Rating standing.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Financial Audit Suite</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Displays real-time financial balances: C-Bill cash balance, Warchest WP balance, Support Points (SP) balance, base daily overhead ($5,000/day), and MRB Rating standing.
+                        </p>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step6_bank",
+                    title: "🏦 ComStar & MRB Financial Credit & Debt Financing Suite (Feature 6.1)",
+                    summary: "Secures capital credit lines ($1M to $5M) and repays principal debt.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>ComStar Financial Credit Facilities</strong>
+                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
+                          <li><em>🚀 Emergency Credit Line</em>: Secures $1,000,000 C-Bills @ 5.0% monthly interest ($50,000/mo interest).</li>
+                          <li><em>🚀 Capital Expansion Loan</em>: Secures $5,000,000 C-Bills @ 7.5% monthly interest ($375,000/mo interest).</li>
+                          <li><em>💰 Debt Repayment Facility</em>: Pays down $500,000 principal debt from treasury funds.</li>
+                        </ul>
+                      </div>
+                    )
+                  },
+                  {
+                    id: "step6_timeline",
+                    title: "📅 Timeline Stardate Advance & Monthly Payroll",
+                    summary: "Advances campaign calendar (+1 Day / +7 Days) with automated overhead and monthly payroll.",
+                    details: (
+                      <div>
+                        <strong style={{ color: "#34d399" }}>Calendar &amp; Overhead Accounting</strong>
+                        <p style={{ margin: "4px 0 8px 0" }}>
+                          Advancing days debits daily base overhead ($5,000/day). Reaching the 1st of the month automatically debits $150,000 monthly staff payroll plus accrued loan interest from the campaign treasury.
+                        </p>
+                      </div>
+                    )
+                  }
+                ].map(item => {
+                  const isExp = expandedHelpSection === item.id;
+                  return (
+                    <div key={item.id} style={{ background: isExp ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.5)", border: isExp ? "1px solid #ec4899" : "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", transition: "all 0.2s ease" }}>
+                      <div onClick={() => setExpandedHelpSection(isExp ? null : item.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                        <strong style={{ color: isExp ? "#f472b6" : "#38bdf8", fontSize: "14px" }}>{item.title}</strong>
+                        <span style={{ background: isExp ? "#ec4899" : "rgba(51, 65, 85, 0.8)", color: isExp ? "#fff" : "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          {isExp ? "▲ Hide Details" : "▼ Click for Expanded Help"}
+                        </span>
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "4px 0 0 0" }}>{item.summary}</p>
+                      {isExp && <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "12px", lineHeight: "1.6" }}>{item.details}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
