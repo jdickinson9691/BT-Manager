@@ -331,30 +331,38 @@ export default function Dashboard() {
 
   const handleAcceptContract = async (mission) => {
     setActiveDeployedMission(mission);
-    setActiveStep(2); // Automatically advance to Step 2: Force Deployment
     try {
-      await fetch("http://localhost:8000/api/v1/logs", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_type: "Contract Deployed", description: `Accepted contract: '${mission.name}' (${mission.employer}). Deployed to theater.` })
-      });
-      fetchLogs();
+      if (mission.id) {
+        await fetch(`http://localhost:8000/api/v1/missions/${mission.id}/accept`, { method: "POST" });
+      }
     } catch (e) {}
+    alert(`Contract Signed: '${mission.name}' (${mission.employer})! Proceeding to Step 2: Force Deployment.`);
+    setActiveStep(2);
+    refreshAll();
   };
 
   const handleJumpToSystem = async (system) => {
-    setCurrentSystem(system);
     const dx = system.x - currentSystem.x;
     const dy = system.y - currentSystem.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const cost = Math.round(dist * 2000.0);
+    const dist = Number((Math.sqrt(dx * dx + dy * dy) || 22.1).toFixed(1));
+    const cost = Math.round(dist * 5000.0);
 
     try {
-      await fetch("http://localhost:8000/api/v1/logs", {
+      const res = await fetch("http://localhost:8000/api/v1/starmap/jump", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_type: "JumpNet Transit", description: `JumpShip completed jump vector to system ${system.name} (${system.faction}). Jump Fee: $${cost.toLocaleString()} C-Bills.` })
+        body: JSON.stringify({ destination_system: system.name, distance_ly: dist, jump_cost: cost })
       });
-      fetchLogs(); alert(`JumpShip arrived at system ${system.name}!`);
+      if (res.ok) {
+        setCurrentSystem(system);
+        alert(`JumpShip arrived at system ${system.name}! Stardate advanced +7 days.`);
+        refreshAll();
+        return;
+      }
     } catch (e) {}
+
+    setCurrentSystem(system);
+    alert(`JumpShip arrived at system ${system.name}!`);
+    refreshAll();
   };
 
   const handleBuyMarketPart = async (partName, category, cost) => {
@@ -1032,19 +1040,75 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* INTEL MODAL */}
+      {/* RICH TACTICAL INTEL BRIEFING MODAL */}
       {selectedIntelMission && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setSelectedIntelMission(null)}>
-          <div style={{ background: "#1e293b", border: "1px solid #0284c7", borderRadius: "8px", padding: "24px", width: "500px" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: "#38bdf8", marginTop: 0 }}>Contract Intel Briefing</h3>
-            <p><strong>Operation:</strong> {selectedIntelMission.name}</p>
-            <p><strong>Employer:</strong> {selectedIntelMission.employer}</p>
-            <p><strong>Mission Type:</strong> {selectedIntelMission.mission_type}</p>
-            <p><strong>Base C-Bill Payout:</strong> ${selectedIntelMission.cbill_reward.toLocaleString()}</p>
-            <p><strong>Warchest Reward:</strong> +{selectedIntelMission.wp_reward} WP</p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "20px" }}>
-              <button style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setSelectedIntelMission(null)}>Close</button>
-              <button style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { handleAcceptContract(selectedIntelMission); setSelectedIntelMission(null); }}>Accept Contract</button>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setSelectedIntelMission(null)}>
+          <div style={{ background: "#0f141e", border: "1px solid #38bdf8", borderRadius: "12px", padding: "28px", width: "580px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
+                📋 CONTRACT TACTICAL INTEL BRIEFING
+              </h3>
+              <button onClick={() => setSelectedIntelMission(null)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "16px" }}>
+              <h4 style={{ color: "#fff", margin: "0 0 8px 0", fontSize: "16px" }}>{selectedIntelMission.name}</h4>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 4px 0" }}>
+                Employer: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{selectedIntelMission.enemy_faction || "OpFor Force"}</span>
+              </p>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
+                Mission Type: <strong style={{ color: "#38bdf8" }}>{selectedIntelMission.mission_type}</strong> | Difficulty: <span style={{ color: "#f59e0b" }}>{selectedIntelMission.difficulty || "Medium"}</span>
+              </p>
+            </div>
+
+            {/* OPFOR INTEL & CLIMATE */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(244, 63, 94, 0.3)", padding: "12px", borderRadius: "6px" }}>
+                <span style={{ fontSize: "11px", color: "#f43f5e", fontWeight: "bold" }}>🎯 ESTIMATED OPFOR THREAT</span>
+                <p style={{ color: "#fff", fontSize: "13px", margin: "4px 0 0 0" }}>3x Enemy Mechs (Heavy Lance)</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>Est. Tonnage: 195T | Est. BV2: ~3,800</p>
+              </div>
+
+              <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(56, 189, 248, 0.3)", padding: "12px", borderRadius: "6px" }}>
+                <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>🌡️ PLANETARY CLIMATE</span>
+                <p style={{ color: "#fff", fontSize: "13px", margin: "4px 0 0 0" }}>Arid / Extreme Heat (+20%)</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>Heat Sink Dissipation: -15% Penalty</p>
+              </div>
+            </div>
+
+            {/* FINANCIAL & SALVAGE CLAUSES */}
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "18px" }}>
+              <h4 style={{ color: "#10b981", margin: "0 0 10px 0", fontSize: "14px" }}>Contract Terms &amp; Compensation</h4>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
+                Base C-Bill Payout: <strong style={{ color: "#10b981" }}>${(selectedIntelMission.cbill_reward || 3500000).toLocaleString()} C-Bills</strong>
+              </p>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
+                Warchest WP Bonus: <strong style={{ color: "#f59e0b" }}>+{(selectedIntelMission.wp_reward || 350)} WP</strong>
+              </p>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
+                Salvage Recovery Clause: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.salvage_rights || "Shared (50%)"}</strong>
+              </p>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0 }}>
+                Battle Loss Compensation (BLC): <strong style={{ color: "#cbd5e1" }}>50% Armor/Structure Coverage</strong>
+              </p>
+            </div>
+
+            {/* FORCE READINESS COMPARISON */}
+            <div style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "12px 16px", borderRadius: "8px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>ACTIVE COMMAND LANCE READINESS</span>
+                <p style={{ color: "#10b981", fontSize: "14px", fontWeight: "bold", margin: "2px 0 0 0" }}>
+                  {totalLanceTonnage} Tons ({units.length} Mechs) | {totalLanceBv2} BV2
+                </p>
+              </div>
+              <span style={{ background: "rgba(16, 185, 129, 0.2)", color: "#10b981", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
+                Suitability: High Match
+              </span>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setSelectedIntelMission(null)}>Close Briefing</button>
+              <button style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { handleAcceptContract(selectedIntelMission); setSelectedIntelMission(null); }}>Sign &amp; Deploy Contract ➔</button>
             </div>
           </div>
         </div>

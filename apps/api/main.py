@@ -37,6 +37,11 @@ def on_startup():
 class AdvanceTimeRequest(BaseModel):
     days: int = 1
 
+class JumpRequest(BaseModel):
+    destination_system: str
+    distance_ly: float = 22.1
+    jump_cost: float = 120000.0
+
 class CampaignCreateRequest(BaseModel):
     campaign_name: str = "Succession Wars 3025"
     company_name: str = "Wolf's Irregulars"
@@ -442,6 +447,50 @@ def market_buy_supplies(purchase: MarketPurchaseSuppliesRequest, db: Session = D
         return MaintenanceAgent.purchase_supplies(db, purchase.sp_amount, purchase.cbill_cost, purchase.wp_cost)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/missions/{mission_id}/accept")
+def accept_mission_contract(mission_id: int, db: Session = Depends(get_db)):
+    mission = db.query(Mission).filter(Mission.id == mission_id).first()
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    mission.status = "Active"
+    campaign = db.query(Campaign).filter(Campaign.id == mission.campaign_id).first()
+    if campaign:
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Contract Deployed",
+            description=f"Contract Signed: '{mission.name}' ({mission.employer}). Deployed to theater."
+        ))
+    db.commit()
+    return {"message": f"Successfully signed contract '{mission.name}'!", "mission": mission}
+
+@app.post("/api/v1/starmap/jump")
+def starmap_jump_transit(req: JumpRequest, db: Session = Depends(get_db)):
+    campaign = CoreAgent.get_campaign(db)
+    if campaign.cbill_balance < req.jump_cost:
+        raise HTTPException(status_code=400, detail="Insufficient C-Bills for JumpShip transit fee!")
+    
+    campaign.cbill_balance -= req.jump_cost
+    try:
+        from datetime import datetime, timedelta
+        dt = datetime.strptime(campaign.current_date, "%Y-%m-%d") + timedelta(days=7)
+        campaign.current_date = dt.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="JumpNet Transit",
+        description=f"JumpShip completed jump vector to {req.destination_system} ({req.distance_ly} LY). Fee: ${req.jump_cost:,.2f} C-Bills."
+    ))
+    db.commit()
+    return {
+        "message": f"JumpShip arrived at system {req.destination_system}!",
+        "current_date": campaign.current_date,
+        "cbill_balance": campaign.cbill_balance
+    }
 
 @app.get("/api/v1/missions")
 def get_missions(db: Session = Depends(get_db)):
