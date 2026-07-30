@@ -169,6 +169,9 @@ export default function Dashboard() {
   const [showReadinessAlertModal, setShowReadinessAlertModal] = useState(false);
   const [readinessIssues, setReadinessIssues] = useState([]);
 
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpActiveTab, setHelpActiveTab] = useState("tutorial");
+
   // Data Fetching
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -648,6 +651,23 @@ export default function Dashboard() {
               ⚙️ MegaMek: {onlineMegamekMode ? "Online" : "Cached"}
             </button>
           </div>
+
+          {/* HELP & MANUAL BUTTON SURFACED NEXT TO API TOGGLES */}
+          <button
+            onClick={() => setShowHelpModal(true)}
+            style={{
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "#34d399",
+              border: "1px solid #10b981",
+              padding: "6px 12px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: "bold",
+              cursor: "pointer"
+            }}
+          >
+            ❓ Help &amp; Manual
+          </button>
 
           <button
             onClick={() => { fetchCampaignsList(); setShowLauncherModal(true); }}
@@ -1741,6 +1761,240 @@ export default function Dashboard() {
                   🚀 Create &amp; Launch New Campaign
                 </button>
               </form>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* BT-MANAGER HELP & OPERATIONS MANUAL MODAL */}
+      {showHelpModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowHelpModal(false)}>
+          <div style={{ background: "#0b0f19", border: "1px solid #10b981", borderRadius: "12px", padding: "28px", width: "920px", maxHeight: "88vh", overflowY: "auto", color: "#e2e8f0" }} onClick={e => e.stopPropagation()}>
+            
+            {/* MODAL HEADER */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "20px", letterSpacing: "1px" }}>
+                  📖 BT-MANAGER OPERATIONS MANUAL &amp; TUTORIAL
+                </h3>
+                <span style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399", border: "1px solid #10b981", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                  v2.1 Official Rules
+                </span>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            {/* TAB NAVIGATION */}
+            <div style={{ display: "flex", gap: "6px", marginBottom: "20px", overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px" }}>
+              {[
+                { id: "tutorial", label: "🗺️ Campaign Walkthrough" },
+                { id: "overview", label: "📖 Rules & Description" },
+                { id: "step1", label: "📋 Step 1: Contract & Transit" },
+                { id: "step2", label: "⚔️ Step 2: Force Deployment" },
+                { id: "step3", label: "🏆 Step 3: Combat AAR & Salvage" },
+                { id: "step4", label: "🔧 Step 4: Tech Bay & MechLab" },
+                { id: "step5", label: "🏥 Step 5: Personnel & MedBay" },
+                { id: "step6", label: "📊 Step 6: Financial Ledger" }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setHelpActiveTab(tab.id)}
+                  style={{
+                    background: helpActiveTab === tab.id ? "#10b981" : "rgba(30, 41, 59, 0.6)",
+                    color: helpActiveTab === tab.id ? "#0f172a" : "#cbd5e1",
+                    border: "none", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap"
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TAB CONTENT: CAMPAIGN WALKTHROUGH */}
+            {helpActiveTab === "tutorial" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontSize: "13px", lineHeight: "1.6" }}>
+                <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "8px", padding: "16px" }}>
+                  <h4 style={{ color: "#34d399", margin: "0 0 8px 0", fontSize: "15px" }}>🎯 How to Play: The 6-Step Mercenary Lifecycle</h4>
+                  <p style={{ color: "#94a3b8", margin: 0 }}>
+                    BT-Manager models official Catalyst Game Labs mercenary operations. Follow the numbered 6-step workflow bar at the top of the screen to guide your mercenary company through every contract deployment cycle.
+                  </p>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#ea580c", fontSize: "14px" }}>Step 1: Contract &amp; Transit 📋</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Browse contracts in the MRB Hall or click <strong>+ Build Custom Contract</strong>. Negotiate base payout, salvage rights, and Warchest WP. Select your destination system on the JumpNet map and click <strong>🚀 Initiate Jump Transit</strong> ($120k / +7 Days).
+                    </p>
+                  </div>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#0284c7", fontSize: "14px" }}>Step 2: Force Deployment ⚔️</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Assign Mechs and MechWarriors to your Command Lance. Review the <strong>Force Readiness Gauge</strong> for damaged units or wounded pilots. Select your DropZone insertion vector (e.g. <em>Bravo DZ Dense Forest</em>) and click <strong>🚀 Launch Combat Drop</strong>.
+                    </p>
+                  </div>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#f59e0b", fontSize: "14px" }}>Step 3: Combat AAR &amp; Salvage 🏆</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Click <strong>🏆 Process Combat AAR</strong> to record battle results. Log kills (Chassis, Model, Tonnage) and captured Bondsmen per pilot. The <em>A Time of War</em> XP engine awards XP automatically. Claim weapons and cash from the Salvage Pool.
+                    </p>
+                  </div>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#10b981", fontSize: "14px" }}>Step 4: Tech Bay &amp; MechLab 🔧</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Click <strong>🔧 Repair All Damage</strong> to restore armor and structure. Replace destroyed engine or gyro critical hit components. Access the MechLab engine to fit custom weapon loadouts, check heat curves, and procure new Mechs from the market.
+                    </p>
+                  </div>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#c084fc", fontSize: "14px" }}>Step 5: Personnel &amp; MedBay 🏥</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Administer medical treatment in MedBay to heal wounded pilots. Spend earned combat XP to upgrade <strong>Gunnery rating (-1 for 30 XP)</strong> or <strong>Piloting rating (-1 for 20 XP)</strong>. Assign Special Pilot Abilities (SPAs) and recruit new pilots.
+                    </p>
+                  </div>
+
+                  <div style={{ background: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "14px" }}>
+                    <strong style={{ color: "#ec4899", fontSize: "14px" }}>Step 6: Financial Ledger 📊</strong>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "6px 0 0 0" }}>
+                      Audit financial balances (C-Bills, Warchest WP, Support Points, MRB Rating). Advance the calendar with <strong>📅 +1 Day</strong> or <strong>⏩ +7 Days</strong> buttons. Daily base overhead ($5,000/day) and monthly payroll ($150,000/mo) are debited automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: RULES & DESCRIPTION */}
+            {helpActiveTab === "overview" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "13px", lineHeight: "1.6" }}>
+                <h4 style={{ color: "#10b981", margin: 0, fontSize: "16px" }}>BattleTech Official Rulebooks Integrated</h4>
+                <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "8px", padding: "14px" }}>
+                  <strong style={{ color: "#38bdf8" }}>📘 Campaign Operations (v5.0)</strong>
+                  <p style={{ color: "#94a3b8", margin: "4px 0 0 0" }}>
+                    Governs procedural contract generation, contract negotiations, Warchest Support Points (SP), Battle Value 2.0 (BV2) force calculations, and Monthly Base Operational Overhead.
+                  </p>
+                </div>
+                <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "8px", padding: "14px" }}>
+                  <strong style={{ color: "#38bdf8" }}>📕 A Time of War (v4.0)</strong>
+                  <p style={{ color: "#94a3b8", margin: "4px 0 0 0" }}>
+                    Governs character combat experience points (XP formula: <code>15 Base + 10-15 Kill + 15 Bondsman</code>), skill progression costs (Gunnery -1 for 30 XP, Piloting -1 for 20 XP), and Special Pilot Ability (SPA) perks.
+                  </p>
+                </div>
+                <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "8px", padding: "14px" }}>
+                  <strong style={{ color: "#38bdf8" }}>📗 Tactical Operations (v7.0)</strong>
+                  <p style={{ color: "#94a3b8", margin: "4px 0 0 0" }}>
+                    Governs DropZone (LZ) atmospheric insertion vector terrain modifiers (Plains, Heavy Cover, High Ground, Hot Drop) and planetary climate heat dissipation penalties.
+                  </p>
+                </div>
+                <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "8px", padding: "14px" }}>
+                  <strong style={{ color: "#38bdf8" }}>📙 TechManual (v3.0)</strong>
+                  <p style={{ color: "#94a3b8", margin: "4px 0 0 0" }}>
+                    Governs MechLab loadout fitting metrics, engine weight ratios, double heat sink dissipation curves, and equipment specifications.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 1 */}
+            {helpActiveTab === "step1" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#ea580c", margin: 0 }}>Step 1: Contract &amp; Transit Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>MRB Contract Hall Cards</strong>: Displays available mercenary contracts with House employer, mission type, base reward, Warchest WP, and salvage tier.</li>
+                  <li><strong>+ Build Custom Contract Button</strong>: Opens an 11-field negotiation dialog allowing custom creation of operations (Operation Name, Employer, OpFor, Mission Type, Planetary Climate, Base C-Bills, Warchest WP, Salvage Rights, BLC Coverage).</li>
+                  <li><strong>View Tactical Intel Button</strong>: Displays planetary climate heat penalties, environmental conditions, and OpFor threat assessment.</li>
+                  <li><strong>Formally Accept Contract Button</strong>: Signs the contract and moves it into Active Deployment status.</li>
+                  <li><strong>🚀 Initiate Jump Transit ($120,000 / 7 Days) Button</strong>: Routes JumpShip transit to destination system on the Starmap, deducting $120,000 C-Bills and advancing stardate +7 days.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 2 */}
+            {helpActiveTab === "step2" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#0284c7", margin: 0 }}>Step 2: Force Deployment Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>Command Lance Roster</strong>: Displays deployed Mechs and assigned MechWarriors, calculating total tonnage and Battle Value (BV2).</li>
+                  <li><strong>Force Readiness Gauge</strong>: Live status bar indicating whether force is <code>✅ 100% Operational</code> or flagging <code>⚠️ Readiness Alerts</code> for damaged units or injured personnel.</li>
+                  <li><strong>DropZone (LZ) Terrain Cards</strong>: Selects atmospheric entry vector:
+                    <ul>
+                      <li><em>Alpha DZ (Flat Plains)</em>: Standard insertion (+0 accuracy).</li>
+                      <li><em>Bravo DZ (Dense Forest)</em>: Defensive cover (-1 enemy accuracy, +1 MP cost).</li>
+                      <li><em>Charlie DZ (Mountain Ridge)</em>: High ground (+1 range accuracy).</li>
+                      <li><em>Delta DZ (Hot Drop)</em>: Orbital combat drop (+10% salvage bonus, high risk).</li>
+                    </ul>
+                  </li>
+                  <li><strong>🚀 Confirm DropZone &amp; Launch Combat Drop Button</strong>: Deploys lance to combat zone, logs event in campaign journal, and advances to Step 3.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 3 */}
+            {helpActiveTab === "step3" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#f59e0b", margin: 0 }}>Step 3: Combat AAR &amp; Salvage Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>🏆 Process Combat AAR Button</strong>: Opens the After-Action Report modal to record battle metrics.</li>
+                  <li><strong>Kill Tracker Inputs</strong>: Logs enemy Mechs destroyed by each pilot (Chassis, Model, Tonnage).</li>
+                  <li><strong>Bondsmen Capture Checkbox</strong>: Records captured enemy MechWarriors into pilot records as bondsmen.</li>
+                  <li><strong>A Time of War XP Badges</strong>: Calculates XP automatically (15 base + 10-15 kill + 15 bondsman).</li>
+                  <li><strong>Itemized Salvage Pool</strong>: Claims weapons (PPC, AC/20, Medium Lasers) and C-Bills from battlefield recovery.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 4 */}
+            {helpActiveTab === "step4" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#10b981", margin: 0 }}>Step 4: Tech Bay &amp; MechLab Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>🔧 Repair All Damage Button</strong>: Spends 20 Support Points (SP) and $150,000 C-Bills to repair all armor and structure damage to 100%.</li>
+                  <li><strong>Critical Hit Component Replacement Table</strong>: Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them using stock inventory or market procurement.</li>
+                  <li><strong>Procure Mech ($) Button</strong>: Opens the procurement market to purchase new Mechs (Centurion, Hunchback, Catapult, Atlas, Timber Wolf).</li>
+                  <li><strong>Interactive MechLab Loadout Fitting Engine</strong>: Calculates tonnage headroom, weapon alpha strike heat, and heat sink dissipation curves.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 5 */}
+            {helpActiveTab === "step5" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#c084fc", margin: 0 }}>Step 5: Personnel &amp; MedBay Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>🏥 Administer Medical Treatment Button</strong>: Expends Support Points (50 SP) to accelerate injured pilot healing (+15 days recovery).</li>
+                  <li><strong>Gunnery Upgrade (-1) Button</strong>: Decreases Gunnery target number by 1 in exchange for 30 XP.</li>
+                  <li><strong>Piloting Upgrade (-1) Button</strong>: Decreases Piloting target number by 1 in exchange for 20 XP.</li>
+                  <li><strong>Assign SPA Perk Dropdown</strong>: Assigns Special Pilot Ability perks (e.g. <em>Sharpshooter</em>, <em>Tactical Genius</em>, <em>Marksman</em>).</li>
+                  <li><strong>Recruit Pilot Form</strong>: Recruits new MechWarriors from the hiring hall into the roster.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* TAB CONTENT: STEP 6 */}
+            {helpActiveTab === "step6" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <h4 style={{ color: "#ec4899", margin: 0 }}>Step 6: Financial Ledger Functions</h4>
+                <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <li><strong>Ledger Metric Cards</strong>: Displays total C-Bill treasury balance, Warchest WP, Support Points (SP), daily overhead, and MRB Rating.</li>
+                  <li><strong>📅 Advance Stardate (+1 Day) Button</strong>: Advances campaign date clock by 1 day, processing $5,000 base daily operational overhead.</li>
+                  <li><strong>⏩ Advance Timeline (+7 Days) Button</strong>: Advances calendar by 7 days ($35,000 overhead).</li>
+                  <li><strong>Monthly Payroll Processing</strong>: Automatically debits $150,000 monthly payroll on the 1st of each month.</li>
+                  <li><strong>Campaign Timeline Journal</strong>: Historical event log recording all jump transits, contract signings, combat drops, AAR reports, and procurement.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* MODAL FOOTER */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                style={{ background: "#10b981", color: "#0f172a", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+              >
+                ✓ Close Manual
+              </button>
             </div>
 
           </div>
