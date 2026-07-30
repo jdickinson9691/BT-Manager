@@ -523,6 +523,31 @@ export default function Dashboard() {
     { name: "Solaris VII", faction: "Independent", x: -20.0, y: -20.0 }
   ];
 
+  const handleToggleNetworkConfig = async (service, currentVal) => {
+    const newVal = !currentVal;
+    let mul = onlineMulMode;
+    let sarna = onlineSarnaMode;
+    let megamek = onlineMegamekMode;
+
+    if (service === "mul") { mul = newVal; setOnlineMulMode(newVal); }
+    if (service === "sarna") { sarna = newVal; setOnlineSarnaMode(newVal); }
+    if (service === "megamek") { megamek = newVal; setOnlineMegamekMode(newVal); }
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/network/config", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mul_online: mul, sarna_online: sarna, megamek_online: megamek })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(data.message || `${service.toUpperCase()} mode updated!`);
+        return;
+      }
+    } catch (err) {}
+
+    alert(`${service.toUpperCase()} network mode toggled to ${newVal ? "ONLINE" : "OFFLINE CACHE"}.`);
+  };
+
   return (
     <div style={{ background: "#0b0d13", minHeight: "100vh", color: "#e2e8f0", fontFamily: "Inter, sans-serif", padding: "16px" }}>
       
@@ -547,7 +572,7 @@ export default function Dashboard() {
           <div style={{ display: "flex", gap: "6px", background: "rgba(0,0,0,0.3)", padding: "4px 8px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
             {/* MUL TOGGLE */}
             <button
-              onClick={() => setOnlineMulMode(!onlineMulMode)}
+              onClick={() => handleToggleNetworkConfig("mul", onlineMulMode)}
               style={{
                 background: onlineMulMode ? "#0284c7" : "rgba(255,255,255,0.1)",
                 color: onlineMulMode ? "#fff" : "#cbd5e1",
@@ -559,7 +584,7 @@ export default function Dashboard() {
 
             {/* SARNA TOGGLE */}
             <button
-              onClick={() => setOnlineSarnaMode(!onlineSarnaMode)}
+              onClick={() => handleToggleNetworkConfig("sarna", onlineSarnaMode)}
               style={{
                 background: onlineSarnaMode ? "#38bdf8" : "rgba(255,255,255,0.1)",
                 color: onlineSarnaMode ? "#0f172a" : "#cbd5e1",
@@ -571,7 +596,7 @@ export default function Dashboard() {
 
             {/* MEGAMEK TOGGLE */}
             <button
-              onClick={() => setOnlineMegamekMode(!onlineMegamekMode)}
+              onClick={() => handleToggleNetworkConfig("megamek", onlineMegamekMode)}
               style={{
                 background: onlineMegamekMode ? "#f59e0b" : "rgba(255,255,255,0.1)",
                 color: onlineMegamekMode ? "#0f172a" : "#cbd5e1",

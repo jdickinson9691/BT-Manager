@@ -10,6 +10,16 @@ class DataSyncAgent:
     and offline SQLite database caching for the standalone Windows application.
     """
 
+    IS_MUL_ONLINE = True
+    IS_SARNA_ONLINE = True
+    IS_MEGAMEK_ONLINE = True
+
+    @classmethod
+    def set_mode(cls, mul_online: bool = True, sarna_online: bool = True, megamek_online: bool = True):
+        cls.IS_MUL_ONLINE = mul_online
+        cls.IS_SARNA_ONLINE = sarna_online
+        cls.IS_MEGAMEK_ONLINE = megamek_online
+
     MUL_ERA_MAP = {
         "2750": "Star League (2571-2780)",
         "3025": "Late Succession War - Renaissance (3020-3049)",

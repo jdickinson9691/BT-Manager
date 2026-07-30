@@ -160,6 +160,18 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(pilot.piloting, 3)
         self.assertEqual(pilot.xp, 50)
 
+    # ==================== 5. DATA SYNC AGENT CONTRACT TESTS ====================
+    def test_07_data_sync_agent_network_toggles(self):
+        """Verify DataSyncAgent network toggles dynamically switch between live & offline cache."""
+        from packages.agents.data_sync_agent import DataSyncAgent
+        DataSyncAgent.set_mode(mul_online=False, sarna_online=False, megamek_online=False)
+        self.assertFalse(DataSyncAgent.IS_MUL_ONLINE)
+        self.assertFalse(DataSyncAgent.IS_SARNA_ONLINE)
+
+        # Re-enable online
+        DataSyncAgent.set_mode(mul_online=True, sarna_online=True, megamek_online=True)
+        self.assertTrue(DataSyncAgent.IS_MUL_ONLINE)
+
 
 if __name__ == "__main__":
     unittest.main()

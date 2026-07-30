@@ -50,6 +50,17 @@ class CampaignCreateRequest(BaseModel):
     faction: str = "House Davion"
     starting_funds: float = 15000000.0
 
+class NetworkConfigRequest(BaseModel):
+    mul_online: bool = True
+    sarna_online: bool = True
+    megamek_online: bool = True
+
+GLOBAL_NETWORK_CONFIG = {
+    "mul_online": True,
+    "sarna_online": True,
+    "megamek_online": True
+}
+
 class CustomLogCreate(BaseModel):
     event_type: str = "Journal"
     description: str
@@ -168,6 +179,28 @@ class ComponentRepairRequest(BaseModel):
 @app.get("/")
 def read_root():
     return {"status": "online", "system": "BT-Manager Agent-Driven Core Engine v2.1"}
+
+@app.get("/api/v1/network/config")
+def get_network_config():
+    return GLOBAL_NETWORK_CONFIG
+
+@app.post("/api/v1/network/config")
+def update_network_config(config: NetworkConfigRequest):
+    GLOBAL_NETWORK_CONFIG["mul_online"] = config.mul_online
+    GLOBAL_NETWORK_CONFIG["sarna_online"] = config.sarna_online
+    GLOBAL_NETWORK_CONFIG["megamek_online"] = config.megamek_online
+    
+    DataSyncAgent.set_mode(
+        mul_online=config.mul_online,
+        sarna_online=config.sarna_online,
+        megamek_online=config.megamek_online
+    )
+    
+    return {
+        "status": "updated",
+        "config": GLOBAL_NETWORK_CONFIG,
+        "message": f"Network toggles updated: MUL={'Online' if config.mul_online else 'Cached'}, Sarna={'Online' if config.sarna_online else 'Cached'}, MegaMek={'Online' if config.megamek_online else 'Cached'}"
+    }
 
 @app.get("/api/v1/ledger/balance")
 def get_balance(db: Session = Depends(get_db)):
