@@ -1156,62 +1156,110 @@ export default function Dashboard() {
 
       {/* BUILD CUSTOM CONTRACT MODAL */}
       {showCustomContractModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowCustomContractModal(false)}>
-          <div style={{ background: "#0f141e", border: "1px solid #9333ea", borderRadius: "12px", padding: "28px", width: "540px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowCustomContractModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #9333ea", borderRadius: "12px", padding: "28px", width: "620px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 className="font-orbitron" style={{ color: "#9333ea", margin: 0, fontSize: "18px" }}>
-                🛠️ BUILD CUSTOM CONTRACT
+                🛠️ BUILD CUSTOM MERCENARY CONTRACT
               </h3>
               <button onClick={() => setShowCustomContractModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
             </div>
 
             <form onSubmit={handleCreateCustomContract} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
-                <label style={{ fontSize: "12px", color: "#94a3b8" }}>OPERATION NAME</label>
+                <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>OPERATION / CONTRACT NAME</label>
                 <input type="text" placeholder="e.g. Operation Iron Shield" value={customMissionName} onChange={e => setCustomMissionName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>EMPLOYER FACTION</label>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>EMPLOYER FACTION</label>
                   <select value={customEmployer} onChange={e => setCustomEmployer(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
                     <option value="House Davion">House Davion (Federated Suns)</option>
                     <option value="Draconis Combine Mustered Soldier">Draconis Combine (Kurita)</option>
-                    <option value="House Steiner">House Steiner (Lyran)</option>
+                    <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
                     <option value="House Marik">House Marik (Free Worlds League)</option>
-                    <option value="House Liao">House Liao (Capellan)</option>
+                    <option value="House Liao">House Liao (Capellan Confederation)</option>
                     <option value="ComStar">ComStar</option>
                     <option value="Independent Local Government">Independent Local Government</option>
+                    <option value="Solaris VII Arena">Solaris VII Syndicate</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>MISSION TYPE</label>
-                  <select value={customMissionType} onChange={e => setCustomMissionType(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                    <option value="Garrison Defense">Garrison Defense</option>
-                    <option value="Objective Raid">Objective Raid</option>
-                    <option value="Reconnaissance Patrol">Reconnaissance Patrol</option>
-                    <option value="Base Assault">Base Assault</option>
-                    <option value="VIP Convoy Escort">VIP Convoy Escort</option>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>TARGET ENEMY OPFOR</label>
+                  <select defaultValue="Draconis Combine" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="Draconis Combine">Draconis Combine (Kurita)</option>
+                    <option value="Federated Suns">Federated Suns (House Davion)</option>
+                    <option value="Capellan Confederation">Capellan Confederation (Liao)</option>
+                    <option value="Free Worlds League">Free Worlds League (Marik)</option>
+                    <option value="Lyran Commonwealth">Lyran Commonwealth (Steiner)</option>
+                    <option value="Pirate Outlaws">Pirate Outlaws &amp; Banditti</option>
+                    <option value="Clan Wolf">Clan Wolf (Clans)</option>
                   </select>
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>BASE C-BILL PAYOUT ($)</label>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>MISSION TYPE / OBJECTIVE</label>
+                  <select value={customMissionType} onChange={e => setCustomMissionType(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="Garrison Defense">Garrison Defense &amp; Patrol</option>
+                    <option value="Objective Raid">Objective Raid &amp; Extraction</option>
+                    <option value="Reconnaissance Patrol">Deep Reconnaissance Patrol</option>
+                    <option value="Base Assault">Base Siege &amp; Destruction</option>
+                    <option value="VIP Convoy Escort">VIP Convoy Escort</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>PLANETARY CLIMATE</label>
+                  <select defaultValue="Arid / Extreme Heat (+20%)" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="Standard Moderate">Standard Moderate (+0 Heat)</option>
+                    <option value="Arid / Extreme Heat (+20%)">Arid / Extreme Heat (+20% Heat)</option>
+                    <option value="Sub-Zero Ice World">Sub-Zero Ice World (-10% Heat)</option>
+                    <option value="Vacuum / Airless Moon">Vacuum / Airless Moon (+1 Energy Heat)</option>
+                    <option value="Low Gravity (0.5g)">Low Gravity (0.5g) (+1 Jump MP)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>BASE C-BILL PAYOUT ($)</label>
                   <input type="number" value={customBaseCbill} onChange={e => setCustomBaseCbill(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>WARCHEST WP REWARD</label>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>WARCHEST WP REWARD</label>
                   <input type="number" value={customWpReward} onChange={e => setCustomWpReward(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>SALVAGE RIGHTS CLAUSE</label>
+                  <select defaultValue="Shared (50%)" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="Shared (50%)">Shared Salvage (50%)</option>
+                    <option value="Full Salvage (100%)">Full Salvage Rights (100%)</option>
+                    <option value="Exchange Value (25%)">Exchange Value Only (25%)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>BATTLE LOSS COMP (BLC)</label>
+                  <select defaultValue="50% Coverage" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="50% Coverage">50% Armor/Structure Coverage</option>
+                    <option value="75% Heavy Coverage">75% Heavy BLC Coverage</option>
+                    <option value="100% Full Compensation">100% Full BLC Coverage</option>
+                    <option value="0% None">0% None</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
                 <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setShowCustomContractModal(false)}>Cancel</button>
-                <button type="submit" style={{ background: "#9333ea", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>🚀 Post Contract to Board</button>
+                <button type="submit" style={{ background: "#9333ea", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>🚀 Post Contract to MRB Board</button>
               </div>
             </form>
           </div>
