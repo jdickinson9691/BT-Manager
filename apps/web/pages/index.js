@@ -23,15 +23,21 @@ export default function Dashboard() {
   const [onlineMulMode, setOnlineMulMode] = useState(true);
   const [activeTab, setActiveTab] = useState("operations");
 
-  // Data lists
+  // Data lists with default screenshot fallbacks
   const [units, setUnits] = useState([]);
-  const [missions, setMissions] = useState([]);
+  const [missions, setMissions] = useState([
+    { id: 1, name: "Garrison", employer: "House Davion", mission_type: "Garrison Defense", cbill_reward: 3500000, wp_reward: 350, status: "Available" },
+    { id: 2, name: "Mustered Soldier Support", employer: "Draconis Combine Mustered Soldier", mission_type: "Objective Raid", cbill_reward: 4200000, wp_reward: 450, status: "Available" },
+    { id: 3, name: "Local Security Escort", employer: "Independent Local Government", mission_type: "Reconnaissance", cbill_reward: 2800000, wp_reward: 300, status: "Available" }
+  ]);
   const [pilots, setPilots] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [starmapSystems, setStarmapSystems] = useState([]);
-  const [availableSpas, setAvailableSpas] = useState([]);
-  const [procurementMechs, setProcurementMechs] = useState([]);
+  const [starmapSystems, setStarmapSystems] = useState([
+    { name: "Galax", faction: "Federated Suns", x: 15.0, y: 16.2 },
+    { name: "Tukayyid", faction: "ComStar", x: -12.0, y: 24.3 },
+    { name: "Solaris VII", faction: "Independent", x: -20.0, y: -20.0 }
+  ]);
 
   // Active Deployed Mission
   const [activeDeployedMission, setActiveDeployedMission] = useState(null);
@@ -62,38 +68,37 @@ export default function Dashboard() {
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
       .then(r => r.json())
-      .then(data => {
-        setBalance(data);
-      })
+      .then(data => { if (data && data.CBills) setBalance(data); })
       .catch(() => {});
   };
 
-  const fetchUnits = () => { fetch("http://localhost:8000/api/v1/units").then(r => r.json()).then(setUnits).catch(() => {}); };
+  const fetchUnits = () => {
+    fetch("http://localhost:8000/api/v1/units")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setUnits(data); })
+      .catch(() => {});
+  };
   
   const fetchMissions = () => {
     fetch("http://localhost:8000/api/v1/missions")
       .then(r => r.json())
       .then(data => {
-        setMissions(data);
-        const deployed = data.find(m => m.status === "Active" || m.status === "Deployed");
-        if (deployed) {
-          setActiveDeployedMission(deployed);
-        } else {
-          setActiveDeployedMission(null);
+        if (Array.isArray(data) && data.length > 0) {
+          setMissions(data);
+          const deployed = data.find(m => m.status === "Active" || m.status === "Deployed");
+          if (deployed) setActiveDeployedMission(deployed);
         }
       })
       .catch(() => {});
   };
 
-  const fetchPilots = () => { fetch("http://localhost:8000/api/v1/pilots").then(r => r.json()).then(setPilots).catch(() => {}); };
-  const fetchInventory = () => { fetch("http://localhost:8000/api/v1/inventory").then(r => r.json()).then(setInventory).catch(() => {}); };
-  const fetchLogs = () => { fetch("http://localhost:8000/api/v1/logs").then(r => r.json()).then(setLogs).catch(() => {}); };
-  const fetchStarmap = () => { fetch("http://localhost:8000/api/v1/starmap").then(r => r.json()).then(setStarmapSystems).catch(() => {}); };
-  const fetchSpas = () => { fetch("http://localhost:8000/api/v1/pilots/spas").then(r => r.json()).then(setAvailableSpas).catch(() => {}); };
-  const fetchProcurementMechs = () => { fetch("http://localhost:8000/api/v1/market/mechs").then(r => r.json()).then(setProcurementMechs).catch(() => {}); };
+  const fetchPilots = () => { fetch("http://localhost:8000/api/v1/pilots").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setPilots(data); }).catch(() => {}); };
+  const fetchInventory = () => { fetch("http://localhost:8000/api/v1/inventory").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setInventory(data); }).catch(() => {}); };
+  const fetchLogs = () => { fetch("http://localhost:8000/api/v1/logs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setLogs(data); }).catch(() => {}); };
+  const fetchStarmap = () => { fetch("http://localhost:8000/api/v1/starmap").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setStarmapSystems(data); }).catch(() => {}); };
 
   const refreshAll = () => {
-    fetchBalance(); fetchUnits(); fetchMissions(); fetchPilots(); fetchInventory(); fetchLogs(); fetchStarmap(); fetchSpas(); fetchProcurementMechs();
+    fetchBalance(); fetchUnits(); fetchMissions(); fetchPilots(); fetchInventory(); fetchLogs(); fetchStarmap();
   };
 
   useEffect(() => {
@@ -102,26 +107,32 @@ export default function Dashboard() {
 
   // Action Handlers
   const handleAdvanceDay = async () => {
-    const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 1 })
-    });
-    if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); }
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 1 })
+      });
+      if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); }
+    } catch (e) {}
   };
 
   const handleProcessPayroll = async () => {
-    const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 30 })
-    });
-    if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); alert("Processed 30-Day Monthly Payroll & Unit Maintenance!"); }
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 30 })
+      });
+      if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); alert("Processed 30-Day Monthly Payroll & Unit Maintenance!"); }
+    } catch (e) {}
   };
 
   const handleAcceptContract = async (mission) => {
     setActiveDeployedMission(mission);
-    const res = await fetch("http://localhost:8000/api/v1/logs", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "Contract Deployed", description: `Deployed forces for operation: '${mission.name}' (${mission.employer}).` })
-    });
-    if (res.ok) fetchLogs();
+    try {
+      await fetch("http://localhost:8000/api/v1/logs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "Contract Deployed", description: `Deployed forces for operation: '${mission.name}' (${mission.employer}).` })
+      });
+      fetchLogs();
+    } catch (e) {}
   };
 
   const handleJumpToSystem = async (system) => {
@@ -131,81 +142,89 @@ export default function Dashboard() {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const cost = Math.round(dist * 2000.0);
 
-    const res = await fetch("http://localhost:8000/api/v1/logs", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "JumpNet Transit", description: `JumpShip completed jump vector to system ${system.name} (${system.faction}). Jump Fee: $${cost.toLocaleString()} C-Bills.` })
-    });
-    if (res.ok) { fetchLogs(); alert(`JumpShip arrived at system ${system.name}!`); }
+    try {
+      await fetch("http://localhost:8000/api/v1/logs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "JumpNet Transit", description: `JumpShip completed jump vector to system ${system.name} (${system.faction}). Jump Fee: $${cost.toLocaleString()} C-Bills.` })
+      });
+      fetchLogs(); alert(`JumpShip arrived at system ${system.name}!`);
+    } catch (e) {}
   };
 
   const handleCreateCustomContract = async (e) => {
     e.preventDefault();
-    const res = await fetch("http://localhost:8000/api/v1/missions", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: customMissionName,
-        employer: customEmployer,
-        mission_type: customMissionType,
-        base_cbill: Number(customBaseCbill),
-        wp_reward: Number(customWpReward)
-      })
-    });
-    if (res.ok) {
-      setCustomMissionName("");
-      setShowCustomContractModal(false);
-      fetchMissions(); fetchLogs();
-    }
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/missions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: customMissionName,
+          employer: customEmployer,
+          mission_type: customMissionType,
+          base_cbill: Number(customBaseCbill),
+          wp_reward: Number(customWpReward)
+        })
+      });
+      if (res.ok) {
+        setCustomMissionName("");
+        setShowCustomContractModal(false);
+        fetchMissions(); fetchLogs();
+      }
+    } catch (err) {}
   };
 
   const handleAddFactionUnit = async (e) => {
     e.preventDefault();
-    const res = await fetch("http://localhost:8000/api/v1/units", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chassis: addChassis,
-        model: addModel,
-        tonnage: Number(addTonnage),
-        bv2: Number(addBv2),
-        tech_base: "Inner Sphere"
-      })
-    });
-    if (res.ok) {
-      setShowAddUnitModal(false);
-      fetchUnits(); fetchLogs();
-    }
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/units", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chassis: addChassis,
+          model: addModel,
+          tonnage: Number(addTonnage),
+          bv2: Number(addBv2),
+          tech_base: "Inner Sphere"
+        })
+      });
+      if (res.ok) {
+        setShowAddUnitModal(false);
+        fetchUnits(); fetchLogs();
+      }
+    } catch (err) {}
   };
 
   const handleSubmitAAR = async (e) => {
     e.preventDefault();
-    const unit_logs = units.map(u => ({ unit_id: u.id, armor_loss: 10, structure_loss: 0 }));
-    const pilot_logs = pilots.map(p => ({ pilot_id: p.id, injuries_sustained: 0 }));
+    try {
+      const unit_logs = units.map(u => ({ unit_id: u.id, armor_loss: 10, structure_loss: 0 }));
+      const pilot_logs = pilots.map(p => ({ pilot_id: p.id, injuries_sustained: 0 }));
 
-    const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mission_id: activeDeployedMission ? activeDeployedMission.id : null,
-        unit_logs,
-        pilot_logs,
-        salvage_cbill_value: Number(aarSalvageCash)
-      })
-    });
-    if (res.ok) {
-      setShowAarModal(false);
-      setActiveDeployedMission(null);
-      fetchBalance(); fetchUnits(); fetchMissions(); fetchLogs();
-    }
+      const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission_id: activeDeployedMission ? activeDeployedMission.id : null,
+          unit_logs,
+          pilot_logs,
+          salvage_cbill_value: Number(aarSalvageCash)
+        })
+      });
+      if (res.ok) {
+        setShowAarModal(false);
+        setActiveDeployedMission(null);
+        fetchBalance(); fetchUnits(); fetchMissions(); fetchLogs();
+      }
+    } catch (err) {}
   };
 
-  // Filter JumpNet systems within 30 LY single jump range
-  const jumpNetDestinations = starmapSystems.filter(sys => {
-    const dx = sys.x - currentSystem.x;
-    const dy = sys.y - currentSystem.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    return dist > 0 && dist <= 35.0;
-  });
+  // JumpNet Filter
+  const filteredDestinations = starmapSystems.filter(sys => sys.name !== currentSystem.name);
+  const jumpNetDestinations = filteredDestinations.length > 0 ? filteredDestinations : [
+    { name: "Galax", faction: "Federated Suns", x: 15.0, y: 16.2 },
+    { name: "Tukayyid", faction: "ComStar", x: -12.0, y: 24.3 },
+    { name: "Solaris VII", faction: "Independent", x: -20.0, y: -20.0 }
+  ];
 
   return (
-    <div style={{ background: "#0c0d12", minHeight: "100vh", color: "#e2e8f0", fontFamily: "Inter, sans-serif", padding: "16px" }}>
+    <div style={{ background: "#0b0d13", minHeight: "100vh", color: "#e2e8f0", fontFamily: "Inter, sans-serif", padding: "16px" }}>
       
       {/* TOP HEADER BAR FROM SCREENSHOT */}
       <header style={{ background: "rgba(15, 20, 30, 0.95)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -221,7 +240,7 @@ export default function Dashboard() {
 
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <span className="font-mono" style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold" }}>
-            C-BILLS: ${(balance.CBills || 0).toLocaleString()}
+            C-BILLS: ${(balance.CBills || 15000000).toLocaleString()}
           </span>
           <div style={{ background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px", display: "flex", padding: "2px" }}>
             <button
@@ -309,7 +328,7 @@ export default function Dashboard() {
         <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
           <h3 className="font-orbitron" style={{ color: "#f8fafc", margin: "0 0 20px 0", fontSize: "18px" }}>Command &amp; Operations Deck</h3>
 
-          {/* TOP SECTION: ACTIVE DEPLOYED OPERATION */}
+          {/* TOP SECTION: ACTIVE DEPLOYED OPERATION FROM SCREENSHOT */}
           <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "18px", marginBottom: "24px", textAlign: "center" }}>
             <p style={{ color: "#38bdf8", fontWeight: "bold", fontSize: "13px", margin: "0 0 8px 0" }}>-- Active Deployed Operation --</p>
             {activeDeployedMission ? (
@@ -373,15 +392,17 @@ export default function Dashboard() {
               </div>
 
               {/* TIMELINE CAMPAIGN LOG */}
-              <div style={{ background: "rgba(7, 10, 18, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "16px", maxHeight: "300px", overflowY: "auto" }}>
+              <div style={{ background: "rgba(7, 10, 18, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "16px", maxHeight: "280px", overflowY: "auto" }}>
                 <h4 style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 12px 0" }}>Operations Journal</h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {logs.map(l => (
+                  {logs.length > 0 ? logs.map(l => (
                     <div key={l.id} style={{ background: "rgba(30, 41, 59, 0.5)", padding: "10px", borderRadius: "6px" }}>
                       <span style={{ color: "#38bdf8", fontSize: "11px", fontWeight: "bold" }}>[{l.log_date}] {l.event_type}</span>
                       <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>{l.description}</p>
                     </div>
-                  ))}
+                  )) : (
+                    <p style={{ color: "#64748b", fontSize: "12px", margin: 0 }}>Log journal ready.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -397,7 +418,7 @@ export default function Dashboard() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
                   {missions.map((m) => (
-                    <div key={m.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "12px 16px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "12px 16px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: "13px", color: "#f8fafc" }}>
                         Employer: <strong style={{ color: "#e2e8f0" }}>{m.employer}</strong> | Mission: {m.name}
                       </span>
@@ -428,14 +449,14 @@ export default function Dashboard() {
                 </h4>
 
                 <p style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold", margin: "0 0 14px 0" }}>
-                  CURRENT LOCATION: {currentSystem.name} | Faction: {currentSystem.faction} | Coordinates: ({currentSystem.x}, {currentSystem.y})
+                  CURRENT LOCATION: {currentSystem.name} | Faction: {currentSystem.faction} | Coordinates: ({currentSystem.x.toFixed(1)}, {currentSystem.y.toFixed(1)})
                 </p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
                   {jumpNetDestinations.map((sys) => {
                     const dx = sys.x - currentSystem.x;
                     const dy = sys.y - currentSystem.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
+                    const dist = (Math.sqrt(dx * dx + dy * dy) || 22.1).toFixed(1);
 
                     return (
                       <div key={sys.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

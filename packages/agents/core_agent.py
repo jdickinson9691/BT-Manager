@@ -169,7 +169,7 @@ class CoreAgent:
             name="Wolf's Irregulars",
             wp_balance=1250,
             sp_balance=750,
-            cbill_balance=18500000.0,
+            cbill_balance=15000000.0,
             current_date="3025-01-15",
             daily_overhead=5000.0,
             mrb_rating="B",
@@ -193,18 +193,35 @@ class CoreAgent:
 
         m1 = Mission(
             campaign_id=campaign.id,
-            name="Operation Sandbox Shield",
-            mission_type="Planetary Defense",
+            name="Garrison Defense",
+            mission_type="Garrison",
             employer="House Davion",
             wp_reward=350,
             cbill_reward=3500000.0,
             salvage_rights="Shared (50%)",
-            blc_coverage=0.5,
-            transport_allowance=0.5,
-            command_rights="Integrated",
-            status="Active"
+            status="Available"
         )
-        db.add(m1)
+        m2 = Mission(
+            campaign_id=campaign.id,
+            name="Objective Raid",
+            mission_type="Raid",
+            employer="Draconis Combine Mustered Soldier",
+            wp_reward=450,
+            cbill_reward=4200000.0,
+            salvage_rights="Full Salvage",
+            status="Available"
+        )
+        m3 = Mission(
+            campaign_id=campaign.id,
+            name="Planetary Reconnaissance",
+            mission_type="Recon",
+            employer="Independent Local Government",
+            wp_reward=300,
+            cbill_reward=2800000.0,
+            salvage_rights="Shared (25%)",
+            status="Available"
+        )
+        db.add_all([m1, m2, m3])
 
         inv1 = Inventory(campaign_id=campaign.id, component_name="PPC", quantity=2, category="Weapon")
         inv2 = Inventory(campaign_id=campaign.id, component_name="AC/20", quantity=1, category="Weapon")
