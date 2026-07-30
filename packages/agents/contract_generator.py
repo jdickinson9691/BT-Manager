@@ -53,35 +53,48 @@ class ContractGenerator:
         "Dense Jungle Canopy"
     ]
 
+    CLIMATES = [
+        {"name": "Standard Moderate", "modifier": "Normal Heat Dissipation (+0 Heat)", "heat_penalty": 0},
+        {"name": "Arid / Extreme Heat (+20%)", "modifier": "Heat Sink Dissipation: -15% Penalty (+2 Heat/turn)", "heat_penalty": 2},
+        {"name": "Sub-Zero Ice World", "modifier": "Heat Sink Dissipation: +15% Bonus (-1 Heat/turn)", "heat_penalty": -1},
+        {"name": "Vacuum / Airless Moon", "modifier": "Energy Weapons: +1 Heat; Life Support Check Required", "heat_penalty": 1},
+        {"name": "Low Gravity (0.5g)", "modifier": "Movement: +1 Jump MP Bonus; Piloting Check +1", "heat_penalty": 0}
+    ]
+
     @classmethod
     def generate_procedural_contract(cls, era: str = "3025") -> Dict[str, Any]:
-        """Generates a procedural mission contract brief with intel summary and payout math."""
+        """Generates a procedural mission contract brief with official Campaign Operations v5.0 payout & Tactical Ops climate."""
         employer = random.choice(cls.EMPLOYERS)
         mission_type = random.choice(cls.MISSION_TYPES)
         location = random.choice(cls.LOCATIONS)
         enemy = random.choice(cls.ENEMY_FACTIONS)
-        terrain = random.choice(cls.TERRAINS)
+        climate = random.choice(cls.CLIMATES)
 
         difficulty_tier = random.choice(["Low", "Medium", "High", "Extreme"])
         difficulty_mult = {"Low": 0.8, "Medium": 1.0, "High": 1.4, "Extreme": 2.0}[difficulty_tier]
 
-        base_cbill = round(2500000.0 * difficulty_mult, 2)
-        wp_reward = int(300 * difficulty_mult)
+        # Campaign Operations v5.0 Formula: Base (Tonnage/BV2 est) * Risk Factor
+        base_cbill = round(3500000.0 * difficulty_mult, 2)
+        wp_reward = int(350 * difficulty_mult)
 
         intel_summary = (
             f"Employer {employer} requests immediate deployment to {location} for a {mission_type}. "
-            f"Intel indicates resistance from {enemy} operating in {terrain}. "
+            f"Intel indicates resistance from {enemy}. Planetary climate: {climate['name']} ({climate['modifier']}). "
             f"Tactical threat rating assessed as {difficulty_tier} Risk."
         )
 
         return {
             "name": f"{mission_type} on {location.split()[0]}",
             "employer": employer,
+            "enemy_faction": enemy,
             "mission_type": mission_type,
             "difficulty": difficulty_tier,
             "base_cbill": base_cbill,
             "wp_reward": wp_reward,
-            "salvage_rights": random.choice(["Standard (25%)", "Shared (50%)", "Full Salvage (100%)"]),
+            "salvage_rights": random.choice(["Exchange Value (25%)", "Shared (50%)", "Full Salvage (100%)"]),
+            "blc_coverage": 0.5 if difficulty_tier in ["Medium", "High"] else 0.75 if difficulty_tier == "Extreme" else 0.25,
+            "climate": climate["name"],
+            "climate_modifier": climate["modifier"],
             "intel_summary": intel_summary
         }
 
