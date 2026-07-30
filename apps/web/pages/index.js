@@ -21,38 +21,59 @@ export default function Dashboard() {
   });
 
   const [onlineMulMode, setOnlineMulMode] = useState(true);
-  const [activeTab, setActiveTab] = useState("operations");
+  
+  // STEP-BY-STEP CAMPAIGN WORKFLOW NAVIGATION
+  const [activeStep, setActiveStep] = useState(1); // 1: Contract & Transit, 2: Deployment & Lances, 3: Combat AAR & Salvage, 4: Tech Bay & MechLab, 5: Personnel & MedBay, 6: Financial Ledger
 
   // Data lists with default fallbacks
-  const [units, setUnits] = useState([]);
+  const [units, setUnits] = useState([
+    { id: 1, chassis: "Marauder", model: "MAD-3R", tonnage: 75, bv2: 1363, status: "Operational", armor_damage: 0, structure_damage: 0, tech_base: "Inner Sphere", assigned_pilot: "Lt. Natasha Kerensky" },
+    { id: 2, chassis: "Warhammer", model: "WHM-6R", tonnage: 70, bv2: 1299, status: "Operational", armor_damage: 15, structure_damage: 0, tech_base: "Inner Sphere", assigned_pilot: "Kaelen Cross" },
+    { id: 3, chassis: "Centurion", model: "CN9-A", tonnage: 50, bv2: 945, status: "Operational", armor_damage: 0, structure_damage: 0, tech_base: "Inner Sphere", assigned_pilot: "Varian Vance" }
+  ]);
+
   const [missions, setMissions] = useState([
-    { id: 1, name: "Garrison", employer: "House Davion", mission_type: "Garrison Defense", cbill_reward: 3500000, wp_reward: 350, status: "Available" },
-    { id: 2, name: "Mustered Soldier Support", employer: "Draconis Combine Mustered Soldier", mission_type: "Objective Raid", cbill_reward: 4200000, wp_reward: 450, status: "Available" },
-    { id: 3, name: "Local Security Escort", employer: "Independent Local Government", mission_type: "Reconnaissance", cbill_reward: 2800000, wp_reward: 300, status: "Available" }
+    { id: 1, name: "Planetary Defense", employer: "House Davion", mission_type: "Garrison Defense", cbill_reward: 3500000, wp_reward: 350, status: "Available", enemy_faction: "Draconis Combine", difficulty: "Medium" },
+    { id: 2, name: "Supply Depot Raid", employer: "Draconis Combine Mustered Soldier", mission_type: "Objective Raid", cbill_reward: 4200000, wp_reward: 450, status: "Available", enemy_faction: "Federated Suns", difficulty: "Hard" },
+    { id: 3, name: "Perimeter Recon Patrol", employer: "Independent Local Government", mission_type: "Reconnaissance", cbill_reward: 2800000, wp_reward: 300, status: "Available", enemy_faction: "Pirates", difficulty: "Light" }
   ]);
+
   const [pilots, setPilots] = useState([
-    { id: 1, name: "Varian Vance", callsign: "Grim", gunnery: 3, piloting: 4, status: "Active", injuries: 0, days_remaining: 0, xp: 75, spa: "Sharpshooter (+1 Accuracy to Called Shots)", kills: 4 },
-    { id: 2, name: "Kaelen Cross", callsign: "Bishop", gunnery: 4, piloting: 4, status: "Active", injuries: 0, days_remaining: 0, xp: 40, spa: "Tactical Genius (Reroll Initiative Once)", kills: 2 },
-    { id: 3, name: "Robert Clay", callsign: "Dusty", gunnery: 4, piloting: 5, status: "Injured", injuries: 2, days_remaining: 12, xp: 20, spa: "None", kills: 1 }
+    { id: 1, name: "Lt. Natasha Kerensky", callsign: "Black Widow", gunnery: 2, piloting: 3, status: "Active", injuries: 0, days_remaining: 0, xp: 85, spa: "Sharpshooter (+1 Accuracy to Called Shots)", kills: 5, salary: 75000, assigned_unit: "Marauder MAD-3R" },
+    { id: 2, name: "Kaelen Cross", callsign: "Bishop", gunnery: 3, piloting: 4, status: "Active", injuries: 0, days_remaining: 0, xp: 40, spa: "Tactical Genius (Reroll Initiative Once)", kills: 2, salary: 45000, assigned_unit: "Warhammer WHM-6R" },
+    { id: 3, name: "Varian Vance", callsign: "Grim", gunnery: 4, piloting: 4, status: "Active", injuries: 0, days_remaining: 0, xp: 50, spa: "Marksman (Energy Weapon Range Boost)", kills: 3, salary: 40000, assigned_unit: "Centurion CN9-A" },
+    { id: 4, name: "Robert Clay", callsign: "Dusty", gunnery: 4, piloting: 5, status: "Injured", injuries: 2, days_remaining: 12, xp: 20, spa: "None", kills: 1, salary: 35000, assigned_unit: "Unassigned" }
   ]);
+
   const [hiringCandidates, setHiringCandidates] = useState([
     { name: "Rana Hawkins", callsign: "Valkyrie", gunnery: 3, piloting: 3, signing_bonus: 450000 },
     { name: "Erik Sandstrom", callsign: "Viking", gunnery: 3, piloting: 4, signing_bonus: 350000 },
     { name: "Valerie Vance", callsign: "Siren", gunnery: 4, piloting: 4, signing_bonus: 250000 }
   ]);
-  const [inventory, setInventory] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [starmapSystems, setStarmapSystems] = useState([
-    { name: "Galax", faction: "Federated Suns", x: 15.0, y: 16.2 },
-    { name: "Tukayyid", faction: "ComStar", x: -12.0, y: 24.3 },
-    { name: "Solaris VII", faction: "Independent", x: -20.0, y: -20.0 }
+
+  const [inventory, setInventory] = useState([
+    { id: 1, part_name: "AC/20 Autocannon", category: "Weaponry", stock: 2, cost: 500000 },
+    { id: 2, part_name: "Particle Projector Cannon (PPC)", category: "Weaponry", stock: 3, cost: 300000 },
+    { id: 3, part_name: "Medium Laser", category: "Weaponry", stock: 6, cost: 80000 },
+    { id: 4, part_name: "Heat Sink", category: "Internal", stock: 12, cost: 20000 },
+    { id: 5, part_name: "Ferro-Fibrous Armor Plate (5T)", category: "Armor", stock: 4, cost: 150000 }
   ]);
+
+  const [logs, setLogs] = useState([]);
+  
+  const [starmapSystems, setStarmapSystems] = useState([
+    { name: "Galax", faction: "Federated Suns", x: 15.0, y: 16.2, jump_cost: 120000 },
+    { name: "Tukayyid", faction: "ComStar", x: -12.0, y: 24.3, jump_cost: 100000 },
+    { name: "Solaris VII", faction: "Independent", x: -20.0, y: -20.0, jump_cost: 150000 }
+  ]);
+
   const [procurementMechs, setProcurementMechs] = useState([
     { chassis: "Marauder", model: "MAD-3R", tonnage: 75, bv2: 1363, cbill_cost: 6500000, wp_cost: 650, tech_base: "Inner Sphere" },
     { chassis: "Warhammer", model: "WHM-6R", tonnage: 70, bv2: 1299, cbill_cost: 6000000, wp_cost: 600, tech_base: "Inner Sphere" },
     { chassis: "Centurion", model: "CN9-A", tonnage: 50, bv2: 945, cbill_cost: 4500000, wp_cost: 450, tech_base: "Inner Sphere" },
     { chassis: "Hunchback", model: "HBK-4G", tonnage: 50, bv2: 1041, cbill_cost: 3800000, wp_cost: 380, tech_base: "Inner Sphere" }
   ]);
+
   const [availableSpas, setAvailableSpas] = useState([
     "None",
     "Sharpshooter (+1 Accuracy to Called Shots)",
@@ -74,13 +95,12 @@ export default function Dashboard() {
   const [useDoubleHeatSinks, setUseDoubleHeatSinks] = useState(false);
   const [buildMetrics, setBuildMetrics] = useState(null);
 
-  // Modals
+  // Modals & Form States
   const [selectedIntelMission, setSelectedIntelMission] = useState(null);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [showCustomContractModal, setShowCustomContractModal] = useState(false);
   const [showAarModal, setShowAarModal] = useState(false);
 
-  // Form States
   const [customMissionName, setCustomMissionName] = useState("");
   const [customEmployer, setCustomEmployer] = useState("House Davion");
   const [customMissionType, setCustomMissionType] = useState("Garrison");
@@ -92,10 +112,8 @@ export default function Dashboard() {
   const [addTonnage, setAddTonnage] = useState(50);
   const [addBv2, setAddBv2] = useState(945);
 
-  const [newPilotName, setNewPilotName] = useState("");
-  const [newPilotCallsign, setNewPilotCallsign] = useState("");
-
   const [aarSalvageCash, setAarSalvageCash] = useState(500000);
+  const [salvagedComponentsClaimed, setSalvagedComponentsClaimed] = useState(["PPC", "Medium Laser"]);
 
   // Data Fetching
   const fetchBalance = () => {
@@ -161,10 +179,7 @@ export default function Dashboard() {
   }, [refitTonnage, selectedLoadout, useDoubleHeatSinks]);
 
   // MechLab Item Handlers
-  const addComponentToLoadout = (compName) => {
-    setSelectedLoadout([...selectedLoadout, compName]);
-  };
-
+  const addComponentToLoadout = (compName) => { setSelectedLoadout([...selectedLoadout, compName]); };
   const removeComponentFromLoadout = (idx) => {
     const updated = [...selectedLoadout];
     updated.splice(idx, 1);
@@ -252,20 +267,6 @@ export default function Dashboard() {
     } catch (err) {}
   };
 
-  const handleRecruitNewPilot = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/pilots", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newPilotName, callsign: newPilotCallsign, gunnery: 4, piloting: 5 })
-      });
-      if (res.ok) {
-        setNewPilotName(""); setNewPilotCallsign("");
-        fetchPilots(); fetchBalance(); fetchLogs();
-      }
-    } catch (err) {}
-  };
-
   // Action Handlers
   const handleAdvanceDay = async () => {
     try {
@@ -287,10 +288,11 @@ export default function Dashboard() {
 
   const handleAcceptContract = async (mission) => {
     setActiveDeployedMission(mission);
+    setActiveStep(2); // Automatically advance to Step 2: Force Deployment
     try {
       await fetch("http://localhost:8000/api/v1/logs", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_type: "Contract Deployed", description: `Deployed forces for operation: '${mission.name}' (${mission.employer}).` })
+        body: JSON.stringify({ event_type: "Contract Deployed", description: `Accepted contract: '${mission.name}' (${mission.employer}). Deployed to theater.` })
       });
       fetchLogs();
     } catch (e) {}
@@ -312,25 +314,21 @@ export default function Dashboard() {
     } catch (e) {}
   };
 
-  const handleBuyProcurementMech = async (mech) => {
+  const handleBuyMarketPart = async (partName, category, cost) => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/market/buy-mech", {
+      const res = await fetch("http://localhost:8000/api/v1/inventory/buy", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chassis: mech.chassis,
-          model: mech.model,
-          tonnage: mech.tonnage,
-          bv2: mech.bv2,
-          cbill_cost: mech.cbill_cost,
-          wp_cost: mech.wp_cost,
-          tech_base: mech.tech_base
-        })
+        body: JSON.stringify({ part_name: partName, category, cost })
       });
-      if (res.ok) {
-        alert(`Successfully procured ${mech.chassis} ${mech.model}!`);
-        fetchUnits(); fetchBalance(); fetchLogs();
-      }
-    } catch (err) {}
+      if (res.ok) { fetchInventory(); fetchBalance(); fetchLogs(); }
+    } catch (e) {}
+  };
+
+  const handleSellInventoryPart = async (partId, cost) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/inventory/${partId}/sell`, { method: "POST" });
+      if (res.ok) { fetchInventory(); fetchBalance(); fetchLogs(); }
+    } catch (e) {}
   };
 
   const handleCreateCustomContract = async (e) => {
@@ -393,9 +391,14 @@ export default function Dashboard() {
         setShowAarModal(false);
         setActiveDeployedMission(null);
         fetchBalance(); fetchUnits(); fetchMissions(); fetchLogs();
+        setActiveStep(4); // Advance to Step 4: Tech Bay & Repairs
       }
     } catch (err) {}
   };
+
+  // Lance Stats
+  const totalLanceTonnage = units.reduce((acc, u) => acc + (u.tonnage || 0), 0);
+  const totalLanceBv2 = units.reduce((acc, u) => acc + (u.bv2 || 0), 0);
 
   // JumpNet Filter
   const filteredDestinations = starmapSystems.filter(sys => sys.name !== currentSystem.name);
@@ -441,240 +444,277 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* TABS BAR MATCHING SCREENSHOT 2 */}
-      <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "20px" }}>
+      {/* CHRONOLOGICAL CAMPAIGN WORKFLOW STEPPER BAR */}
+      <div style={{ background: "rgba(15, 20, 30, 0.9)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "10px 16px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {[
+            { step: 1, title: "1. 📋 Contract & Transit", color: "#ea580c" },
+            { step: 2, title: "2. ⚔️ Force Deployment", color: "#0284c7" },
+            { step: 3, title: "3. 🏆 Combat AAR & Salvage", color: "#f59e0b" },
+            { step: 4, title: "4. 🔧 Tech Bay & MechLab", color: "#10b981" },
+            { step: 5, title: "5. 🏥 Personnel & MedBay", color: "#9333ea" },
+            { step: 6, title: "6. 📊 Financial Ledger", color: "#64748b" }
+          ].map(s => (
+            <button
+              key={s.step}
+              onClick={() => setActiveStep(s.step)}
+              style={{
+                background: activeStep === s.step ? s.color : "rgba(30, 41, 59, 0.7)",
+                color: "#ffffff",
+                border: activeStep === s.step ? `1px solid ${s.color}` : "1px solid rgba(255, 255, 255, 0.1)",
+                padding: "8px 14px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              {s.title}
+            </button>
+          ))}
+        </div>
+
         <button
-          onClick={() => setActiveTab("operations")}
-          style={{
-            background: activeTab === "operations" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
-            color: "#ffffff",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            padding: "8px 20px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
+          onClick={() => setActiveStep(prev => (prev % 6) + 1)}
+          style={{ background: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", color: "#fff", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
         >
-          Operations &amp; Contracts
-        </button>
-        <button
-          onClick={() => setActiveTab("engineering")}
-          style={{
-            background: activeTab === "engineering" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
-            color: "#ffffff",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            padding: "8px 20px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
-        >
-          Maintenance &amp; Engineering
-        </button>
-        <button
-          onClick={() => setActiveTab("inventory")}
-          style={{
-            background: activeTab === "inventory" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
-            color: "#ffffff",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            padding: "8px 20px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
-        >
-          Storage &amp; Parts Inventory
-        </button>
-        <button
-          onClick={() => setActiveTab("personnel")}
-          style={{
-            background: activeTab === "personnel" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
-            color: "#ffffff",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            padding: "8px 20px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
-        >
-          Personnel &amp; MedBay
+          Proceed to Step {activeStep < 6 ? activeStep + 1 : 1} ➔
         </button>
       </div>
 
-      {/* TAB 1: OPERATIONS & CONTRACTS */}
-      {activeTab === "operations" && (
-        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
-          <h3 className="font-orbitron" style={{ color: "#f8fafc", margin: "0 0 20px 0", fontSize: "18px" }}>Command &amp; Operations Deck</h3>
-
-          {/* TOP DEPLOYED OPERATION BANNER */}
-          <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "18px", marginBottom: "24px", textAlign: "center" }}>
-            <p style={{ color: "#38bdf8", fontWeight: "bold", fontSize: "13px", margin: "0 0 8px 0" }}>-- Active Deployed Operation --</p>
-            {activeDeployedMission ? (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left" }}>
-                <div>
-                  <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>{activeDeployedMission.name}</h4>
-                  <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                    Employer: <strong style={{ color: "#cbd5e1" }}>{activeDeployedMission.employer}</strong> | Type: {activeDeployedMission.mission_type}
-                  </p>
-                  <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "4px 0 0 0" }}>
-                    Payout: ${activeDeployedMission.cbill_reward.toLocaleString()} C-Bills | +{activeDeployedMission.wp_reward} WP
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAarModal(true)}
-                  style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}
-                >
-                  Process Combat AAR Report
-                </button>
-              </div>
-            ) : (
-              <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "13px", margin: 0 }}>
-                No contract currently deployed. Accept one from the MRB Board below.
-              </p>
-            )}
-          </div>
-
-          {/* MAIN GRID LAYOUT MATCHING SCREENSHOT 2 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px" }}>
-            
-            {/* LEFT COLUMN: CONTROL BUTTONS */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  onClick={handleAdvanceDay}
-                  style={{ background: "#10b981", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
-                >
-                  +1 Day (Process Logistics)
-                </button>
-                <button
-                  onClick={handleProcessPayroll}
-                  style={{ background: "#ea580c", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
-                >
-                  Process Monthly Payroll
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  onClick={() => setShowAddUnitModal(true)}
-                  style={{ background: "#0284c7", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
-                >
-                  + Add Faction Unit
-                </button>
-                <button
-                  onClick={() => setShowCustomContractModal(true)}
-                  style={{ background: "#9333ea", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
-                >
-                  + Build Custom Contract
-                </button>
-              </div>
-
-              {/* TIMELINE CAMPAIGN LOG */}
-              <div style={{ background: "rgba(7, 10, 18, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "16px", maxHeight: "280px", overflowY: "auto" }}>
-                <h4 style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 12px 0" }}>Operations Journal</h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {logs.length > 0 ? logs.map(l => (
-                    <div key={l.id} style={{ background: "rgba(30, 41, 59, 0.5)", padding: "10px", borderRadius: "6px" }}>
-                      <span style={{ color: "#38bdf8", fontSize: "11px", fontWeight: "bold" }}>[{l.log_date}] {l.event_type}</span>
-                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>{l.description}</p>
-                    </div>
-                  )) : (
-                    <p style={{ color: "#64748b", fontSize: "12px", margin: 0 }}>Log journal ready.</p>
-                  )}
-                </div>
-              </div>
+      {/* STEP 1: CONTRACT & TRANSIT (PRE-MISSION PHASE) */}
+      {activeStep === 1 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
+          
+          {/* LEFT: MRB AVAILABLE CONTRACT BOARD */}
+          <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(234, 88, 12, 0.3)", borderRadius: "10px", padding: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "18px" }}>
+                Step 1: Mercenary Review Board (MRB) Contract Hall
+              </h3>
+              <button
+                onClick={() => setShowCustomContractModal(true)}
+                style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                + Build Custom Contract
+              </button>
             </div>
 
-            {/* RIGHT COLUMN: MRB BOARD & GALACTIC JUMPNET */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-              
-              {/* MRB AVAILABLE CONTRACT BOARD */}
-              <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(234, 88, 12, 0.3)", borderRadius: "8px", padding: "18px" }}>
-                <p style={{ color: "#ea580c", fontWeight: "bold", fontSize: "13px", margin: "0 0 14px 0", textAlign: "center" }}>
-                  -- MRB Available Contract Board --
-                </p>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
-                  {missions.map((m) => (
-                    <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "12px 16px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "13px", color: "#f8fafc" }}>
-                        Employer: <strong style={{ color: "#e2e8f0" }}>{m.employer}</strong> | Mission: {m.name}
-                      </span>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          onClick={() => setSelectedIntelMission(m)}
-                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                        >
-                          View Intel
-                        </button>
-                        <button
-                          onClick={() => handleAcceptContract(m)}
-                          style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                        >
-                          Accept Contract
-                        </button>
-                      </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {missions.map(m => (
+                <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "16px", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <h4 style={{ color: "#fff", margin: 0, fontSize: "16px" }}>{m.name}</h4>
+                      <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                        Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction}</span>
+                      </p>
+                      <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "4px 0 0 0" }}>
+                        Payout: ${m.cbill_reward.toLocaleString()} C-Bills | +{m.wp_reward} Warchest WP
+                      </p>
                     </div>
-                  ))}
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => setSelectedIntelMission(m)}
+                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        View Intel
+                      </button>
+                      <button
+                        onClick={() => handleAcceptContract(m)}
+                        style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        Sign &amp; Deploy ➔
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT: GALACTIC STARMAP & JUMPNET TRANSIT */}
+          <div style={{ background: "rgba(15, 20, 30, 0.9)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "10px", padding: "24px" }}>
+            <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: "0 0 14px 0", fontSize: "18px" }}>
+              Galactic JumpNet &amp; System Navigation
+            </h3>
+
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "14px", borderRadius: "8px", marginBottom: "16px" }}>
+              <p style={{ color: "#10b981", fontSize: "13px", fontWeight: "bold", margin: 0 }}>
+                CURRENT SYSTEM: {currentSystem.name} ({currentSystem.faction})
+              </p>
+              <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
+                Coordinates: ({currentSystem.x.toFixed(1)}, {currentSystem.y.toFixed(1)}) | Single Jump Limit: 30 Light Years
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {jumpNetDestinations.map((sys) => {
+                const dx = sys.x - currentSystem.x;
+                const dy = sys.y - currentSystem.y;
+                const dist = (Math.sqrt(dx * dx + dy * dy) || 22.1).toFixed(1);
+
+                return (
+                  <div key={sys.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "12px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "14px" }}>{sys.name}</strong>
+                      <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>Faction: {sys.faction} | Dist: {dist} LY</p>
+                    </div>
+                    <button
+                      onClick={() => handleJumpToSystem(sys)}
+                      style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                    >
+                      Jump to System
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* STEP 2: FORCE DEPLOYMENT & LANCE ROSTER (DEPLOYMENT PHASE) */}
+      {activeStep === 2 && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(2, 132, 199, 0.3)", borderRadius: "10px", padding: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div>
+              <h3 className="font-orbitron" style={{ color: "#0284c7", margin: 0, fontSize: "18px" }}>
+                Step 2: Force Deployment &amp; Command Lance Roster
+              </h3>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                Assigned Operation: <strong style={{ color: "#fff" }}>{activeDeployedMission ? activeDeployedMission.name : "Independent Engagement Patrol"}</strong>
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+              <div style={{ background: "rgba(30, 41, 59, 0.8)", padding: "8px 14px", borderRadius: "6px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>TOTAL LANCE TONNAGE</span>
+                <p style={{ color: "#10b981", fontWeight: "bold", margin: "2px 0 0 0", fontSize: "14px" }}>{totalLanceTonnage} Tons</p>
               </div>
 
-              {/* GALACTIC JUMPNET */}
-              <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", padding: "18px" }}>
-                <h4 style={{ color: "#38bdf8", fontSize: "14px", margin: "0 0 10px 0" }}>
-                  Galactic JumpNet (Max 30 LY Single Jump Range Filtered)
-                </h4>
+              <div style={{ background: "rgba(30, 41, 59, 0.8)", padding: "8px 14px", borderRadius: "6px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>LANCE BATTLE VALUE</span>
+                <p style={{ color: "#f59e0b", fontWeight: "bold", margin: "2px 0 0 0", fontSize: "14px" }}>{totalLanceBv2} BV2</p>
+              </div>
 
-                <p style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold", margin: "0 0 14px 0" }}>
-                  CURRENT LOCATION: {currentSystem.name} | Faction: {currentSystem.faction} | Coordinates: ({currentSystem.x.toFixed(1)}, {currentSystem.y.toFixed(1)})
+              <button
+                onClick={() => setShowAddUnitModal(true)}
+                style={{ background: "#0284c7", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
+              >
+                + Add Mech to Lance
+              </button>
+            </div>
+          </div>
+
+          {/* LANCE GRID */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+            {units.map(u => (
+              <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "18px", borderRadius: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <h4 style={{ color: "#fff", margin: 0, fontSize: "16px" }}>{u.chassis} {u.model}</h4>
+                  <span style={{ background: "rgba(2, 132, 199, 0.2)", color: "#38bdf8", border: "1px solid #0284c7", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                    {u.tonnage} Tons
+                  </span>
+                </div>
+
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 6px 0" }}>
+                  Assigned MechWarrior: <strong style={{ color: "#c084fc" }}>{u.assigned_pilot}</strong>
+                </p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 12px 0" }}>
+                  Battle Value: <span style={{ color: "#f59e0b", fontWeight: "bold" }}>{u.bv2} BV2</span> | Status: <span style={{ color: "#10b981" }}>{u.status}</span>
                 </p>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
-                  {jumpNetDestinations.map((sys) => {
-                    const dx = sys.x - currentSystem.x;
-                    const dy = sys.y - currentSystem.y;
-                    const dist = (Math.sqrt(dx * dx + dy * dy) || 22.1).toFixed(1);
+                <button
+                  onClick={() => { setActiveDeployedMission(missions[0]); setActiveStep(3); }}
+                  style={{ width: "100%", background: "#ea580c", color: "#fff", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
+                >
+                  🚀 Drop Lance into Combat Zone
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-                    return (
-                      <div key={sys.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "12px", color: "#cbd5e1" }}>
-                          Destination: <strong style={{ color: "#fff" }}>{sys.name}</strong> | Faction: {sys.faction} | Distance: {dist} LY
-                        </span>
-                        <button
-                          onClick={() => handleJumpToSystem(sys)}
-                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                        >
-                          Jump to System
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+      {/* STEP 3: COMBAT AAR & BATTLEFIELD SALVAGE (POST-BATTLE PHASE) */}
+      {activeStep === 3 && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "10px", padding: "24px" }}>
+          <h3 className="font-orbitron" style={{ color: "#f59e0b", margin: "0 0 16px 0", fontSize: "18px" }}>
+            Step 3: Combat After-Action Report (AAR) &amp; Battlefield Salvage
+          </h3>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
+            
+            {/* AAR SUMMARY */}
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "20px", borderRadius: "8px" }}>
+              <h4 style={{ color: "#fff", margin: "0 0 12px 0" }}>Operation Engagement Summary</h4>
+              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                Deployed Force: <strong>Wolf's Irregulars Command Lance</strong> (3 Mechs, {totalLanceTonnage}T, {totalLanceBv2} BV2)
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", margin: "16px 0" }}>
+                {pilots.map(p => (
+                  <div key={p.id} style={{ background: "rgba(15, 23, 42, 0.8)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "13px" }}>{p.name} ({p.callsign})</strong>
+                      <p style={{ color: "#94a3b8", fontSize: "11px", margin: "2px 0 0 0" }}>Assigned: {p.assigned_unit}</p>
+                    </div>
+                    <button
+                      onClick={() => handleAwardXp(p.id)}
+                      style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                    >
+                      Award +25 XP &amp; Kill
+                    </button>
+                  </div>
+                ))}
               </div>
 
+              <button
+                onClick={() => setShowAarModal(true)}
+                style={{ width: "100%", background: "#ea580c", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+              >
+                🏆 Submit AAR &amp; Process Contract Completion
+              </button>
+            </div>
+
+            {/* BATTLEFIELD SALVAGE RECOVERY */}
+            <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "8px", padding: "20px" }}>
+              <h4 style={{ color: "#f59e0b", margin: "0 0 12px 0" }}>Battlefield Salvage Recovery</h4>
+              <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 14px 0" }}>
+                Select component scrap recovered from defeated enemy Mechs:
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                {["PPC (100% Intact)", "AC/20 Autocannon", "Medium Laser", "Ferro-Fibrous Armor Plate (5T)"].map(salv => (
+                  <div key={salv} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#fff", fontSize: "12px" }}>{salv}</span>
+                    <button
+                      onClick={() => alert(`Claimed ${salv} into warehouse storage!`)}
+                      style={{ background: "#10b981", color: "#fff", border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                    >
+                      Claim Salvage
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
           </div>
         </div>
       )}
 
-      {/* TAB 2: MAINTENANCE & ENGINEERING */}
-      {activeTab === "engineering" && (
+      {/* STEP 4: TECH BAY & MECHLAB ENGINEERING (MAINTENANCE PHASE) */}
+      {activeStep === 4 && (
         <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
           
           {/* LEFT: ROSTER & REPAIR QUEUE */}
-          <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "18px" }}>Maintenance Roster &amp; Repairs</h3>
-              <span style={{ background: "rgba(234, 88, 12, 0.2)", border: "1px solid #ea580c", color: "#ea580c", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
-                Tech Bay Operational
-              </span>
-            </div>
+          <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", padding: "24px" }}>
+            <h3 className="font-orbitron" style={{ color: "#10b981", margin: "0 0 18px 0", fontSize: "18px" }}>
+              Step 4: Tech Bay Maintenance &amp; Parts Warehouse
+            </h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
               {units.map(u => (
@@ -682,10 +722,7 @@ export default function Dashboard() {
                   <div>
                     <h4 style={{ margin: 0, color: "#fff", fontSize: "16px" }}>{u.chassis} {u.model} ({u.tonnage}T)</h4>
                     <p style={{ margin: "4px 0", color: "#94a3b8", fontSize: "12px" }}>
-                      Tech Base: {u.tech_base} | BV2: <span style={{ color: "#f59e0b", fontWeight: "bold" }}>{u.bv2}</span>
-                    </p>
-                    <p style={{ margin: 0, fontSize: "12px", color: u.armor_damage > 0 ? "#f43f5e" : "#10b981" }}>
-                      Armor Loss: {u.armor_damage} pt | Structure Loss: {u.structure_damage} pt
+                      Armor Loss: <span style={{ color: u.armor_damage > 0 ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{u.armor_damage} pt</span>
                     </p>
                   </div>
                   <div style={{ display: "flex", gap: "8px" }}>
@@ -697,7 +734,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(() => refreshAll())}
-                      style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                      style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
                     >
                       Repair (20 SP)
                     </button>
@@ -706,21 +743,23 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* UNIT PROCUREMENT MARKET */}
-            <h4 style={{ color: "#10b981", margin: "0 0 12px 0", fontSize: "15px" }}>🛒 Unit Procurement Market</h4>
+            {/* WAREHOUSE MARKET DEPOT */}
+            <h4 style={{ color: "#10b981", margin: "0 0 12px 0", fontSize: "15px" }}>🛒 Market Component Depot (Buy Stock)</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {procurementMechs.map(m => (
-                <div key={m.chassis + m.model} style={{ background: "rgba(30, 41, 59, 0.4)", border: "1px solid rgba(255, 255, 255, 0.05)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {inventory.map(i => (
+                <div key={i.id} style={{ background: "rgba(30, 41, 59, 0.4)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <strong style={{ color: "#fff", fontSize: "13px" }}>{m.chassis} {m.model} ({m.tonnage}T)</strong>
-                    <p style={{ margin: "2px 0 0 0", color: "#10b981", fontSize: "12px", fontFamily: "monospace" }}>${m.cbill_cost.toLocaleString()} C-Bills</p>
+                    <strong style={{ color: "#fff", fontSize: "13px" }}>{i.part_name}</strong>
+                    <span style={{ color: "#94a3b8", fontSize: "12px", marginLeft: "10px" }}>Stock: x{i.stock}</span>
                   </div>
-                  <button
-                    onClick={() => handleBuyProcurementMech(m)}
-                    style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                  >
-                    Procure Unit
-                  </button>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button onClick={() => handleBuyMarketPart(i.part_name, i.category, i.cost)} style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                      Buy (${i.cost.toLocaleString()})
+                    </button>
+                    <button onClick={() => handleSellInventoryPart(i.id, i.cost)} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                      Sell (+75%)
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -768,7 +807,7 @@ export default function Dashboard() {
             </div>
 
             <h4 style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 10px 0" }}>Fitted Equipment ({selectedLoadout.length} items):</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto", marginBottom: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "180px", overflowY: "auto", marginBottom: "20px" }}>
               {selectedLoadout.map((comp, idx) => (
                 <div key={idx} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "8px 12px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: "#fff", fontSize: "12px" }}>{comp}</span>
@@ -793,53 +832,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* TAB 3: STORAGE & PARTS INVENTORY */}
-      {activeTab === "inventory" && (
-        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
-          <h3 className="font-orbitron" style={{ color: "#0284c7" }}>Storage &amp; Parts Inventory</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-            {inventory.map(i => (
-              <div key={i.id} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "14px", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
-                <span>{i.component_name}</span>
-                <strong style={{ color: "#38bdf8" }}>x{i.quantity}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: PERSONNEL & MEDBAY (EXPANDED PILOT XP & HIRING HALL ENGINE) */}
-      {activeTab === "personnel" && (
+      {/* STEP 5: PERSONNEL & MEDBAY TRIAGE (MEDICAL & TRAINING PHASE) */}
+      {activeStep === 5 && (
         <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "24px" }}>
           
           {/* LEFT: MECHWARRIOR ROSTER & XP PROGRESSION */}
-          <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
+          <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(147, 51, 234, 0.3)", borderRadius: "10px", padding: "24px" }}>
             <h3 className="font-orbitron" style={{ color: "#9333ea", margin: "0 0 18px 0", fontSize: "18px" }}>
-              MechWarrior Roster &amp; Skill Progression
+              Step 5: Personnel MedBay Triage &amp; Skill Progression
             </h3>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {pilots.map(p => (
                 <div key={p.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "16px", borderRadius: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                     <div>
                       <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>{p.name} "{p.callsign}"</h4>
                       <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>
-                        Status: <span style={{ color: p.status === "Injured" ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{p.status} {p.days_remaining > 0 ? `(${p.days_remaining}d left in MedBay)` : ""}</span> | Kills: <strong style={{ color: "#f59e0b" }}>{p.kills || 0}</strong>
+                        Status: <span style={{ color: p.status === "Injured" ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{p.status} {p.days_remaining > 0 ? `(${p.days_remaining}d left in MedBay)` : ""}</span>
                       </p>
                     </div>
 
-                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                      <span className="font-mono" style={{ background: "rgba(147, 51, 234, 0.2)", border: "1px solid #9333ea", color: "#9333ea", padding: "4px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
-                        {p.xp || 0} XP
-                      </span>
-                      <button onClick={() => handleAwardXp(p.id)} style={{ background: "#334155", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>
-                        +25 XP
-                      </button>
-                    </div>
+                    <span className="font-mono" style={{ background: "rgba(147, 51, 234, 0.2)", border: "1px solid #9333ea", color: "#9333ea", padding: "4px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
+                      {p.xp || 0} XP
+                    </span>
                   </div>
 
-                  {/* SKILL UPGRADE & SPA CONTROLS */}
                   <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "12px", flexWrap: "wrap" }}>
                     <div style={{ background: "rgba(15, 23, 42, 0.9)", padding: "6px 10px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
                       <span>Gunnery: <strong style={{ color: "#f59e0b" }}>{p.gunnery}</strong></span>
@@ -855,12 +873,6 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                    <div style={{ flex: 1, minWidth: "180px" }}>
-                      <select value={p.spa || "None"} onChange={e => handleAssignSpa(p.id, e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.9)", border: "1px solid #9333ea", color: "#c084fc", padding: "6px", borderRadius: "6px", fontSize: "11px" }}>
-                        {availableSpas.map(spa => <option key={spa} value={spa}>{spa}</option>)}
-                      </select>
-                    </div>
-
                     {p.status === "Injured" && (
                       <button onClick={() => handleTreatMedbay(p.id)} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
                         Treat in MedBay (50 SP)
@@ -870,18 +882,6 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-
-            {/* MANUAL RECRUITMENT FORM */}
-            <form onSubmit={handleRecruitNewPilot} style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ color: "#c084fc", margin: 0, fontSize: "14px" }}>+ Recruit MechWarrior to Roster</h4>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <input type="text" placeholder="Pilot Name" value={newPilotName} onChange={e => setNewPilotName(e.target.value)} required style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }} />
-                <input type="text" placeholder="Callsign" value={newPilotCallsign} onChange={e => setNewPilotCallsign(e.target.value)} required style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }} />
-              </div>
-              <button type="submit" style={{ background: "#9333ea", color: "#fff", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>
-                + Recruit MechWarrior
-              </button>
-            </form>
           </div>
 
           {/* RIGHT: HIRING HALL CANDIDATE POOL */}
@@ -898,9 +898,6 @@ export default function Dashboard() {
                     <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "12px" }}>
                       Gunnery: <strong style={{ color: "#f59e0b" }}>{c.gunnery}</strong> | Piloting: <strong style={{ color: "#38bdf8" }}>{c.piloting}</strong>
                     </p>
-                    <p style={{ margin: "2px 0 0 0", color: "#10b981", fontSize: "12px", fontFamily: "monospace" }}>
-                      Bonus: ${c.signing_bonus.toLocaleString()} C-Bills
-                    </p>
                   </div>
 
                   <button
@@ -914,6 +911,49 @@ export default function Dashboard() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* STEP 6: FINANCIAL LEDGER & TIMELINE (LOGISTICS PHASE) */}
+      {activeStep === 6 && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(100, 116, 139, 0.3)", borderRadius: "10px", padding: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h3 className="font-orbitron" style={{ color: "#cbd5e1", margin: 0, fontSize: "18px" }}>
+              Step 6: Campaign Financial Ledger &amp; Timeline Settlement
+            </h3>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button onClick={handleAdvanceDay} style={{ background: "#10b981", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>
+                +1 Day (Process Logistics)
+              </button>
+              <button onClick={handleProcessPayroll} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>
+                Process Monthly Payroll ($150,000)
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            {/* MONTHLY EXPENSES BREAKDOWN */}
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "20px", borderRadius: "8px" }}>
+              <h4 style={{ color: "#ea580c", margin: "0 0 12px 0" }}>Monthly Expenditure Rates</h4>
+              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Daily Base Overhead: <strong>$5,000 C-Bills / day</strong></p>
+              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Pilot &amp; Tech Staff Salaries: <strong>$150,000 C-Bills / month</strong></p>
+              <p style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold", marginTop: "16px" }}>
+                Current Treasury Balance: ${(balance.CBills || 15000000).toLocaleString()} C-Bills
+              </p>
+            </div>
+
+            {/* CAMPAIGN JOURNAL LOG */}
+            <div style={{ background: "rgba(7, 10, 18, 0.8)", padding: "16px", borderRadius: "8px", maxHeight: "300px", overflowY: "auto" }}>
+              <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "14px" }}>Timeline Campaign Journal</h4>
+              {logs.map(l => (
+                <div key={l.id} style={{ background: "rgba(30, 41, 59, 0.5)", padding: "8px 12px", borderRadius: "4px", marginBottom: "6px" }}>
+                  <span style={{ color: "#10b981", fontSize: "11px", fontWeight: "bold" }}>[{l.log_date}] {l.event_type}</span>
+                  <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>{l.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
