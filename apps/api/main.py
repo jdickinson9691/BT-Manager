@@ -107,6 +107,15 @@ class UnitDamageUpdate(BaseModel):
     armor_damage: int
     structure_damage: int
 
+class RansomBondsmanRequest(BaseModel):
+    pilot_id: int
+    ransom_amount: float = 250000.0
+
+class IntegrateBondsmanRequest(BaseModel):
+    pilot_id: int
+    bondsman_name: str = "MechWarrior Marcus Trent"
+    callsign: str = "Bondsman"
+
 class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
@@ -406,6 +415,20 @@ def import_mtf_mech(req: ImportMTFRequest, db: Session = Depends(get_db)):
 @app.get("/api/v1/sarna/wiki-url")
 def get_sarna_url(chassis: str):
     return {"chassis": chassis, "url": SarnaClient.get_mech_wiki_url(chassis)}
+
+@app.post("/api/v1/personnel/bondsmen/ransom")
+def ransom_bondsman_endpoint(req: RansomBondsmanRequest, db: Session = Depends(get_db)):
+    try:
+        return PersonnelAgent.ransom_bondsman(db, req.pilot_id, req.ransom_amount)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/personnel/bondsmen/integrate")
+def integrate_bondsman_endpoint(req: IntegrateBondsmanRequest, db: Session = Depends(get_db)):
+    try:
+        return PersonnelAgent.integrate_bondsman(db, req.pilot_id, req.bondsman_name, req.callsign)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/v1/sarna/search")
 def search_sarna_wiki(query: str):

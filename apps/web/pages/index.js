@@ -1257,6 +1257,66 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {/* CAPTURED BONDSMEN REHABILITATION & RANSOM SUITE */}
+            <div style={{ background: "rgba(15, 20, 30, 0.9)", border: "1px solid rgba(245, 158, 11, 0.4)", borderRadius: "10px", padding: "20px", marginTop: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#f59e0b", margin: "0 0 12px 0", fontSize: "16px" }}>
+                🎖️ Captured Bondsmen Rehabilitation &amp; Ransom Suite
+              </h3>
+
+              {(() => {
+                const captorsWithBondsmen = pilots.filter(p => (p.bondsmen || 0) > 0);
+                if (captorsWithBondsmen.length === 0) {
+                  return (
+                    <p style={{ color: "#94a3b8", fontSize: "12px", margin: 0 }}>
+                      No enemy MechWarriors currently held in bondsman captivity. Capture bondsmen in Step 3 Combat AAR!
+                    </p>
+                  );
+                }
+
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {captorsWithBondsmen.map(p => (
+                      <div key={p.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(245, 158, 11, 0.2)", padding: "12px", borderRadius: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <div>
+                            <strong style={{ color: "#fff", fontSize: "13px" }}>Captor: {p.name} ({p.callsign})</strong>
+                            <p style={{ color: "#f59e0b", fontSize: "11px", margin: "2px 0 0 0", fontWeight: "bold" }}>
+                              Captive Bondsmen Count: {p.bondsmen}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            onClick={() => {
+                              fetch("http://localhost:8000/api/v1/personnel/bondsmen/ransom", {
+                                method: "POST", headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ pilot_id: p.id, ransom_amount: 250000.0 })
+                              }).then(r => r.json()).then(d => { alert(d.message || "Ransomed!"); refreshAll(); });
+                            }}
+                            style={{ flex: 1, background: "#10b981", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                          >
+                            💰 Ransom for $250,000 C-Bills
+                          </button>
+                          <button
+                            onClick={() => {
+                              fetch("http://localhost:8000/api/v1/personnel/bondsmen/integrate", {
+                                method: "POST", headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ pilot_id: p.id, bondsman_name: "MechWarrior Marcus Trent", callsign: "Bondsman" })
+                              }).then(r => r.json()).then(d => { alert(d.message || "Rehabilitated!"); refreshAll(); });
+                            }}
+                            style={{ flex: 1, background: "#9333ea", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                          >
+                            🎖️ Recruit as Active Pilot
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
         </div>

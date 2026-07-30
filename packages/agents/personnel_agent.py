@@ -133,3 +133,71 @@ class PersonnelAgent:
             "total_xp": pilot.xp,
             "total_kills": pilot.kills
         }
+
+    @classmethod
+    def ransom_bondsman(cls, db: Session, pilot_id: int, ransom_amount: float = 250000.0) -> Dict[str, Any]:
+        """Ransoms a captured bondsman back to their employer for C-Bills."""
+        from packages.database.models import CampaignLog
+        pilot = db.query(Pilot).filter(Pilot.id == pilot_id).first()
+        if not pilot:
+            raise ValueError("Pilot not found")
+        if (pilot.bondsmen or 0) <= 0:
+            raise ValueError("Pilot has no active bondsmen to ransom")
+
+        campaign = db.query(Campaign).filter(Campaign.id == pilot.campaign_id).first()
+        campaign.cbill_balance += ransom_amount
+        pilot.bondsmen -= 1
+
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Bondsman Ransom",
+            description=f"Ransomed captured enemy bondsman back to employer for ${ransom_amount:,.2f} C-Bills."
+        ))
+        db.commit()
+
+        return {
+            "message": f"Successfully ransomed bondsman for ${ransom_amount:,.2f} C-Bills!",
+            "cbill_balance": campaign.cbill_balance,
+            "remaining_bondsmen": pilot.bondsmen
+        }
+
+    @classmethod
+    def integrate_bondsman(cls, db: Session, pilot_id: int, bondsman_name: str = "MechWarrior Marcus Trent", callsign: str = "Bondsman") -> Dict[str, Any]:
+        """Rehabilitates a captured bondsman into an active pilot on the roster."""
+        from packages.database.models import CampaignLog
+        captor = db.query(Pilot).filter(Pilot.id == pilot_id).first()
+        if not captor:
+            raise ValueError("Captor pilot not found")
+        if (captor.bondsmen or 0) <= 0:
+            raise ValueError("Captor pilot has no active bondsmen to integrate")
+
+        campaign = db.query(Campaign).filter(Campaign.id == captor.campaign_id).first()
+        captor.bondsmen -= 1
+
+        new_pilot = Pilot(
+            campaign_id=campaign.id,
+            name=bondsman_name,
+            callsign=callsign,
+            gunnery=4,
+            piloting=5,
+            status="Active",
+            xp=20,
+            spa="None",
+            kills=0,
+            bondsmen=0
+        )
+        db.add(new_pilot)
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Bondsman Integration",
+            description=f"Rehabilitated bondsman '{bondsman_name}' ({callsign}) into the active roster as MechWarrior."
+        ))
+        db.commit()
+        db.refresh(new_pilot)
+
+        return {
+            "message": f"Rehabilitated '{bondsman_name}' ({callsign}) into active mercenary roster!",
+            "new_pilot_id": new_pilot.id
+        }

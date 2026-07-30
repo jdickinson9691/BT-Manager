@@ -244,6 +244,32 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(res["days_added"], 4)
         self.assertNotEqual(self.campaign.current_date, initial_date)
 
+    # ==================== 9. BONDSMEN RANSOM & INTEGRATION CONTRACT TESTS ====================
+    def test_11_bondsmen_ransom_and_integration(self):
+        """Verify bondsman ransom adds C-Bills and bondsman integration recruits active pilot."""
+        pilot = Pilot(campaign_id=self.campaign.id, name="Capt. Grayson Carlyle", callsign="Shadow", gunnery=2, piloting=3, bondsmen=2)
+        self.db.add(pilot)
+        self.db.commit()
+
+        initial_cbills = self.campaign.cbill_balance
+
+        # Ransom bondsman 1 for $250,000 C-Bills
+        res_ransom = PersonnelAgent.ransom_bondsman(self.db, pilot.id, ransom_amount=250000.0)
+        self.db.refresh(self.campaign)
+        self.db.refresh(pilot)
+        self.assertEqual(self.campaign.cbill_balance, initial_cbills + 250000.0)
+        self.assertEqual(pilot.bondsmen, 1)
+
+        # Integrate bondsman 2 into active roster
+        res_integrate = PersonnelAgent.integrate_bondsman(self.db, pilot.id, bondsman_name="MechWarrior Marcus Trent", callsign="Bondsman")
+        self.db.refresh(pilot)
+        self.assertEqual(pilot.bondsmen, 0)
+
+        # Verify new pilot in database
+        new_pilot = self.db.query(Pilot).filter(Pilot.name == "MechWarrior Marcus Trent").first()
+        self.assertIsNotNone(new_pilot)
+        self.assertEqual(new_pilot.status, "Active")
+
 
 if __name__ == "__main__":
     unittest.main()
