@@ -235,9 +235,106 @@ s1_grid.pack(fill="both", expand=True, padx=15, pady=5)
 s1_left = ctk.CTkFrame(s1_grid, fg_color="#070A12", border_width=1, border_color="#EA580C", width=700)
 s1_left.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
-ctk.CTkLabel(s1_left, text="-- Available MRB Contracts --", font=("Arial", 12, "bold"), text_color="#EA580C").pack(pady=8)
+s1_top_row = ctk.CTkFrame(s1_left, fg_color="transparent")
+s1_top_row.pack(fill="x", padx=10, pady=8)
+
+ctk.CTkLabel(s1_top_row, text="-- Available MRB Contracts --", font=("Arial", 12, "bold"), text_color="#EA580C").pack(side="left")
+
+def open_custom_contract_builder():
+    win = ctk.CTkToplevel(app)
+    win.title("Build Custom MRB Contract")
+    win.geometry("520x620")
+    win.grab_set()
+    
+    ctk.CTkLabel(win, text="🛠️ BUILD CUSTOM CONTRACT", font=("Arial", 16, "bold"), text_color="#9333EA").pack(pady=15)
+    
+    scroll = ctk.CTkScrollableFrame(win, fg_color="#18181B")
+    scroll.pack(fill="both", expand=True, padx=15, pady=10)
+    
+    ctk.CTkLabel(scroll, text="Operation Name:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    ent_op = ctk.CTkEntry(scroll, width=440)
+    ent_op.insert(0, "Operation Iron Shield")
+    ent_op.pack(pady=2)
+    
+    ctk.CTkLabel(scroll, text="Employer Faction:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    emp_var = ctk.StringVar(value="House Davion")
+    ctk.CTkOptionMenu(scroll, values=["House Davion", "House Draconis Combine", "House Steiner", "House Marik", "House Liao", "ComStar", "Independent Local Government"], variable=emp_var, width=440).pack(pady=2)
+    
+    ctk.CTkLabel(scroll, text="Enemy OpFor Faction:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    opfor_var = ctk.StringVar(value="Draconis Combine")
+    ctk.CTkOptionMenu(scroll, values=["Draconis Combine", "Federated Suns", "Capellan Confederation", "Free Worlds League", "Lyran Commonwealth", "Pirates", "Clan Wolf"], variable=opfor_var, width=440).pack(pady=2)
+    
+    ctk.CTkLabel(scroll, text="Mission Type:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    mtype_var = ctk.StringVar(value="Garrison Defense")
+    ctk.CTkOptionMenu(scroll, values=["Garrison Defense", "Objective Raid", "Recon Patrol", "Base Assault", "VIP Escort"], variable=mtype_var, width=440).pack(pady=2)
+    
+    ctk.CTkLabel(scroll, text="Base C-Bill Payout ($):", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    ent_pay = ctk.CTkEntry(scroll, width=440)
+    ent_pay.insert(0, "3500000")
+    ent_pay.pack(pady=2)
+    
+    ctk.CTkLabel(scroll, text="Salvage Rights:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(5,2))
+    salv_var = ctk.StringVar(value="Shared (50%)")
+    ctk.CTkOptionMenu(scroll, values=["Shared (50%)", "Full Salvage (100%)", "Limited (25%)"], variable=salv_var, width=440).pack(pady=2)
+    
+    def save_custom_contract():
+        opname = ent_op.get()
+        emp = emp_var.get()
+        opfor = opfor_var.get()
+        mtype = mtype_var.get()
+        try: payout = int(ent_pay.get())
+        except: payout = 3500000
+        salv = salv_var.get()
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("INSERT INTO contracts (company_id, employer, mission_type, difficulty, payout, salvage_rights, is_active, enemy_faction, intel_summary) VALUES (?, ?, ?, 'Medium', ?, ?, 0, ?, ?)",
+                    (CO_ID, emp, f"{opname} ({mtype})", payout, salv, opfor, f"Custom track against {opfor}."))
+        conn.commit()
+        conn.close()
+        refresh_mrb_board()
+        win.destroy()
+        messagebox.showinfo("Contract Posted", f"Custom contract '{opname}' posted to MRB Contract Board!")
+
+    ctk.CTkButton(scroll, text="🚀 Post Contract to Board", command=save_custom_contract, fg_color="#9333EA", font=("Arial", 12, "bold"), height=38).pack(pady=15)
+
+ctk.CTkButton(s1_top_row, text="+ Build Custom Contract", command=open_custom_contract_builder, fg_color="#9333EA", font=("Arial", 10, "bold"), width=150).pack(side="right")
+
 mrb_scroll = ctk.CTkScrollableFrame(s1_left, fg_color="transparent")
 mrb_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+def open_intel_briefing(cid, emp, mtype, payout, salv):
+    win = ctk.CTkToplevel(app)
+    win.title("Contract Tactical Intel Briefing")
+    win.geometry("520x460")
+    win.grab_set()
+    
+    ctk.CTkLabel(win, text="📋 CONTRACT TACTICAL INTEL BRIEFING", font=("Arial", 15, "bold"), text_color="#38BDF8").pack(pady=15)
+    
+    info_frame = ctk.CTkFrame(win, fg_color="#18181B")
+    info_frame.pack(fill="both", expand=True, padx=15, pady=10)
+    
+    ctk.CTkLabel(info_frame, text=f"Operation: {mtype}", font=("Arial", 13, "bold"), text_color="#FFF").pack(anchor="w", padx=15, pady=(10, 2))
+    ctk.CTkLabel(info_frame, text=f"Employer: {emp} | Target: Enemy OpFor", font=("Arial", 11), text_color="#CBD5E1").pack(anchor="w", padx=15, pady=2)
+    ctk.CTkLabel(info_frame, text=f"Base Payout: ${payout:,} C-Bills | Salvage: {salv}", font=("Arial", 11, "bold"), text_color="#10B981").pack(anchor="w", padx=15, pady=2)
+    ctk.CTkLabel(info_frame, text="Planetary Climate: Arid / Extreme Heat (+20% Heat Penalty)", font=("Arial", 11), text_color="#F59E0B").pack(anchor="w", padx=15, pady=2)
+    ctk.CTkLabel(info_frame, text="OpFor Threat: 3x Heavy Mechs (~195T / 3,800 BV2)", font=("Arial", 11), text_color="#F43F5E").pack(anchor="w", padx=15, pady=2)
+    
+    def sign_from_intel():
+        conn2 = sqlite3.connect(DB_PATH)
+        cur2 = conn2.cursor()
+        cur2.execute("UPDATE contracts SET is_active = 1 WHERE id = ?", (cid,))
+        conn2.commit()
+        conn2.close()
+        refresh_mrb_board()
+        win.destroy()
+        tabview.set("2. ⚔️ Force Deployment")
+        messagebox.showinfo("Contract Signed", "Contract signed! Proceeding to Step 2: Force Deployment.")
+
+    btn_row = ctk.CTkFrame(win, fg_color="transparent")
+    btn_row.pack(fill="x", padx=15, pady=15)
+    ctk.CTkButton(btn_row, text="Close Briefing", command=win.destroy, fg_color="#475569", width=120).pack(side="left")
+    ctk.CTkButton(btn_row, text="Sign & Deploy ➔", command=sign_from_intel, fg_color="#EA580C", font=("Arial", 11, "bold"), width=160).pack(side="right")
 
 def refresh_mrb_board():
     for w in mrb_scroll.winfo_children(): w.destroy()
@@ -260,6 +357,7 @@ def refresh_mrb_board():
             messagebox.showinfo("Contract Signed", "Contract signed! Proceeding to Step 2: Force Deployment.")
 
         ctk.CTkButton(card, text="Sign & Deploy ➔", command=accept_contract, fg_color="#EA580C", font=("Arial", 10, "bold"), width=110).pack(side="right", padx=6, pady=6)
+        ctk.CTkButton(card, text="View Intel", command=lambda c=cid, e=emp, m=mtype, p=payout, s=salv: open_intel_briefing(c, e, m, p, s), fg_color="#0284C7", font=("Arial", 10, "bold"), width=85).pack(side="right", padx=4, pady=6)
     conn.close()
 
 s1_right = ctk.CTkFrame(s1_grid, fg_color="#070A12", border_width=1, border_color="#38BDF8")

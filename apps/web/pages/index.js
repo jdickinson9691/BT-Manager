@@ -1135,18 +1135,62 @@ export default function Dashboard() {
 
       {/* BUILD CUSTOM CONTRACT MODAL */}
       {showCustomContractModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowCustomContractModal(false)}>
-          <div style={{ background: "#1e293b", border: "1px solid #9333ea", borderRadius: "8px", padding: "24px", width: "450px" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: "#9333ea", marginTop: 0 }}>+ Build Custom Contract</h3>
-            <form onSubmit={handleCreateCustomContract} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <input type="text" placeholder="Operation Name" value={customMissionName} onChange={e => setCustomMissionName(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
-              <input type="text" placeholder="Employer (e.g. House Davion)" value={customEmployer} onChange={e => setCustomEmployer(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
-              <input type="text" placeholder="Mission Type (e.g. Raid / Garrison)" value={customMissionType} onChange={e => setCustomMissionType(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
-              <input type="number" placeholder="Base C-Bill Payout" value={customBaseCbill} onChange={e => setCustomBaseCbill(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
-              <input type="number" placeholder="Warchest WP Reward" value={customWpReward} onChange={e => setCustomWpReward(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
-                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setShowCustomContractModal(false)}>Cancel</button>
-                <button type="submit" style={{ background: "#9333ea", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Create Contract</button>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowCustomContractModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #9333ea", borderRadius: "12px", padding: "28px", width: "540px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#9333ea", margin: 0, fontSize: "18px" }}>
+                🛠️ BUILD CUSTOM CONTRACT
+              </h3>
+              <button onClick={() => setShowCustomContractModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateCustomContract} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ fontSize: "12px", color: "#94a3b8" }}>OPERATION NAME</label>
+                <input type="text" placeholder="e.g. Operation Iron Shield" value={customMissionName} onChange={e => setCustomMissionName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>EMPLOYER FACTION</label>
+                  <select value={customEmployer} onChange={e => setCustomEmployer(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="House Davion">House Davion (Federated Suns)</option>
+                    <option value="Draconis Combine Mustered Soldier">Draconis Combine (Kurita)</option>
+                    <option value="House Steiner">House Steiner (Lyran)</option>
+                    <option value="House Marik">House Marik (Free Worlds League)</option>
+                    <option value="House Liao">House Liao (Capellan)</option>
+                    <option value="ComStar">ComStar</option>
+                    <option value="Independent Local Government">Independent Local Government</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>MISSION TYPE</label>
+                  <select value={customMissionType} onChange={e => setCustomMissionType(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="Garrison Defense">Garrison Defense</option>
+                    <option value="Objective Raid">Objective Raid</option>
+                    <option value="Reconnaissance Patrol">Reconnaissance Patrol</option>
+                    <option value="Base Assault">Base Assault</option>
+                    <option value="VIP Convoy Escort">VIP Convoy Escort</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>BASE C-BILL PAYOUT ($)</label>
+                  <input type="number" value={customBaseCbill} onChange={e => setCustomBaseCbill(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>WARCHEST WP REWARD</label>
+                  <input type="number" value={customWpReward} onChange={e => setCustomWpReward(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setShowCustomContractModal(false)}>Cancel</button>
+                <button type="submit" style={{ background: "#9333ea", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>🚀 Post Contract to Board</button>
               </div>
             </form>
           </div>
