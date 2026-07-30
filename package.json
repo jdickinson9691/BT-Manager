@@ -34,7 +34,12 @@
             "oneClick": false,
             "runAfterFinish": true,
             "allowToChangeInstallationDirectory": true,
-            "deleteAppDataOnUninstall": true
+            "allowElevation": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "BT-Manager",
+            "uninstallDisplayName": "BT-Manager",
+            "perMachine": false
         }
     },
     "dependencies": {
