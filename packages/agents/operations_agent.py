@@ -229,6 +229,8 @@ class OperationsAgent:
                         ))
                         total_est_repair_cost += 100000.0
 
+        total_xp_awarded_dict = {}
+
         if pilot_logs:
             for plog in pilot_logs:
                 pilot_id = plog.get("pilot_id")
@@ -244,6 +246,29 @@ class OperationsAgent:
                             pilot.status = "Injured"
                             pilot.days_remaining = pilot.injuries * 15
 
+                    # A Time of War v4.0 XP Formula: Base 15 XP + Kills + Bondsmen + Flawless Bonus
+                    earned_xp = 15 # Base participation
+                    kills_count = plog.get("kills_count", 0)
+                    kills_details = plog.get("kills_details", [])
+
+                    for k in kills_details:
+                        tonnage = k.get("enemy_mech_tonnage", 50)
+                        kill_xp = 15 if tonnage >= 65 else 10 # Heavy/Assault Mech bonus
+                        earned_xp += kill_xp
+                        if k.get("is_bondsman_captured", False):
+                            earned_xp += 15 # Bondsman capture XP
+                            pilot.bondsmen = (pilot.bondsmen or 0) + 1
+
+                    if kills_count > len(kills_details):
+                        earned_xp += (kills_count - len(kills_details)) * 10
+
+                    if plog.get("flawless_performance", False):
+                        earned_xp += 10 # Flawless zero breach bonus
+
+                    pilot.kills = (pilot.kills or 0) + max(kills_count, len(kills_details))
+                    pilot.xp = (pilot.xp or 0) + earned_xp
+                    total_xp_awarded_dict[pilot.name] = earned_xp
+
         salvage_modifier = 1.0
         mission_name = "Independent Skirmish"
 
@@ -258,9 +283,9 @@ class OperationsAgent:
                 blc_payout = total_est_repair_cost * mission.blc_coverage
                 campaign.cbill_balance += blc_payout
 
-                if mission.salvage_rights == "Exchange":
+                if "25%" in str(mission.salvage_rights) or "Exchange" in str(mission.salvage_rights):
                     salvage_modifier = 0.25
-                elif mission.salvage_rights == "Shared (50%)":
+                elif "50%" in str(mission.salvage_rights) or "Shared" in str(mission.salvage_rights):
                     salvage_modifier = 0.50
                 else:
                     salvage_modifier = 1.00
@@ -303,5 +328,6 @@ class OperationsAgent:
         return {
             "message": "After-Action Report processed successfully",
             "effective_salvage": effective_salvage,
+            "xp_awarded": total_xp_awarded_dict,
             "narrative": narrative
         }

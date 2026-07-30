@@ -158,6 +158,13 @@ export default function Dashboard() {
   const [aarSalvageCash, setAarSalvageCash] = useState(500000);
   const [salvagedComponentsClaimed, setSalvagedComponentsClaimed] = useState(["PPC", "Medium Laser"]);
 
+  const [aarPilotKills, setAarPilotKills] = useState({
+    1: { kills: 1, enemyMech: "Catapult CPLT-A1", tonnage: 65, isBondsman: true, bondsmanName: "MechWarrior Marcus Trent" },
+    2: { kills: 1, enemyMech: "Hunchback HBK-4G", tonnage: 50, isBondsman: false, bondsmanName: "" },
+    3: { kills: 0, enemyMech: "None", tonnage: 0, isBondsman: false, bondsmanName: "" },
+    4: { kills: 0, enemyMech: "None", tonnage: 0, isBondsman: false, bondsmanName: "" }
+  });
+
   // Data Fetching
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -446,26 +453,62 @@ export default function Dashboard() {
 
   const handleSubmitAAR = async (e) => {
     e.preventDefault();
-    try {
-      const unit_logs = units.map(u => ({ unit_id: u.id, armor_loss: 10, structure_loss: 0 }));
-      const pilot_logs = pilots.map(p => ({ pilot_id: p.id, injuries_sustained: 0 }));
+    const pilot_logs = pilots.map(p => {
+      const kData = aarPilotKills[p.id] || { kills: 0, enemyMech: "None", tonnage: 0, isBondsman: false };
+      const mechParts = (kData.enemyMech || "").split(' ');
+      return {
+        pilot_id: p.id,
+        injuries_sustained: 0,
+        kills_count: Number(kData.kills) || 0,
+        kills_details: kData.kills > 0 ? [{
+          enemy_mech_chassis: mechParts[0] || "Enemy Mech",
+          enemy_mech_model: mechParts[1] || "",
+          enemy_mech_tonnage: Number(kData.tonnage) || 50,
+          is_bondsman_captured: kData.isBondsman || false,
+          bondsman_name: kData.bondsmanName || "Captured MechWarrior"
+        }] : [],
+        bondsmen_captured_count: kData.isBondsman ? 1 : 0,
+        bondsmen_names: kData.isBondsman ? [kData.bondsmanName || "Captured MechWarrior"] : []
+      };
+    });
 
+    const unit_logs = units.map(u => ({ unit_id: u.id, armor_loss: 10, structure_loss: 0 }));
+
+    try {
       const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mission_id: activeDeployedMission ? activeDeployedMission.id : null,
           unit_logs,
           pilot_logs,
-          salvage_cbill_value: Number(aarSalvageCash)
+          salvage_cbill_value: Number(aarSalvageCash),
+          salvage_items: salvagedComponentsClaimed
         })
       });
       if (res.ok) {
+        const data = await res.json();
+        alert(`AAR Processed successfully!\n${data.narrative || ""}`);
         setShowAarModal(false);
         setActiveDeployedMission(null);
-        fetchBalance(); fetchUnits(); fetchMissions(); fetchLogs();
-        setActiveStep(4); // Advance to Step 4: Tech Bay & Repairs
+        fetchBalance(); fetchUnits(); fetchPilots(); fetchMissions(); fetchLogs();
+        setActiveStep(4);
+        return;
       }
     } catch (err) {}
+
+    // Fallback: local state update
+    setPilots(prev => prev.map(p => {
+      const kData = aarPilotKills[p.id];
+      if (kData && kData.kills > 0) {
+        const gainedXp = 15 + (kData.tonnage >= 65 ? 15 : 10) + (kData.isBondsman ? 15 : 0);
+        return { ...p, kills: (p.kills || 0) + Number(kData.kills), xp: (p.xp || 0) + gainedXp, bondsmen: (p.bondsmen || 0) + (kData.isBondsman ? 1 : 0) };
+      }
+      return { ...p, xp: (p.xp || 0) + 15 };
+    }));
+    setShowAarModal(false);
+    setActiveDeployedMission(null);
+    alert(`AAR Processed successfully! XP and Kills recorded to Personnel roster.`);
+    setActiveStep(4);
   };
 
   // Lance Stats
@@ -1266,22 +1309,166 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* AAR MODAL */}
+      {/* AAR & KILL TRACKER & SALVAGE SUITE MODAL */}
       {showAarModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowAarModal(false)}>
-          <div style={{ background: "#1e293b", border: "1px solid #ea580c", borderRadius: "8px", padding: "24px", width: "500px" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: "#ea580c", marginTop: 0 }}>Process Combat After-Action Report (AAR)</h3>
-            <form onSubmit={handleSubmitAAR} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0 }}>
-                Operation: <strong style={{ color: "#fff" }}>{activeDeployedMission ? activeDeployedMission.name : "Independent Engagement"}</strong>
-              </p>
-              <div>
-                <label style={{ fontSize: "12px", color: "#94a3b8" }}>ESTIMATED SALVAGE VALUE ($ C-BILLS)</label>
-                <input type="number" value={aarSalvageCash} onChange={e => setAarSalvageCash(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px", marginTop: "4px" }} />
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowAarModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "680px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "18px" }}>
+                🏆 COMBAT AAR, KILL TRACKER &amp; SALVAGE SETTLEMENT
+              </h3>
+              <button onClick={() => setShowAarModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSubmitAAR} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "12px 16px", borderRadius: "8px", border: "1px solid rgba(234, 88, 12, 0.3)" }}>
+                <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0 }}>
+                  Operation: <strong style={{ color: "#ea580c" }}>{activeDeployedMission ? activeDeployedMission.name : "Planetary Defense Skirmish"}</strong>
+                  <span style={{ color: "#94a3b8", marginLeft: "16px", fontSize: "12px" }}>
+                    Salvage Rights: <strong style={{ color: "#38bdf8" }}>{activeDeployedMission ? activeDeployedMission.salvage_rights : "Shared (50%)"}</strong>
+                  </span>
+                </p>
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
-                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setShowAarModal(false)}>Cancel</button>
-                <button type="submit" style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Process AAR &amp; Complete Contract</button>
+
+              {/* PILOT KILL TRACKER & BONDSMEN CAPTURE SECTION */}
+              <div>
+                <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  ⚔️ Pilot Kill Tracker &amp; Bondsmen Capture
+                </h4>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {pilots.map(p => {
+                    const kData = aarPilotKills[p.id] || { kills: 0, enemyMech: "Catapult CPLT-A1", tonnage: 65, isBondsman: false, bondsmanName: "" };
+                    const calculatedXp = 15 + (Number(kData.kills) > 0 ? (kData.tonnage >= 65 ? 15 : 10) : 0) + (kData.isBondsman ? 15 : 0);
+
+                    return (
+                      <div key={p.id} style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", borderRadius: "8px", padding: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <div>
+                            <strong style={{ color: "#fff", fontSize: "13px" }}>{p.name} ({p.callsign})</strong>
+                            <span style={{ color: "#94a3b8", fontSize: "12px", marginLeft: "10px" }}>Assigned: {p.assigned_unit}</span>
+                          </div>
+                          <span style={{ background: "rgba(16, 185, 129, 0.2)", color: "#10b981", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                            +{calculatedXp} XP Earned
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr", gap: "10px", alignItems: "center" }}>
+                          <div>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>KILLS COUNT</label>
+                            <input
+                              type="number" min="0" max="10"
+                              value={kData.kills}
+                              onChange={e => {
+                                const val = Number(e.target.value);
+                                setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], kills: val } }));
+                              }}
+                              style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>ENEMY MECH DESTROYED</label>
+                            <select
+                              value={kData.enemyMech}
+                              onChange={e => {
+                                const selected = e.target.value;
+                                const tonnage = selected.includes("75") || selected.includes("70") || selected.includes("65") ? 65 : 50;
+                                setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], enemyMech: selected, tonnage } }));
+                              }}
+                              style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
+                            >
+                              <option value="Catapult CPLT-A1">Catapult CPLT-A1 (65T Heavy)</option>
+                              <option value="Warhammer WHM-6R">Warhammer WHM-6R (70T Heavy)</option>
+                              <option value="Marauder MAD-3R">Marauder MAD-3R (75T Heavy)</option>
+                              <option value="Hunchback HBK-4G">Hunchback HBK-4G (50T Medium)</option>
+                              <option value="Timber Wolf">Timber Wolf (75T Heavy Clan)</option>
+                              <option value="Jenner JR7-D">Jenner JR7-D (35T Light)</option>
+                            </select>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>BONDSMAN CAPTURED</label>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <input
+                                type="checkbox"
+                                checked={kData.isBondsman}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], isBondsman: checked } }));
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Bondsman Name"
+                                value={kData.bondsmanName}
+                                onChange={e => {
+                                  const name = e.target.value;
+                                  setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], bondsmanName: name } }));
+                                }}
+                                disabled={!kData.isBondsman}
+                                style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: kData.isBondsman ? "#fff" : "#475569", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* DYNAMIC SALVAGE POOL CLAIMING */}
+              <div>
+                <h4 style={{ color: "#f59e0b", margin: "0 0 8px 0", fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  📦 Battlefield Salvage Pool &amp; Cash Payout
+                </h4>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "11px", color: "#94a3b8" }}>ESTIMATED SCRAP CASH PAYOUT ($ C-BILLS)</label>
+                    <input
+                      type="number"
+                      value={aarSalvageCash}
+                      onChange={e => setAarSalvageCash(e.target.value)}
+                      style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "6px", marginTop: "4px" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "11px", color: "#94a3b8" }}>CLAIM SALVAGE COMPONENTS TO INVENTORY</label>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+                      {["PPC", "AC/20", "Medium Laser", "Heat Sink", "Ferro-Fibrous Armor Plate (5T)", "Catapult CPLT-A1 Salvage Hull"].map(item => {
+                        const isClaimed = salvagedComponentsClaimed.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => {
+                              if (isClaimed) {
+                                setSalvagedComponentsClaimed(prev => prev.filter(i => i !== item));
+                              } else {
+                                setSalvagedComponentsClaimed(prev => [...prev, item]);
+                              }
+                            }}
+                            style={{
+                              background: isClaimed ? "#f59e0b" : "rgba(255,255,255,0.06)",
+                              color: isClaimed ? "#0f172a" : "#cbd5e1",
+                              border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+                            }}
+                          >
+                            {isClaimed ? "✓ " : "+ "}{item}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setShowAarModal(false)}>Cancel</button>
+                <button type="submit" style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>🏆 Submit AAR, Award XP &amp; Claim Salvage ➔</button>
               </div>
             </form>
           </div>
