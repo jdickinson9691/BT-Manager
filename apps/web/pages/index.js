@@ -2149,6 +2149,7 @@ export default function Dashboard() {
                   <li><strong>🏆 Process Combat AAR Button</strong>: Opens the After-Action Report modal to record battle metrics.</li>
                   <li><strong>Kill Tracker Inputs</strong>: Logs enemy Mechs destroyed by each pilot (Chassis, Model, Tonnage).</li>
                   <li><strong>Bondsmen Capture Checkbox</strong>: Records captured enemy MechWarriors into pilot records as bondsmen.</li>
+                  <li><strong>🔧 Mech Combat Damage &amp; Critical Hits Inputs (Feature 3.1)</strong>: Inputs armor loss, structure loss, and destroyed critical hits per Mech, transferring them automatically to the Tech Bay repair queue!</li>
                   <li><strong>A Time of War XP Badges</strong>: Calculates XP automatically (15 base + 10-15 kill + 15 bondsman).</li>
                   <li><strong>Itemized Salvage Pool</strong>: Claims weapons (PPC, AC/20, Medium Lasers) and C-Bills from battlefield recovery.</li>
                 </ul>
@@ -2161,7 +2162,8 @@ export default function Dashboard() {
                 <h4 style={{ color: "#10b981", margin: 0 }}>Step 4: Tech Bay &amp; MechLab Functions</h4>
                 <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                   <li><strong>🔧 Repair All Damage Button</strong>: Spends 20 Support Points (SP) and $150,000 C-Bills to repair all armor and structure damage to 100%.</li>
-                  <li><strong>Critical Hit Component Replacement Table</strong>: Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them using stock inventory or market procurement.</li>
+                  <li><strong>⏱️ Tech Repair &amp; Refit Duration Clock (Feature 4.1)</strong>: Displays estimated repair duration badges (<code>⏱️ Est. Time: +2 Days</code>). Repairing damage automatically advances the campaign date clock and debits operational overhead!</li>
+                  <li><strong>Critical Hit Component Replacement Table</strong>: Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them (+3 to +7 Days) using stock inventory or market procurement.</li>
                   <li><strong>Procure Mech ($) Button</strong>: Opens the procurement market to purchase new Mechs (Centurion, Hunchback, Catapult, Atlas, Timber Wolf).</li>
                   <li><strong>Interactive MechLab Loadout Fitting Engine</strong>: Calculates tonnage headroom, weapon alpha strike heat, and heat sink dissipation curves.</li>
                 </ul>
@@ -2174,10 +2176,15 @@ export default function Dashboard() {
                 <h4 style={{ color: "#c084fc", margin: 0 }}>Step 5: Personnel &amp; MedBay Functions</h4>
                 <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                   <li><strong>🏥 Administer Medical Treatment Button</strong>: Expends Support Points (50 SP) to accelerate injured pilot healing (+15 days recovery).</li>
+                  <li><strong>🎖️ Captured Bondsmen Rehabilitation &amp; Ransom Suite (Feature 5.1)</strong>:
+                    <ul>
+                      <li><em>💰 Ransom Bondsman</em>: Returns a captive to their employer for an immediate $250,000 C-Bill payout.</li>
+                      <li><em>🎖️ Recruit as Active Pilot</em>: Rehabilitates the captive into an active MechWarrior (Gunnery 4 / Piloting 5) on your roster.</li>
+                    </ul>
+                  </li>
                   <li><strong>Gunnery Upgrade (-1) Button</strong>: Decreases Gunnery target number by 1 in exchange for 30 XP.</li>
                   <li><strong>Piloting Upgrade (-1) Button</strong>: Decreases Piloting target number by 1 in exchange for 20 XP.</li>
                   <li><strong>Assign SPA Perk Dropdown</strong>: Assigns Special Pilot Ability perks (e.g. <em>Sharpshooter</em>, <em>Tactical Genius</em>, <em>Marksman</em>).</li>
-                  <li><strong>Recruit Pilot Form</strong>: Recruits new MechWarriors from the hiring hall into the roster.</li>
                 </ul>
               </div>
             )}
@@ -2188,9 +2195,16 @@ export default function Dashboard() {
                 <h4 style={{ color: "#ec4899", margin: 0 }}>Step 6: Financial Ledger Functions</h4>
                 <ul style={{ color: "#cbd5e1", paddingLeft: "20px", margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                   <li><strong>Ledger Metric Cards</strong>: Displays total C-Bill treasury balance, Warchest WP, Support Points (SP), daily overhead, and MRB Rating.</li>
+                  <li><strong>🏦 ComStar &amp; MRB Bank Loan Suite (Feature 6.1)</strong>:
+                    <ul>
+                      <li><em>🚀 Finance Emergency Credit Line</em>: Secures $1,000,000 C-Bills @ 5% monthly interest.</li>
+                      <li><em>🚀 Finance Capital Expansion Loan</em>: Secures $5,000,000 C-Bills @ 7.5% monthly interest.</li>
+                      <li><em>💰 Debt Repayment Facility</em>: Pays down $500,000 principal debt.</li>
+                    </ul>
+                  </li>
                   <li><strong>📅 Advance Stardate (+1 Day) Button</strong>: Advances campaign date clock by 1 day, processing $5,000 base daily operational overhead.</li>
                   <li><strong>⏩ Advance Timeline (+7 Days) Button</strong>: Advances calendar by 7 days ($35,000 overhead).</li>
-                  <li><strong>Monthly Payroll Processing</strong>: Automatically debits $150,000 monthly payroll on the 1st of each month.</li>
+                  <li><strong>Monthly Payroll Processing</strong>: Automatically debits $150,000 monthly payroll and active loan interest on the 1st of each month.</li>
                   <li><strong>Campaign Timeline Journal</strong>: Historical event log recording all jump transits, contract signings, combat drops, AAR reports, and procurement.</li>
                 </ul>
               </div>
