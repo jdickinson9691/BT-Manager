@@ -226,6 +226,24 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertIsNotNone(crit)
         self.assertEqual(crit.component_name, "PPC")
 
+    # ==================== 8. TECH REPAIR TIME DURATION CONTRACT TESTS ====================
+    def test_10_tech_repair_time_duration_clock(self):
+        """Verify Tech Bay armor repair advances campaign date by duration days."""
+        unit = Unit(campaign_id=self.campaign.id, chassis="Warhammer", model="WHM-6R", tonnage=70, bv2=1299, armor_damage=30, structure_damage=10)
+        self.db.add(unit)
+        self.db.commit()
+
+        initial_date = self.campaign.current_date
+
+        res = MaintenanceAgent.repair_unit_armor_and_structure(self.db, unit.id)
+        self.db.refresh(self.campaign)
+        self.db.refresh(unit)
+
+        self.assertEqual(unit.armor_damage, 0)
+        self.assertEqual(unit.structure_damage, 0)
+        self.assertEqual(res["days_added"], 4)
+        self.assertNotEqual(self.campaign.current_date, initial_date)
+
 
 if __name__ == "__main__":
     unittest.main()

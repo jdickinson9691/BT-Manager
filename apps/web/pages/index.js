@@ -1060,30 +1060,35 @@ export default function Dashboard() {
             </h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
-              {units.map(u => (
-                <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <h4 style={{ margin: 0, color: "#fff", fontSize: "16px" }}>{u.chassis} {u.model} ({u.tonnage}T)</h4>
-                    <p style={{ margin: "4px 0", color: "#94a3b8", fontSize: "12px" }}>
-                      Armor Loss: <span style={{ color: u.armor_damage > 0 ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{u.armor_damage} pt</span>
-                    </p>
+              {units.map(u => {
+                const totalDam = (u.armor_damage || 0) + (u.structure_damage || 0);
+                const estDays = totalDam > 0 ? Math.max(1, Math.floor(totalDam / 10)) : 0;
+                return (
+                  <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <h4 style={{ margin: 0, color: "#fff", fontSize: "16px" }}>{u.chassis} {u.model} ({u.tonnage}T)</h4>
+                      <p style={{ margin: "4px 0", color: "#94a3b8", fontSize: "12px" }}>
+                        Armor/Struct Loss: <span style={{ color: totalDam > 0 ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{u.armor_damage || 0} Armor / {u.structure_damage || 0} Struct</span>
+                        {totalDam > 0 && <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "10px", fontWeight: "bold" }}>⏱️ Est. Time: +{estDays} Day(s)</span>}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => { setRefitChassis(`${u.chassis} ${u.model}`); setRefitTonnage(u.tonnage); }}
+                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        Refit in MechLab
+                      </button>
+                      <button
+                        onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(r => r.json()).then(d => { alert(d.message || "Repaired!"); refreshAll(); })}
+                        style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        Repair ({totalDam > 0 ? `+${estDays} Days / 20 SP` : "100% OK"})
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      onClick={() => { setRefitChassis(`${u.chassis} ${u.model}`); setRefitTonnage(u.tonnage); }}
-                      style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                    >
-                      Refit in MechLab
-                    </button>
-                    <button
-                      onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(() => refreshAll())}
-                      style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                    >
-                      Repair (20 SP)
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* WAREHOUSE MARKET DEPOT */}

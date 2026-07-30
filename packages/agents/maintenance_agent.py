@@ -119,7 +119,8 @@ class MaintenanceAgent:
 
     @classmethod
     def repair_unit_armor_and_structure(cls, db: Session, unit_id: int) -> Dict[str, Any]:
-        """Repairs all armor and structure damage on a specified Mech unit."""
+        """Repairs all armor and structure damage on a specified Mech unit and advances campaign clock."""
+        from datetime import datetime, timedelta
         unit = db.query(Unit).filter(Unit.id == unit_id).first()
         if not unit:
             raise ValueError("Unit not found")
@@ -127,17 +128,40 @@ class MaintenanceAgent:
         if not campaign:
             raise ValueError("Campaign not found")
 
+        total_damage = (unit.armor_damage or 0) + (unit.structure_damage or 0)
+        repair_days = max(1, total_damage // 10) if total_damage > 0 else 1
+
+        try:
+            dt = datetime.strptime(campaign.current_date, "%Y-%m-%d") + timedelta(days=repair_days)
+            campaign.current_date = dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+        overhead_cost = repair_days * 5000.0
+        campaign.cbill_balance -= (150000.0 + overhead_cost)
         campaign.sp_balance = max(0, campaign.sp_balance - 20)
-        campaign.cbill_balance -= 150000.0
         unit.armor_damage = 0
         unit.structure_damage = 0
 
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Tech Bay Repair",
+            description=f"Tech Bay completed full armor & structure repair on {unit.chassis} {unit.model} (+{repair_days} Days). Overhead: ${overhead_cost:,.2f} C-Bills."
+        ))
+
         db.commit()
-        return {"message": f"Unit {unit.chassis} {unit.model} repaired successfully", "unit_id": unit_id}
+        return {
+            "message": f"Unit {unit.chassis} {unit.model} repaired successfully (+{repair_days} Days added to timeline)",
+            "unit_id": unit_id,
+            "days_added": repair_days,
+            "current_date": campaign.current_date
+        }
 
     @classmethod
     def replace_critical_component(cls, db: Session, critical_hit_id: int) -> Dict[str, Any]:
-        """Replaces a destroyed critical component using inventory stock or purchasing a new component."""
+        """Replaces a destroyed critical component using inventory stock or purchasing a new component and advances timeline clock."""
+        from datetime import datetime, timedelta
         crit = db.query(CriticalHit).filter(CriticalHit.id == critical_hit_id).first()
         if not crit:
             raise ValueError("Critical hit record not found")
@@ -156,13 +180,32 @@ class MaintenanceAgent:
             used_stock = False
 
         component_name = crit.component_name
+        replace_days = 7 if "Engine" in component_name or "Gyro" in component_name else 3
+
+        try:
+            dt = datetime.strptime(campaign.current_date, "%Y-%m-%d") + timedelta(days=replace_days)
+            campaign.current_date = dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+        overhead_cost = replace_days * 5000.0
+        campaign.cbill_balance -= overhead_cost
+
         db.delete(crit)
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Component Replacement",
+            description=f"Tech Bay replaced destroyed {component_name} on {unit.chassis} {unit.model} (+{replace_days} Days)."
+        ))
         db.commit()
 
         return {
-            "message": f"Replaced {component_name} on {unit.chassis}",
+            "message": f"Replaced {component_name} on {unit.chassis} (+{replace_days} Days added to timeline)",
             "used_inventory_stock": used_stock,
-            "component_name": component_name
+            "component_name": component_name,
+            "days_added": replace_days,
+            "current_date": campaign.current_date
         }
 
     @classmethod
