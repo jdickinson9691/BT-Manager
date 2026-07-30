@@ -14,7 +14,8 @@ function startPythonBackend() {
     : path.join(process.resourcesPath, 'extra', 'main', 'main.exe');
 
   if (fs.existsSync(exePath)) {
-    pythonProcess = spawn(exePath, [], { detached: true });
+    console.log('Spawning standalone Python server binary from:', exePath);
+    pythonProcess = spawn(exePath, ['--server'], { detached: true });
   } else {
     // Fallback in development: launch uvicorn via python
     console.log('Executable not found, launching FastAPI backend via uvicorn...');
@@ -31,8 +32,9 @@ function startPythonBackend() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: 1420,
+    height: 920,
+    title: "BT-Manager - BattleTech Campaign Operations",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

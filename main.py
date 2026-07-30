@@ -3,6 +3,7 @@ import sqlite3
 import math
 import os
 import sys
+import threading
 import random
 from tkinter import messagebox
 
@@ -12,15 +13,6 @@ BATTLETECH_ERAS = [
     "Late Succession War - Renaissance (3020–3049)",
     "Clan Invasion (3050–3061)"
 ]
-
-DEFAULT_SYSTEM_MAP = {
-    "Outreach": ("Wolf's Dragoons", 0.0, 0.0, 50000),
-    "Galax": ("House Davion", 18.5, -12.1, 120000),
-    "Tukayyid": ("ComStar", -15.2, 22.4, 100000),
-    "Solaris VII": ("Independent", 12.0, 25.5, 150000),
-    "New Avalon": ("House Davion", 22.0, -15.5, 140000),
-    "Luthien": ("House Draconis Combine", 28.4, -52.6, 250000)
-}
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -35,6 +27,22 @@ def init_db():
     conn.close()
 
 init_db()
+
+def start_api_server():
+    try:
+        import uvicorn
+        from apps.api.main import app as fastapi_app
+        uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="warning")
+    except Exception as e:
+        print("API server thread notice:", e)
+
+# Headless server mode for Electron background process
+if "--server" in sys.argv or "--api" in sys.argv:
+    start_api_server()
+    sys.exit(0)
+
+# Start background API server for standalone GUI execution
+threading.Thread(target=start_api_server, daemon=True).start()
 
 def get_existing_campaigns():
     conn = sqlite3.connect(DB_PATH)
@@ -64,13 +72,6 @@ def fetch_active_campaign_id():
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
-
-# Check for headless server mode
-if "--server" in sys.argv or "--api" in sys.argv:
-    import uvicorn
-    from apps.api.main import app as fastapi_app
-    uvicorn.run(fastapi_app, host="127.0.0.1", port=8000)
-    sys.exit(0)
 
 # SINGLE ROOT WINDOW
 app = ctk.CTk()
@@ -166,7 +167,7 @@ def on_create_new_campaign():
     ])
     cur.executemany("INSERT INTO contracts (company_id, employer, mission_type, difficulty, payout, salvage_rights, is_active, enemy_faction, intel_summary) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)", [
         (CO_ID, "House Davion", "Garrison Defense", "Medium", 3500000, "Shared (50%)", "Draconis Combine", "Garrison defense on Outreach."),
-        (CO_id if 'CO_id' in locals() else CO_ID, "Draconis Combine Mustered Soldier", "Objective Raid", "Hard", 4200000, "Full Salvage", "Federated Suns", "High-priority raiding contract."),
+        (CO_ID, "Draconis Combine Mustered Soldier", "Objective Raid", "Hard", 4200000, "Full Salvage", "Federated Suns", "High-priority raiding contract."),
         (CO_ID, "Independent Local Government", "Reconnaissance", "Light", 2800000, "Shared (25%)", "Pirates", "Perimeter patrol.")
     ])
     conn.commit()
@@ -472,7 +473,7 @@ def refresh_all_deck_views():
     refresh_maint_tab()
     refresh_pers_tab()
 
-# INITIAL VIEW PACKING logic
+# INITIAL VIEW PACKING
 if ACTIVE_CAMP_ID:
     deck_frame.pack(fill="both", expand=True)
     refresh_all_deck_views()
