@@ -1995,30 +1995,52 @@ export default function Dashboard() {
               <button onClick={() => setShowHelpModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
             </div>
 
-            {/* TAB NAVIGATION */}
-            <div style={{ display: "flex", gap: "6px", marginBottom: "20px", overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px" }}>
-              {[
-                { id: "tutorial", label: "🗺️ Campaign Walkthrough" },
-                { id: "overview", label: "📖 Rules & Description" },
-                { id: "step1", label: "📋 Step 1: Contract & Transit" },
-                { id: "step2", label: "⚔️ Step 2: Force Deployment" },
-                { id: "step3", label: "🏆 Step 3: Combat AAR & Salvage" },
-                { id: "step4", label: "🔧 Step 4: Tech Bay & MechLab" },
-                { id: "step5", label: "🏥 Step 5: Personnel & MedBay" },
-                { id: "step6", label: "📊 Step 6: Financial Ledger" }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setHelpActiveTab(tab.id)}
-                  style={{
-                    background: helpActiveTab === tab.id ? "#10b981" : "rgba(30, 41, 59, 0.6)",
-                    color: helpActiveTab === tab.id ? "#0f172a" : "#cbd5e1",
-                    border: "none", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap"
-                  }}
+            {/* COMPACT DROPDOWN & PILL BAR NAVIGATION (NO HORIZONTAL SCROLL) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "20px", background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "10px 14px", borderRadius: "8px" }}>
+              {/* DROPDOWN SELECT MENU */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                <label style={{ fontSize: "12px", color: "#34d399", fontWeight: "bold", whiteSpace: "nowrap" }}>SELECT SECTION:</label>
+                <select
+                  value={helpActiveTab}
+                  onChange={e => setHelpActiveTab(e.target.value)}
+                  style={{ width: "100%", background: "#0f172a", border: "1px solid #10b981", color: "#fff", padding: "8px 12px", borderRadius: "6px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
                 >
-                  {tab.label}
-                </button>
-              ))}
+                  <option value="tutorial">🗺️ Campaign Walkthrough Tutorial</option>
+                  <option value="overview">📖 Rulebooks Overview &amp; Integration</option>
+                  <option value="step1">📋 Step 1: Contract &amp; Jump Transit</option>
+                  <option value="step2">⚔️ Step 2: Force Deployment &amp; LZ Vectors</option>
+                  <option value="step3">🏆 Step 3: Combat AAR, Damage &amp; Salvage</option>
+                  <option value="step4">🔧 Step 4: Tech Bay, Duration Clock &amp; MechLab</option>
+                  <option value="step5">🏥 Step 5: Personnel, MedBay &amp; Bondsmen Suite</option>
+                  <option value="step6">📊 Step 6: Financial Ledger &amp; ComStar Bank Loans</option>
+                </select>
+              </div>
+
+              {/* QUICK-JUMP STEP PILLS */}
+              <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                {[
+                  { id: "tutorial", label: "Tutorial" },
+                  { id: "overview", label: "Rules" },
+                  { id: "step1", label: "Step 1" },
+                  { id: "step2", label: "Step 2" },
+                  { id: "step3", label: "Step 3" },
+                  { id: "step4", label: "Step 4" },
+                  { id: "step5", label: "Step 5" },
+                  { id: "step6", label: "Step 6" }
+                ].map(pill => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setHelpActiveTab(pill.id)}
+                    style={{
+                      background: helpActiveTab === pill.id ? "#10b981" : "rgba(30, 41, 59, 0.6)",
+                      color: helpActiveTab === pill.id ? "#0f172a" : "#cbd5e1",
+                      border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+                    }}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* TAB CONTENT: CAMPAIGN WALKTHROUGH */}
