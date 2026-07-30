@@ -1,15 +1,29 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Dashboard() {
+  // Campaign & Balance State
   const [balance, setBalance] = useState({
+    campaign_name: "Wolf's Irregulars",
     WP: 1250,
     SP: 750,
-    CBills: 18500000.0,
+    CBills: 15000000.0,
     current_date: "3025-01-15",
     daily_overhead: 5000,
     mrb_rating: "B",
     reputation_score: 72
   });
+
+  const [currentSystem, setCurrentSystem] = useState({
+    name: "Outreach",
+    faction: "Wolf's Dragoons",
+    x: 0.0,
+    y: 0.0
+  });
+
+  const [onlineMulMode, setOnlineMulMode] = useState(true);
+  const [activeTab, setActiveTab] = useState("operations");
+
+  // Data lists
   const [units, setUnits] = useState([]);
   const [missions, setMissions] = useState([]);
   const [pilots, setPilots] = useState([]);
@@ -19,42 +33,58 @@ export default function Dashboard() {
   const [availableSpas, setAvailableSpas] = useState([]);
   const [procurementMechs, setProcurementMechs] = useState([]);
 
-  const [activeTab, setActiveTab] = useState("operations");
-  
-  // Star Map state
-  const [originSystem, setOriginSystem] = useState("Outreach");
-  const [destinationSystem, setDestinationSystem] = useState("Tukayyid");
-  const [jumpMetrics, setJumpMetrics] = useState(null);
+  // Active Deployed Mission
+  const [activeDeployedMission, setActiveDeployedMission] = useState(null);
 
-  // Form states
-  const [missionName, setMissionName] = useState("");
-  const [employer, setEmployer] = useState("House Davion");
-  const [baseCbill, setBaseCbill] = useState(3500000);
-  const [wpReward, setWpReward] = useState(400);
-
-  const [pilotName, setPilotName] = useState("");
-  const [callsign, setCallsign] = useState("");
-
-  // MechLab Fitting state
-  const [builderTonnage, setBuilderTonnage] = useState(75);
-  const [selectedWeapons, setSelectedWeapons] = useState(["PPC", "Medium Laser", "Medium Laser"]);
-  const [useDoubleSinks, setUseDoubleSinks] = useState(false);
-  const [mechMetrics, setMechMetrics] = useState(null);
-
-  // Modal states
-  const [showMtfModal, setShowMtfModal] = useState(false);
-  const [mtfContent, setMtfContent] = useState("");
-  const [importStatus, setImportStatus] = useState("");
-
+  // Modals
+  const [selectedIntelMission, setSelectedIntelMission] = useState(null);
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false);
+  const [showCustomContractModal, setShowCustomContractModal] = useState(false);
   const [showAarModal, setShowAarModal] = useState(false);
-  const [aarMissionId, setAarMissionId] = useState("");
+
+  // Custom Contract Form State
+  const [customMissionName, setCustomMissionName] = useState("");
+  const [customEmployer, setCustomEmployer] = useState("House Davion");
+  const [customMissionType, setCustomMissionType] = useState("Garrison");
+  const [customBaseCbill, setCustomBaseCbill] = useState(3500000);
+  const [customWpReward, setCustomWpReward] = useState(400);
+
+  // Quick Add Unit Form State
+  const [addChassis, setAddChassis] = useState("Centurion");
+  const [addModel, setAddModel] = useState("CN9-A");
+  const [addTonnage, setAddTonnage] = useState(50);
+  const [addBv2, setAddBv2] = useState(945);
+
+  // AAR Form State
   const [aarSalvageCash, setAarSalvageCash] = useState(500000);
 
-  const canvasRef = useRef(null);
+  // Data Fetching
+  const fetchBalance = () => {
+    fetch("http://localhost:8000/api/v1/ledger/balance")
+      .then(r => r.json())
+      .then(data => {
+        setBalance(data);
+      })
+      .catch(() => {});
+  };
 
-  const fetchBalance = () => { fetch("http://localhost:8000/api/v1/ledger/balance").then(r => r.json()).then(setBalance).catch(() => {}); };
   const fetchUnits = () => { fetch("http://localhost:8000/api/v1/units").then(r => r.json()).then(setUnits).catch(() => {}); };
-  const fetchMissions = () => { fetch("http://localhost:8000/api/v1/missions").then(r => r.json()).then(setMissions).catch(() => {}); };
+  
+  const fetchMissions = () => {
+    fetch("http://localhost:8000/api/v1/missions")
+      .then(r => r.json())
+      .then(data => {
+        setMissions(data);
+        const deployed = data.find(m => m.status === "Active" || m.status === "Deployed");
+        if (deployed) {
+          setActiveDeployedMission(deployed);
+        } else {
+          setActiveDeployedMission(null);
+        }
+      })
+      .catch(() => {});
+  };
+
   const fetchPilots = () => { fetch("http://localhost:8000/api/v1/pilots").then(r => r.json()).then(setPilots).catch(() => {}); };
   const fetchInventory = () => { fetch("http://localhost:8000/api/v1/inventory").then(r => r.json()).then(setInventory).catch(() => {}); };
   const fetchLogs = () => { fetch("http://localhost:8000/api/v1/logs").then(r => r.json()).then(setLogs).catch(() => {}); };
@@ -70,215 +100,78 @@ export default function Dashboard() {
     refreshAll();
   }, []);
 
-  const handleExportCampaignSave = async () => {
-    const res = await fetch("http://localhost:8000/api/v1/campaign/export");
-    if (res.ok) {
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bt_campaign_save_${data.campaign.current_date}.json`;
-      a.click();
-    }
-  };
-
-  const handleImportCampaignSave = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const jsonPayload = JSON.parse(event.target.result);
-        const res = await fetch("http://localhost:8000/api/v1/campaign/import", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(jsonPayload)
-        });
-        if (res.ok) {
-          alert("Campaign Save Restored Successfully!");
-          refreshAll();
-        }
-      } catch (err) {
-        alert("Failed to parse campaign save JSON file");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const validateMechBuild = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/builder/validate-build", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tonnage: Number(builderTonnage),
-          components: selectedWeapons,
-          double_heat_sinks: useDoubleSinks
-        })
-      });
-      const data = await res.json();
-      setMechMetrics(data);
-    } catch (e) {}
-  };
-
-  useEffect(() => {
-    validateMechBuild();
-  }, [builderTonnage, selectedWeapons, useDoubleSinks]);
-
-  // HTML5 Canvas Render for Starmap
-  useEffect(() => {
-    if (activeTab !== "starmap" || !canvasRef.current || starmapSystems.length === 0) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
-    const cx = width / 2;
-    const cy = height / 2;
-
-    ctx.fillStyle = "#070a13";
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x < width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
-    for (let y = 0; y < height; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-
-    const sysOrigin = starmapSystems.find(s => s.name === originSystem);
-    const sysDest = starmapSystems.find(s => s.name === destinationSystem);
-
-    if (sysOrigin && sysDest && sysOrigin !== sysDest) {
-      const px1 = cx + (sysOrigin.x * 6.5);
-      const py1 = cy - (sysOrigin.y * 6.5);
-      const px2 = cx + (sysDest.x * 6.5);
-      const py2 = cy - (sysDest.y * 6.5);
-
-      ctx.strokeStyle = "#06b6d4";
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath();
-      ctx.moveTo(px1, py1);
-      ctx.lineTo(px2, py2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    starmapSystems.forEach((s) => {
-      const px = cx + (s.x * 6.5);
-      const py = cy - (s.y * 6.5);
-      const isSel = s.name === originSystem || s.name === destinationSystem;
-
-      if (isSel) {
-        ctx.fillStyle = "rgba(6, 182, 212, 0.35)";
-        ctx.beginPath();
-        ctx.arc(px, py, 16, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = s.color || "#06b6d4";
-      ctx.beginPath();
-      ctx.arc(px, py, isSel ? 7 : 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = isSel ? "#ffffff" : "#94a3b8";
-      ctx.font = isSel ? "bold 12px Inter, sans-serif" : "11px Inter, sans-serif";
-      ctx.fillText(`${s.name} (${s.faction})`, px + 10, py + 4);
-    });
-
-  }, [activeTab, starmapSystems, originSystem, destinationSystem]);
-
-  const calculateJumpRoute = () => {
-    const sysO = starmapSystems.find(s => s.name === originSystem);
-    const sysD = starmapSystems.find(s => s.name === destinationSystem);
-    if (!sysO || !sysD) return;
-
-    const dx = sysD.x - sysO.x;
-    const dy = sysD.y - sysO.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const jumps = Math.ceil(dist / 30.0) || 1;
-    const cost = dist * 2000.0;
-
-    setJumpMetrics({
-      light_years: dist.toFixed(2),
-      jumps_required: jumps,
-      estimated_cbills: cost.toLocaleString(undefined, { maximumFractionDigits: 2 })
-    });
-  };
-
-  const handleGenerateProceduralContract = async () => {
-    const res = await fetch("http://localhost:8000/api/v1/missions/generate-procedural", {
-      method: "POST"
-    });
-    if (res.ok) {
-      fetchMissions();
-      fetchLogs();
-    }
-  };
-
-  const handleAdvanceTime = async (days) => {
+  // Action Handlers
+  const handleAdvanceDay = async () => {
     const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days })
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 1 })
     });
     if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); }
   };
 
-  const handleCreateMission = async (e) => {
+  const handleProcessPayroll = async () => {
+    const res = await fetch("http://localhost:8000/api/v1/timeline/advance", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 30 })
+    });
+    if (res.ok) { fetchBalance(); fetchPilots(); fetchLogs(); alert("Processed 30-Day Monthly Payroll & Unit Maintenance!"); }
+  };
+
+  const handleAcceptContract = async (mission) => {
+    setActiveDeployedMission(mission);
+    const res = await fetch("http://localhost:8000/api/v1/logs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type: "Contract Deployed", description: `Deployed forces for operation: '${mission.name}' (${mission.employer}).` })
+    });
+    if (res.ok) fetchLogs();
+  };
+
+  const handleJumpToSystem = async (system) => {
+    setCurrentSystem(system);
+    const dx = system.x - currentSystem.x;
+    const dy = system.y - currentSystem.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const cost = Math.round(dist * 2000.0);
+
+    const res = await fetch("http://localhost:8000/api/v1/logs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type: "JumpNet Transit", description: `JumpShip completed jump vector to system ${system.name} (${system.faction}). Jump Fee: $${cost.toLocaleString()} C-Bills.` })
+    });
+    if (res.ok) { fetchLogs(); alert(`JumpShip arrived at system ${system.name}!`); }
+  };
+
+  const handleCreateCustomContract = async (e) => {
     e.preventDefault();
     const res = await fetch("http://localhost:8000/api/v1/missions", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: missionName, employer, base_cbill: Number(baseCbill), wp_reward: Number(wpReward) })
-    });
-    if (res.ok) { setMissionName(""); fetchMissions(); fetchLogs(); }
-  };
-
-  const handleBuyProcurementMech = async (m) => {
-    const res = await fetch("http://localhost:8000/api/v1/market/buy-mech", {
-      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chassis: m.chassis,
-        model: m.model,
-        tonnage: m.tonnage,
-        bv2: m.bv2,
-        cbill_cost: m.cbill_cost,
-        wp_cost: m.wp_cost,
-        tech_base: m.tech_base
+        name: customMissionName,
+        employer: customEmployer,
+        mission_type: customMissionType,
+        base_cbill: Number(customBaseCbill),
+        wp_reward: Number(customWpReward)
       })
     });
     if (res.ok) {
-      fetchUnits(); fetchBalance(); fetchLogs();
-    } else {
-      const err = await res.json();
-      alert(err.detail || "Procurement failed");
+      setCustomMissionName("");
+      setShowCustomContractModal(false);
+      fetchMissions(); fetchLogs();
     }
   };
 
-  const handleSellMech = async (unitId) => {
-    const res = await fetch(`http://localhost:8000/api/v1/units/${unitId}/sell`, {
-      method: "POST"
+  const handleAddFactionUnit = async (e) => {
+    e.preventDefault();
+    const res = await fetch("http://localhost:8000/api/v1/units", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chassis: addChassis,
+        model: addModel,
+        tonnage: Number(addTonnage),
+        bv2: Number(addBv2),
+        tech_base: "Inner Sphere"
+      })
     });
     if (res.ok) {
-      fetchUnits(); fetchBalance(); fetchLogs();
-    }
-  };
-
-  const handleImportMTF = async (e) => {
-    e.preventDefault();
-    if (!mtfContent.trim()) return;
-    setImportStatus("Importing chassis payload...");
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/units/import-mtf", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mtf_content: mtfContent })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setImportStatus(data.message);
-        setMtfContent("");
-        fetchUnits();
-        setTimeout(() => setShowMtfModal(false), 1200);
-      } else {
-        setImportStatus(`Error: ${data.detail}`);
-      }
-    } catch (err) {
-      setImportStatus("API server connection failed");
+      setShowAddUnitModal(false);
+      fetchUnits(); fetchLogs();
     }
   };
 
@@ -290,7 +183,7 @@ export default function Dashboard() {
     const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mission_id: aarMissionId ? Number(aarMissionId) : null,
+        mission_id: activeDeployedMission ? activeDeployedMission.id : null,
         unit_logs,
         pilot_logs,
         salvage_cbill_value: Number(aarSalvageCash)
@@ -298,426 +191,377 @@ export default function Dashboard() {
     });
     if (res.ok) {
       setShowAarModal(false);
+      setActiveDeployedMission(null);
       fetchBalance(); fetchUnits(); fetchMissions(); fetchLogs();
     }
   };
 
-  const handleUpgradePilotSkill = async (pilotId, skillType) => {
-    const res = await fetch(`http://localhost:8000/api/v1/pilots/${pilotId}/upgrade-skill`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ skill_type: skillType })
-    });
-    if (res.ok) fetchPilots();
-    else {
-      const data = await res.json();
-      alert(data.detail || "Skill upgrade failed");
-    }
-  };
-
-  const handleAssignSpa = async (pilotId, spaName) => {
-    const res = await fetch(`http://localhost:8000/api/v1/pilots/${pilotId}/assign-spa`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spa_name: spaName })
-    });
-    if (res.ok) fetchPilots();
-  };
-
-  const handleAwardXp = async (pilotId) => {
-    const res = await fetch(`http://localhost:8000/api/v1/pilots/${pilotId}/award-xp`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ xp_amount: 25, kills_added: 1 })
-    });
-    if (res.ok) fetchPilots();
-  };
-
-  const handleBuyMarketSupplies = async (sp, cost, wp) => {
-    const res = await fetch("http://localhost:8000/api/v1/market/buy-supplies", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sp_amount: sp, cbill_cost: cost, wp_cost: wp })
-    });
-    if (res.ok) { fetchBalance(); alert("Supply crate acquired!"); }
-  };
-
-  const handleRecruitPilot = async (e) => {
-    e.preventDefault();
-    const res = await fetch("http://localhost:8000/api/v1/pilots", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: pilotName, callsign, gunnery: 4, piloting: 5 })
-    });
-    if (res.ok) { setPilotName(""); setCallsign(""); fetchPilots(); }
-  };
-
-  const addWeaponToBuilder = (weaponName) => {
-    setSelectedWeapons([...selectedWeapons, weaponName]);
-  };
-
-  const removeWeaponFromBuilder = (index) => {
-    const newWeapons = [...selectedWeapons];
-    newWeapons.splice(index, 1);
-    setSelectedWeapons(newWeapons);
-  };
+  // Filter JumpNet systems within 30 LY single jump range
+  const jumpNetDestinations = starmapSystems.filter(sys => {
+    const dx = sys.x - currentSystem.x;
+    const dy = sys.y - currentSystem.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return dist > 0 && dist <= 35.0;
+  });
 
   return (
-    <div style={{ padding: "32px", maxWidth: "1600px", margin: "0 auto" }}>
+    <div style={{ background: "#0c0d12", minHeight: "100vh", color: "#e2e8f0", fontFamily: "Inter, sans-serif", padding: "16px" }}>
       
-      {/* COMMAND HEADER */}
-      <header style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <h1 className="font-orbitron" style={{ color: "#f59e0b", fontSize: "32px", letterSpacing: "1px" }}>BT-MANAGER</h1>
-            <span style={{ backgroundColor: "rgba(16, 185, 129, 0.2)", border: "1px solid #10b981", color: "#10b981", padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "700" }}>
-              v2.1 STANDALONE WINDOWS
-            </span>
-          </div>
-          <p style={{ color: "#94a3b8", marginTop: "4px", fontSize: "14px" }}>BattleTech Mercenary Campaign Operations Deck</p>
+      {/* TOP HEADER BAR FROM SCREENSHOT */}
+      <header style={{ background: "rgba(15, 20, 30, 0.95)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <h2 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "16px", letterSpacing: "1px" }}>
+            SUCCESSION WARS 3025 | WOLF'S IRREGULARS
+          </h2>
+          <span style={{ color: "#94a3b8", fontSize: "13px" }}>DATE: <strong style={{ color: "#f8fafc" }}>{balance.current_date}</strong></span>
+          <span style={{ color: "#94a3b8", fontSize: "13px" }}>
+            SYSTEM: <strong style={{ color: "#38bdf8" }}>{currentSystem.name}</strong> <span style={{ color: "#10b981", fontSize: "11px", fontWeight: "bold" }}>[{onlineMulMode ? "ONLINE - MUL CONNECTED" : "OFFLINE CACHE"}]</span>
+          </span>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button className="btn-secondary" onClick={handleExportCampaignSave} style={{ fontSize: "12px" }}>💾 Export Save JSON</button>
-            <label className="btn-secondary" style={{ fontSize: "12px", cursor: "pointer" }}>
-              📥 Import Save JSON
-              <input type="file" accept=".json" onChange={handleImportCampaignSave} style={{ display: "none" }} />
-            </label>
-          </div>
-
-          <div className="glass-card" style={{ padding: "8px 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ color: "#f59e0b", fontWeight: "bold", fontSize: "13px" }}>⭐ MRB RATING: {balance.mrb_rating}</span>
-            <span style={{ color: "#64748b" }}>|</span>
-            <span style={{ color: "#cbd5e1", fontSize: "12px" }}>Score: {balance.reputation_score}</span>
-          </div>
-
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button className="btn-amber" onClick={() => handleAdvanceTime(1)}>+1 Day</button>
-            <button className="btn-secondary" onClick={() => handleAdvanceTime(7)}>+7 Days</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <span className="font-mono" style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold" }}>
+            C-BILLS: ${(balance.CBills || 0).toLocaleString()}
+          </span>
+          <div style={{ background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px", display: "flex", padding: "2px" }}>
+            <button
+              onClick={() => setOnlineMulMode(false)}
+              style={{ background: !onlineMulMode ? "rgba(255,255,255,0.2)" : "transparent", border: "none", color: "#cbd5e1", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
+            >
+              Offline
+            </button>
+            <button
+              onClick={() => setOnlineMulMode(true)}
+              style={{ background: onlineMulMode ? "#0284c7" : "transparent", border: "none", color: "#fff", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer", fontWeight: "bold" }}
+            >
+              Online (MUL API)
+            </button>
           </div>
         </div>
       </header>
 
-      {/* STAT CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "28px" }}>
-        <div className="glass-card" style={{ padding: "18px" }}>
-          <p style={{ fontSize: "11px", color: "#06b6d4", fontWeight: "700", letterSpacing: "1px" }}>CAMPAIGN DATE</p>
-          <p className="font-mono" style={{ fontSize: "24px", color: "#f8fafc", fontWeight: "700", marginTop: "6px" }}>{balance.current_date}</p>
-        </div>
-
-        <div className="glass-card" style={{ padding: "18px" }}>
-          <p style={{ fontSize: "11px", color: "#f59e0b", fontWeight: "700", letterSpacing: "1px" }}>WARCHEST BALANCE</p>
-          <p className="font-mono" style={{ fontSize: "24px", color: "#f59e0b", fontWeight: "700", marginTop: "6px" }}>{balance.WP} WP</p>
-        </div>
-
-        <div className="glass-card" style={{ padding: "18px" }}>
-          <p style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "700", letterSpacing: "1px" }}>SUPPORT POINTS</p>
-          <p className="font-mono" style={{ fontSize: "24px", color: "#38bdf8", fontWeight: "700", marginTop: "6px" }}>{balance.SP} SP</p>
-        </div>
-
-        <div className="glass-card" style={{ padding: "18px" }}>
-          <p style={{ fontSize: "11px", color: "#10b981", fontWeight: "700", letterSpacing: "1px" }}>C-BILL TREASURY</p>
-          <p className="font-mono" style={{ fontSize: "24px", color: "#10b981", fontWeight: "700", marginTop: "6px" }}>
-            ${(balance.CBills || 0).toLocaleString()}
-          </p>
-        </div>
-      </div>
-
-      {/* NAVIGATION TABS */}
-      <div style={{ display: "flex", gap: "12px", marginBottom: "28px", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px" }}>
+      {/* TABS BAR FROM SCREENSHOT */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "20px" }}>
         <button
           onClick={() => setActiveTab("operations")}
-          className={activeTab === "operations" ? "btn-primary" : "btn-secondary"}
-          style={{ flex: 1, padding: "14px", fontSize: "14px" }}
+          style={{
+            background: activeTab === "operations" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            padding: "8px 20px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
         >
-          ⚔ Operations &amp; Contracts
-        </button>
-        <button
-          onClick={() => setActiveTab("starmap")}
-          className={activeTab === "starmap" ? "btn-primary" : "btn-secondary"}
-          style={{ flex: 1, padding: "14px", fontSize: "14px" }}
-        >
-          🌌 Galactic Star Map
+          Operations &amp; Contracts
         </button>
         <button
           onClick={() => setActiveTab("engineering")}
-          className={activeTab === "engineering" ? "btn-amber" : "btn-secondary"}
-          style={{ flex: 1, padding: "14px", fontSize: "14px" }}
+          style={{
+            background: activeTab === "engineering" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            padding: "8px 20px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
         >
-          🛠 Roster &amp; MechLab
+          Maintenance &amp; Engineering
+        </button>
+        <button
+          onClick={() => setActiveTab("inventory")}
+          style={{
+            background: activeTab === "inventory" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            padding: "8px 20px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
+        >
+          Storage &amp; Parts Inventory
         </button>
         <button
           onClick={() => setActiveTab("personnel")}
-          className={activeTab === "personnel" ? "btn-primary" : "btn-secondary"}
-          style={{ flex: 1, padding: "14px", fontSize: "14px" }}
+          style={{
+            background: activeTab === "personnel" ? "#ea580c" : "rgba(30, 41, 59, 0.7)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            padding: "8px 20px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
         >
-          👥 Personnel &amp; MedBay
+          Personnel &amp; MedBay
         </button>
       </div>
 
-      {/* MAIN TAB PANELS */}
-      <div>
-        {/* TAB 1: OPERATIONS */}
-        {activeTab === "operations" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "24px" }}>
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                <h2 className="font-orbitron" style={{ fontSize: "18px", color: "#f8fafc" }}>MRB Contract Board</h2>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button className="btn-primary" onClick={handleGenerateProceduralContract}>✨ AI Generate Contract Brief</button>
-                  <button className="btn-amber" onClick={() => setShowAarModal(true)}>+ Process AAR Report</button>
-                </div>
-              </div>
+      {/* OPERATIONS & CONTRACTS TAB PANEL */}
+      {activeTab === "operations" && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
+          <h3 className="font-orbitron" style={{ color: "#f8fafc", margin: "0 0 20px 0", fontSize: "18px" }}>Command &amp; Operations Deck</h3>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
-                {missions.map((m) => (
-                  <div key={m.id} style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "15px" }}>{m.name}</h4>
-                      <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                        Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Salvage: {m.salvage_rights}
-                      </p>
-                      <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "4px 0 0 0" }}>
-                        Payout: ${m.cbill_reward.toLocaleString()} | +{m.wp_reward} WP
-                      </p>
-                    </div>
-
-                    {m.status === "Active" ? (
-                      <button className="btn-primary" onClick={() => fetch(`http://localhost:8000/api/v1/missions/${m.id}/complete`, {method: "POST"}).then(() => fetchMissions())}>
-                        Complete Contract
-                      </button>
-                    ) : (
-                      <span style={{ color: "#10b981", fontWeight: "bold", fontSize: "13px" }}>✔ COMPLETED</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* DRAFT CONTRACT FORM */}
-              <form onSubmit={handleCreateMission} style={{ borderTop: "1px solid var(--border-color)", paddingTop: "18px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                <h4 style={{ color: "#f59e0b", margin: 0 }}>Negotiate Manual Contract</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <input type="text" placeholder="Mission Name" value={missionName} onChange={e => setMissionName(e.target.value)} required style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px" }} />
-                  <input type="text" placeholder="Employer (e.g. House Davion)" value={employer} onChange={e => setEmployer(e.target.value)} style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px" }} />
-                </div>
-                <button type="submit" className="btn-amber">+ Sign &amp; Commit Contract</button>
-              </form>
-            </div>
-
-            {/* TIMELINE LOGS */}
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <h2 className="font-orbitron" style={{ fontSize: "18px", color: "#f8fafc", marginBottom: "18px" }}>Campaign Journal &amp; AI Log</h2>
-              <div style={{ maxHeight: "480px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-                {logs.map(l => (
-                  <div key={l.id} style={{ background: "rgba(15, 23, 42, 0.6)", padding: "12px", borderRadius: "6px", borderLeft: l.event_type.includes("Intel") ? "3px solid #f59e0b" : l.event_type.includes("Narrative") ? "3px solid #8b5cf6" : "3px solid #06b6d4" }}>
-                    <p style={{ color: "#94a3b8", fontSize: "11px", margin: 0 }}>[{l.log_date}] {l.event_type.toUpperCase()}</p>
-                    <p style={{ color: "#e2e8f0", fontSize: "13px", margin: "4px 0 0 0" }}>{l.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: GALACTIC STAR MAP */}
-        {activeTab === "starmap" && (
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
-            <div className="glass-card" style={{ padding: "20px" }}>
-              <h2 className="font-orbitron" style={{ color: "#06b6d4", fontSize: "18px", marginBottom: "14px" }}>Inner Sphere Planetary Canvas</h2>
-              <canvas ref={canvasRef} width={750} height={460} style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--border-color)" }} />
-            </div>
-
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <h2 className="font-orbitron" style={{ color: "#f8fafc", fontSize: "18px", marginBottom: "16px" }}>Jump Route Calculator</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+          {/* TOP SECTION: ACTIVE DEPLOYED OPERATION */}
+          <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "18px", marginBottom: "24px", textAlign: "center" }}>
+            <p style={{ color: "#38bdf8", fontWeight: "bold", fontSize: "13px", margin: "0 0 8px 0" }}>-- Active Deployed Operation --</p>
+            {activeDeployedMission ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left" }}>
                 <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>ORIGIN SYSTEM</label>
-                  <select value={originSystem} onChange={e => setOriginSystem(e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                    {starmapSystems.map(s => <option key={s.name} value={s.name}>{s.name} ({s.faction})</option>)}
-                  </select>
+                  <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>{activeDeployedMission.name}</h4>
+                  <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                    Employer: <strong style={{ color: "#cbd5e1" }}>{activeDeployedMission.employer}</strong> | Type: {activeDeployedMission.mission_type}
+                  </p>
+                  <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "4px 0 0 0" }}>
+                    Payout: ${activeDeployedMission.cbill_reward.toLocaleString()} C-Bills | +{activeDeployedMission.wp_reward} WP
+                  </p>
                 </div>
-                <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>DESTINATION SYSTEM</label>
-                  <select value={destinationSystem} onChange={e => setDestinationSystem(e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                    {starmapSystems.map(s => <option key={s.name} value={s.name}>{s.name} ({s.faction})</option>)}
-                  </select>
-                </div>
-                <button className="btn-primary" onClick={calculateJumpRoute}>🚀 Plot Jump Route</button>
+                <button
+                  onClick={() => setShowAarModal(true)}
+                  style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}
+                >
+                  Process Combat AAR Report
+                </button>
               </div>
-
-              {jumpMetrics && (
-                <div style={{ background: "rgba(6, 182, 212, 0.1)", border: "1px solid #06b6d4", padding: "16px", borderRadius: "8px" }}>
-                  <h4 style={{ color: "#06b6d4", margin: "0 0 10px 0" }}>Transit Estimation</h4>
-                  <p style={{ margin: "4px 0", fontSize: "13px" }}>Distance: <strong style={{ color: "#fff" }}>{jumpMetrics.light_years} LY</strong></p>
-                  <p style={{ margin: "4px 0", fontSize: "13px" }}>Jumps Required: <strong style={{ color: "#fff" }}>{jumpMetrics.jumps_required} Jump(s)</strong></p>
-                  <p className="font-mono" style={{ margin: "8px 0 0 0", fontSize: "14px", color: "#10b981" }}>Fee: ${jumpMetrics.estimated_cbills} C-Bills</p>
-                </div>
-              )}
-            </div>
+            ) : (
+              <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "13px", margin: 0 }}>
+                No contract currently deployed. Accept one from the MRB Board below.
+              </p>
+            )}
           </div>
-        )}
 
-        {/* TAB 3: ROSTER & MECHLAB */}
-        {activeTab === "engineering" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                <h2 className="font-orbitron" style={{ fontSize: "18px", color: "#f8fafc" }}>Active Mech Roster</h2>
-                <button className="btn-primary" onClick={() => setShowMtfModal(true)}>📥 Import MegaMek .mtf</button>
+          {/* MAIN GRID LAYOUT FROM SCREENSHOT */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "24px" }}>
+            
+            {/* LEFT SIDE: CONTROL BUTTONS */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={handleAdvanceDay}
+                  style={{ background: "#10b981", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
+                >
+                  +1 Day (Process Logistics)
+                </button>
+                <button
+                  onClick={handleProcessPayroll}
+                  style={{ background: "#ea580c", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
+                >
+                  Process Monthly Payroll
+                </button>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {units.map(u => (
-                  <div key={u.id} style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>{u.chassis} {u.model}</h4>
-                      <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0" }}>
-                        Tonnage: <strong style={{ color: "#cbd5e1" }}>{u.tonnage}T</strong> | Tech Base: {u.tech_base} | BV2: <span style={{ color: "#f59e0b" }}>{u.bv2}</span>
-                      </p>
-                      <p style={{ fontSize: "12px", margin: "2px 0", color: u.armor_damage > 0 ? "#f43f5e" : "#10b981" }}>
-                        Armor Loss: {u.armor_damage} pt | Structure Loss: {u.structure_damage} pt
-                      </p>
-                      {u.sarna_url && (
-                        <a href={u.sarna_url} target="_blank" rel="noreferrer" style={{ color: "#06b6d4", fontSize: "11px", textDecoration: "none" }}>📖 Sarna.net Article ↗</a>
-                      )}
-                    </div>
-
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button className="btn-amber" onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(() => { fetchUnits(); fetchBalance(); })}>
-                        Repair (20 SP)
-                      </button>
-                      <button className="btn-secondary" onClick={() => handleSellMech(u.id)} style={{ color: "#f43f5e", borderColor: "#f43f5e" }}>
-                        Sell Mech
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={() => setShowAddUnitModal(true)}
+                  style={{ background: "#0284c7", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
+                >
+                  + Add Faction Unit
+                </button>
+                <button
+                  onClick={() => setShowCustomContractModal(true)}
+                  style={{ background: "#9333ea", color: "#ffffff", border: "none", padding: "12px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", flex: 1 }}
+                >
+                  + Build Custom Contract
+                </button>
               </div>
-            </div>
 
-            {/* PROCUREMENT MARKET */}
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <h2 className="font-orbitron" style={{ color: "#10b981", fontSize: "18px", marginBottom: "16px" }}>🛒 Unit Procurement Market</h2>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {procurementMechs.map(m => (
-                  <div key={m.chassis + m.model} style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "15px" }}>{m.chassis} {m.model} ({m.tonnage}T)</h4>
-                      <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
-                        Tech Base: {m.tech_base} | BV2: <span style={{ color: "#f59e0b" }}>{m.bv2}</span>
-                      </p>
-                      <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "2px 0 0 0" }}>
-                        ${m.cbill_cost.toLocaleString()} C-Bills
-                      </p>
+              {/* TIMELINE CAMPAIGN LOG */}
+              <div style={{ background: "rgba(7, 10, 18, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "16px", maxHeight: "300px", overflowY: "auto" }}>
+                <h4 style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 12px 0" }}>Operations Journal</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {logs.map(l => (
+                    <div key={l.id} style={{ background: "rgba(30, 41, 59, 0.5)", padding: "10px", borderRadius: "6px" }}>
+                      <span style={{ color: "#38bdf8", fontSize: "11px", fontWeight: "bold" }}>[{l.log_date}] {l.event_type}</span>
+                      <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>{l.description}</p>
                     </div>
-
-                    <button className="btn-primary" onClick={() => handleBuyProcurementMech(m)}>
-                      Procure Mech
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* TAB 4: PERSONNEL & MEDBAY */}
-        {activeTab === "personnel" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "24px" }}>
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <h2 className="font-orbitron" style={{ fontSize: "18px", color: "#f8fafc", marginBottom: "18px" }}>MechWarrior Roster &amp; Progression</h2>
+            {/* RIGHT SIDE: MRB BOARD & GALACTIC JUMPNET */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
-                {pilots.map(p => (
-                  <div key={p.id} style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", padding: "16px", borderRadius: "8px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                      <div>
-                        <h4 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>{p.name} "{p.callsign}"</h4>
-                        <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>
-                          Status: <span style={{ color: p.status === "Injured" ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{p.status} {p.days_remaining > 0 ? `(${p.days_remaining}d left)` : ""}</span> | Kills: <strong style={{ color: "#f59e0b" }}>{p.kills || 0}</strong>
-                        </p>
-                      </div>
+              {/* MRB AVAILABLE CONTRACT BOARD FROM SCREENSHOT */}
+              <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(234, 88, 12, 0.3)", borderRadius: "8px", padding: "18px" }}>
+                <p style={{ color: "#ea580c", fontWeight: "bold", fontSize: "13px", margin: "0 0 14px 0", textAlign: "center" }}>
+                  -- MRB Available Contract Board --
+                </p>
 
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <span className="font-mono" style={{ background: "rgba(139, 92, 246, 0.2)", border: "1px solid #8b5cf6", color: "#8b5cf6", padding: "4px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
-                          {p.xp || 0} XP
-                        </span>
-                        <button className="btn-secondary" onClick={() => handleAwardXp(p.id)} style={{ padding: "4px 8px", fontSize: "11px" }}>+25 XP</button>
-                      </div>
-                    </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
+                  {missions.map((m) => (
+                    <div key={m.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "12px 16px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#f8fafc" }}>
+                        Employer: <strong style={{ color: "#e2e8f0" }}>{m.employer}</strong> | Mission: {m.name}
+                      </span>
 
-                    {/* SKILLS & SPA PERK */}
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "10px", flexWrap: "wrap" }}>
-                      <div style={{ background: "rgba(15, 23, 42, 0.9)", padding: "6px 10px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Gunnery: <strong style={{ color: "#f59e0b" }}>{p.gunnery}</strong></span>
-                        <button className="btn-primary" onClick={() => handleUpgradePilotSkill(p.id, "gunnery")} style={{ padding: "2px 6px", fontSize: "10px" }}>Upgrade (-30 XP)</button>
-                      </div>
-
-                      <div style={{ background: "rgba(15, 23, 42, 0.9)", padding: "6px 10px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Piloting: <strong style={{ color: "#38bdf8" }}>{p.piloting}</strong></span>
-                        <button className="btn-primary" onClick={() => handleUpgradePilotSkill(p.id, "piloting")} style={{ padding: "2px 6px", fontSize: "10px" }}>Upgrade (-20 XP)</button>
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: "180px" }}>
-                        <select value={p.spa || "None"} onChange={e => handleAssignSpa(p.id, e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.9)", border: "1px solid #8b5cf6", color: "#8b5cf6", padding: "6px", borderRadius: "6px", fontSize: "12px" }}>
-                          {availableSpas.map(spa => <option key={spa} value={spa}>{spa}</option>)}
-                        </select>
-                      </div>
-
-                      {p.status === "Injured" && (
-                        <button className="btn-amber" onClick={() => fetch(`http://localhost:8000/api/v1/pilots/${p.id}/treat`, {method: "POST"}).then(() => { fetchPilots(); fetchBalance(); })} style={{ padding: "6px 10px", fontSize: "12px" }}>
-                          MedBay (50 SP)
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          onClick={() => setSelectedIntelMission(m)}
+                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          View Intel
                         </button>
-                      )}
+                        <button
+                          onClick={() => handleAcceptContract(m)}
+                          style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          Accept Contract
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              {/* RECRUITMENT FORM */}
-              <form onSubmit={handleRecruitPilot} style={{ borderTop: "1px solid var(--border-color)", paddingTop: "18px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                <h4 style={{ color: "#8b5cf6", margin: 0 }}>Hiring Hall Recruitment</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <input type="text" placeholder="Pilot Name" value={pilotName} onChange={e => setPilotName(e.target.value)} required style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px" }} />
-                  <input type="text" placeholder="Callsign" value={callsign} onChange={e => setCallsign(e.target.value)} required style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px" }} />
+              {/* GALACTIC JUMPNET FROM SCREENSHOT */}
+              <div style={{ background: "rgba(7, 10, 18, 0.9)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", padding: "18px" }}>
+                <h4 style={{ color: "#38bdf8", fontSize: "14px", margin: "0 0 10px 0" }}>
+                  Galactic JumpNet (Max 30 LY Single Jump Range Filtered)
+                </h4>
+
+                <p style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold", margin: "0 0 14px 0" }}>
+                  CURRENT LOCATION: {currentSystem.name} | Faction: {currentSystem.faction} | Coordinates: ({currentSystem.x}, {currentSystem.y})
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "240px", overflowY: "auto" }}>
+                  {jumpNetDestinations.map((sys) => {
+                    const dx = sys.x - currentSystem.x;
+                    const dy = sys.y - currentSystem.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
+
+                    return (
+                      <div key={sys.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "12px", color: "#cbd5e1" }}>
+                          Destination: <strong style={{ color: "#fff" }}>{sys.name}</strong> | Faction: {sys.faction} | Distance: {dist} LY
+                        </span>
+                        <button
+                          onClick={() => handleJumpToSystem(sys)}
+                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          Jump to System
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <button type="submit" className="btn-primary">+ Recruit MechWarrior</button>
-              </form>
+              </div>
+
             </div>
 
-            {/* WARCHEST MARKETPLACE */}
-            <div className="glass-card" style={{ padding: "24px" }}>
-              <h2 className="font-orbitron" style={{ fontSize: "18px", color: "#f8fafc", marginBottom: "18px" }}>Supply Depot Market</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <button className="btn-secondary" onClick={() => handleBuyMarketSupplies(100, 250000, 25)} style={{ width: "100%", textAlign: "left", padding: "14px" }}>
-                  📦 +100 SP Supply Crate ($250,000 C-Bills / 25 WP)
-                </button>
-                <button className="btn-secondary" onClick={() => handleBuyMarketSupplies(500, 1000000, 100)} style={{ width: "100%", textAlign: "left", padding: "14px" }}>
-                  📦 +500 SP Battalion Supply Depot ($1,000,000 C-Bills / 100 WP)
+          </div>
+        </div>
+      )}
+
+      {/* OTHER TABS */}
+      {activeTab === "engineering" && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
+          <h3 className="font-orbitron" style={{ color: "#ea580c" }}>Maintenance &amp; Engineering Roster</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {units.map(u => (
+              <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h4 style={{ margin: 0, color: "#fff" }}>{u.chassis} {u.model} ({u.tonnage}T)</h4>
+                  <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "12px" }}>BV2: {u.bv2} | Tech Base: {u.tech_base}</p>
+                </div>
+                <button style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(() => refreshAll())}>
+                  Repair Mech (20 SP)
                 </button>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "inventory" && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
+          <h3 className="font-orbitron" style={{ color: "#0284c7" }}>Storage &amp; Parts Inventory</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+            {inventory.map(i => (
+              <div key={i.id} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "14px", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
+                <span>{i.component_name}</span>
+                <strong style={{ color: "#38bdf8" }}>x{i.quantity}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "personnel" && (
+        <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "24px" }}>
+          <h3 className="font-orbitron" style={{ color: "#9333ea" }}>Personnel &amp; MedBay Roster</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {pilots.map(p => (
+              <div key={p.id} style={{ background: "rgba(30, 41, 59, 0.6)", padding: "14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h4 style={{ margin: 0, color: "#fff" }}>{p.name} "{p.callsign}"</h4>
+                  <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "12px" }}>Gunnery: {p.gunnery} | Piloting: {p.piloting} | Status: {p.status}</p>
+                </div>
+                <span style={{ color: "#9333ea", fontWeight: "bold" }}>{p.xp} XP</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* INTEL MODAL */}
+      {selectedIntelMission && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setSelectedIntelMission(null)}>
+          <div style={{ background: "#1e293b", border: "1px solid #0284c7", borderRadius: "8px", padding: "24px", width: "500px" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: "#38bdf8", marginTop: 0 }}>Contract Intel Briefing</h3>
+            <p><strong>Operation:</strong> {selectedIntelMission.name}</p>
+            <p><strong>Employer:</strong> {selectedIntelMission.employer}</p>
+            <p><strong>Mission Type:</strong> {selectedIntelMission.mission_type}</p>
+            <p><strong>Base C-Bill Payout:</strong> ${selectedIntelMission.cbill_reward.toLocaleString()}</p>
+            <p><strong>Warchest Reward:</strong> +{selectedIntelMission.wp_reward} WP</p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "20px" }}>
+              <button style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setSelectedIntelMission(null)}>Close</button>
+              <button style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { handleAcceptContract(selectedIntelMission); setSelectedIntelMission(null); }}>Accept Contract</button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* MTF IMPORTER MODAL */}
-      {showMtfModal && (
-        <div className="modal-overlay" onClick={() => setShowMtfModal(false)}>
-          <div className="glass-card" onClick={e => e.stopPropagation()} style={{ width: "600px", padding: "28px" }}>
-            <h2 className="font-orbitron" style={{ color: "#06b6d4", marginTop: 0 }}>📥 Import MegaMek .mtf Chassis Payload</h2>
-            <p style={{ color: "#94a3b8", fontSize: "13px" }}>Paste standard MegaMek MTF text below to add Mech payload directly to roster:</p>
-            <form onSubmit={handleImportMTF} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
-              <textarea
-                rows={8}
-                value={mtfContent}
-                onChange={e => setMtfContent(e.target.value)}
-                placeholder={`Chassis: Mad Cat\nModel: Prime\nMass: 75\nBV: 2737\nTechBase: Clan`}
-                style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid var(--border-color)", color: "#fff", padding: "12px", borderRadius: "6px", fontFamily: "monospace", fontSize: "12px" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "#10b981" }}>{importStatus}</span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button type="button" className="btn-secondary" onClick={() => setShowMtfModal(false)}>Cancel</button>
-                  <button type="submit" className="btn-primary">Process Import</button>
-                </div>
+      {/* ADD FACTION UNIT MODAL */}
+      {showAddUnitModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowAddUnitModal(false)}>
+          <div style={{ background: "#1e293b", border: "1px solid #0284c7", borderRadius: "8px", padding: "24px", width: "450px" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: "#0284c7", marginTop: 0 }}>+ Add Faction Unit to Roster</h3>
+            <form onSubmit={handleAddFactionUnit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <input type="text" placeholder="Chassis (e.g. Marauder)" value={addChassis} onChange={e => setAddChassis(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="text" placeholder="Model (e.g. MAD-3R)" value={addModel} onChange={e => setAddModel(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="number" placeholder="Tonnage" value={addTonnage} onChange={e => setAddTonnage(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="number" placeholder="Battle Value (BV2)" value={addBv2} onChange={e => setAddBv2(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
+                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setShowAddUnitModal(false)}>Cancel</button>
+                <button type="submit" style={{ background: "#0284c7", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Add Unit</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BUILD CUSTOM CONTRACT MODAL */}
+      {showCustomContractModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowCustomContractModal(false)}>
+          <div style={{ background: "#1e293b", border: "1px solid #9333ea", borderRadius: "8px", padding: "24px", width: "450px" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: "#9333ea", marginTop: 0 }}>+ Build Custom Contract</h3>
+            <form onSubmit={handleCreateCustomContract} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <input type="text" placeholder="Operation Name" value={customMissionName} onChange={e => setCustomMissionName(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="text" placeholder="Employer (e.g. House Davion)" value={customEmployer} onChange={e => setCustomEmployer(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="text" placeholder="Mission Type (e.g. Raid / Garrison)" value={customMissionType} onChange={e => setCustomMissionType(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="number" placeholder="Base C-Bill Payout" value={customBaseCbill} onChange={e => setCustomBaseCbill(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <input type="number" placeholder="Warchest WP Reward" value={customWpReward} onChange={e => setCustomWpReward(e.target.value)} required style={{ background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px" }} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
+                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setShowCustomContractModal(false)}>Cancel</button>
+                <button type="submit" style={{ background: "#9333ea", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Create Contract</button>
               </div>
             </form>
           </div>
@@ -726,26 +570,20 @@ export default function Dashboard() {
 
       {/* AAR MODAL */}
       {showAarModal && (
-        <div className="modal-overlay" onClick={() => setShowAarModal(false)}>
-          <div className="glass-card" onClick={e => e.stopPropagation()} style={{ width: "550px", padding: "28px" }}>
-            <h2 className="font-orbitron" style={{ color: "#f59e0b", marginTop: 0 }}>⚔ Submit After-Action Report (AAR)</h2>
-            <form onSubmit={handleSubmitAAR} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
-              <div>
-                <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT CONTRACT</label>
-                <select value={aarMissionId} onChange={e => setAarMissionId(e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.9)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                  <option value="">-- Independent Engagement --</option>
-                  {missions.filter(m => m.status === "Active").map(m => <option key={m.id} value={m.id}>{m.name} ({m.employer})</option>)}
-                </select>
-              </div>
-
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setShowAarModal(false)}>
+          <div style={{ background: "#1e293b", border: "1px solid #ea580c", borderRadius: "8px", padding: "24px", width: "500px" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: "#ea580c", marginTop: 0 }}>Process Combat After-Action Report (AAR)</h3>
+            <form onSubmit={handleSubmitAAR} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0 }}>
+                Operation: <strong style={{ color: "#fff" }}>{activeDeployedMission ? activeDeployedMission.name : "Independent Engagement"}</strong>
+              </p>
               <div>
                 <label style={{ fontSize: "12px", color: "#94a3b8" }}>ESTIMATED SALVAGE VALUE ($ C-BILLS)</label>
-                <input type="number" value={aarSalvageCash} onChange={e => setAarSalvageCash(e.target.value)} style={{ width: "100%", background: "rgba(15, 23, 42, 0.9)", border: "1px solid var(--border-color)", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                <input type="number" value={aarSalvageCash} onChange={e => setAarSalvageCash(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "4px", marginTop: "4px" }} />
               </div>
-
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "10px" }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowAarModal(false)}>Cancel</button>
-                <button type="submit" className="btn-amber">Process Combat AAR &amp; Generate Narrative</button>
+                <button type="button" style={{ background: "#475569", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer" }} onClick={() => setShowAarModal(false)}>Cancel</button>
+                <button type="submit" style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Process AAR &amp; Complete Contract</button>
               </div>
             </form>
           </div>
