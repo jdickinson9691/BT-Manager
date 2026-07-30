@@ -1,0 +1,47 @@
+{
+    "name": "bt-manager",
+    "version": "1.0.0",
+    "description": "BattleTech Campaign Manager Desktop App",
+    "author": "Mercenary Commander",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build:electron": "npm run build:web && electron-builder",
+        "build:web": "cd apps/web && npm run build",
+        "build": "npm run build:web && electron-builder"
+    },
+    "build": {
+        "appId": "com.battletech.manager",
+        "productName": "BT-Manager",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "main.js",
+            "apps/web/out/**/*"
+        ],
+        "extraResources": [
+            {
+                "filter": [
+                    "**/*"
+                ],
+                "from": "dist/main",
+                "to": "extra/main"
+            }
+        ],
+        "asar": true,
+        "nsis": {
+            "oneClick": false,
+            "runAfterFinish": true,
+            "allowToChangeInstallationDirectory": true,
+            "deleteAppDataOnUninstall": true
+        }
+    },
+    "dependencies": {
+        "tree-kill": "^1.2.2"
+    },
+    "devDependencies": {
+        "electron": "^43.2.0",
+        "electron-builder": "^24.0.0"
+    }
+}

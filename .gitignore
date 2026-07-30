@@ -5,16 +5,23 @@ __pycache__/
 .venv/
 env/
 venv/
+*.spec
+dist/
+build/
+active_campaign.txt
 
 # Node / Web
 node_modules/
 .next/
 out/
-build/
+package-lock.json
 
-# IDE & OS
+# Database & OS
 .vscode/
 .idea/
 .DS_Store?
 *.sqlite3
 *.db
+
+# Temporary
+scratch/

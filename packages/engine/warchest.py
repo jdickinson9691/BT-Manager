@@ -1,27 +1,53 @@
+from typing import Dict, Any, List
+
 class WarchestEngine:
-    """Handles Warchest Points (WP), Support Points (SP), and C-Bill conversions."""
-    
-    DEFAULT_SP_PER_WP = 10
-    DEFAULT_CBILLS_PER_SP = 10000.0
+    """Warchest & Financial Conversion Engine for Chaos Campaign rules.
+    Standard Exchange Rates:
+      1 WP = 10 SP
+      1 SP = 10,000 C-Bills
+    """
+
+    WP_TO_SP_RATE = 10
+    SP_TO_CBILL_RATE = 10000.0
 
     @classmethod
-    def wp_to_sp(cls, wp_amount: int, sp_per_wp: int = DEFAULT_SP_PER_WP) -> int:
-        return wp_amount * sp_per_wp
+    def wp_to_sp(cls, wp: int) -> int:
+        """Converts Warchest Points (WP) to Support Points (SP)."""
+        return wp * cls.WP_TO_SP_RATE
 
     @classmethod
-    def sp_to_wp(cls, sp_amount: int, sp_per_wp: int = DEFAULT_SP_PER_WP) -> int:
-        return sp_amount // sp_per_wp
+    def sp_to_wp(cls, sp: int) -> int:
+        """Converts Support Points (SP) to Warchest Points (WP)."""
+        return sp // cls.WP_TO_SP_RATE
 
     @classmethod
-    def sp_to_cbills(cls, sp_amount: float, cbills_per_sp: float = DEFAULT_CBILLS_PER_SP) -> float:
-        return sp_amount * cbills_per_sp
+    def sp_to_cbills(cls, sp: float) -> float:
+        """Converts Support Points (SP) to C-Bills."""
+        return float(sp) * cls.SP_TO_CBILL_RATE
 
     @classmethod
-    def cbills_to_sp(cls, cbills_amount: float, cbills_per_sp: float = DEFAULT_CBILLS_PER_SP) -> float:
-        return cbills_amount / cbills_per_sp
+    def cbills_to_sp(cls, cbills: float) -> float:
+        """Converts C-Bills to Support Points (SP)."""
+        return float(cbills) / cls.SP_TO_CBILL_RATE
 
     @classmethod
-    def calculate_track_net(cls, entry_fee: int, objectives_completed: list[int], bonus_wps: int = 0) -> int:
-        """Calculates net WP change from a completed Track."""
-        payout = sum(objectives_completed) + bonus_wps
-        return payout - entry_fee
+    def calculate_track_settlement(
+        cls,
+        entry_fee_wp: int,
+        objective_rewards_wp: int,
+        bonus_sp: int = 0,
+        blc_payout_cbills: float = 0.0
+    ) -> Dict[str, Any]:
+        """Calculates itemized financial breakdown for completing a Warchest Track."""
+        net_wp = objective_rewards_wp - entry_fee_wp
+        sp_earned = cls.wp_to_sp(max(0, net_wp)) + bonus_sp
+        cbills_earned = cls.sp_to_cbills(sp_earned) + blc_payout_cbills
+
+        return {
+            "entry_fee_wp": entry_fee_wp,
+            "objective_rewards_wp": objective_rewards_wp,
+            "net_wp": net_wp,
+            "bonus_sp": bonus_sp,
+            "total_sp_earned": sp_earned,
+            "total_cbills_earned": cbills_earned
+        }

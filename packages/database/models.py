@@ -1,4 +1,4 @@
-﻿from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from packages.database.db import Base
 
@@ -12,6 +12,8 @@ class Campaign(Base):
     cbill_balance = Column(Float, default=15000000.0)
     current_date = Column(String, default="3025-01-01")
     daily_overhead = Column(Float, default=5000.0)
+    mrb_rating = Column(String, default="C")
+    reputation_score = Column(Integer, default=50)
 
     units = relationship("Unit", back_populates="campaign")
     missions = relationship("Mission", back_populates="campaign")
@@ -79,10 +81,10 @@ class Mission(Base):
     employer = Column(String)
     wp_reward = Column(Integer)
     cbill_reward = Column(Float)
-    salvage_rights = Column(String, default="Shared (50%)") # Exchange, Shared (50%), Full (100%)
-    blc_coverage = Column(Float, default=0.5) # 0.0, 0.5, 1.0 (Battle Loss Comp %)
-    transport_allowance = Column(Float, default=0.5) # 0.0, 0.5, 1.0 (JumpShip Reimbursement %)
-    command_rights = Column(String, default="Integrated") # Integrated, House Command, Independent
+    salvage_rights = Column(String, default="Shared (50%)")
+    blc_coverage = Column(Float, default=0.5)
+    transport_allowance = Column(Float, default=0.5)
+    command_rights = Column(String, default="Integrated")
     status = Column(String, default="Active")
 
     campaign = relationship("Campaign", back_populates="missions")
@@ -100,6 +102,9 @@ class Pilot(Base):
     status = Column(String, default="Active")
     injuries = Column(Integer, default=0)
     days_remaining = Column(Integer, default=0)
+    xp = Column(Integer, default=50)
+    spa = Column(String, default="None")
+    kills = Column(Integer, default=0)
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
