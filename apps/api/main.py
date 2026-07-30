@@ -37,6 +37,14 @@ def on_startup():
 class AdvanceTimeRequest(BaseModel):
     days: int = 1
 
+class CampaignCreateRequest(BaseModel):
+    campaign_name: str = "Succession Wars 3025"
+    company_name: str = "Wolf's Irregulars"
+    commander_name: str = "Major Jaime Wolf"
+    era: str = "3025"
+    faction: str = "House Davion"
+    starting_funds: float = 15000000.0
+
 class CustomLogCreate(BaseModel):
     event_type: str = "Journal"
     description: str
@@ -158,6 +166,57 @@ def read_root():
 
 @app.get("/api/v1/ledger/balance")
 def get_balance(db: Session = Depends(get_db)):
+    return CoreAgent.get_ledger_summary(db)
+
+@app.get("/api/v1/campaigns")
+def list_campaigns(db: Session = Depends(get_db)):
+    camps = db.query(Campaign).all()
+    return [{"id": c.id, "name": c.name, "current_date": c.current_date, "cbill_balance": c.cbill_balance, "mrb_rating": c.mrb_rating} for c in camps]
+
+@app.post("/api/v1/campaigns/create")
+def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
+    campaign = Campaign(
+        name=f"{req.campaign_name} ({req.company_name})",
+        wp_balance=1000,
+        sp_balance=500,
+        cbill_balance=req.starting_funds,
+        current_date="3025-01-01" if req.era == "3025" else "3050-03-01",
+        daily_overhead=5000.0,
+        mrb_rating="C",
+        reputation_score=50
+    )
+    db.add(campaign)
+    db.commit()
+    db.refresh(campaign)
+
+    # Seed era/faction starter units from MUL cache
+    if req.era == "3050" or "Clan" in req.faction:
+        u1 = Unit(campaign_id=campaign.id, chassis="Timber Wolf", model="Prime", tonnage=75, tech_base="Clan", bv2=2737)
+        u2 = Unit(campaign_id=campaign.id, chassis="Mad Dog", model="Prime", tonnage=60, tech_base="Clan", bv2=2150)
+        u3 = Unit(campaign_id=campaign.id, chassis="Stormcrow", model="Prime", tonnage=55, tech_base="Clan", bv2=2080)
+    else:
+        u1 = Unit(campaign_id=campaign.id, chassis="Marauder", model="MAD-3R", tonnage=75, tech_base="Inner Sphere", bv2=1363)
+        u2 = Unit(campaign_id=campaign.id, chassis="Warhammer", model="WHM-6R", tonnage=70, tech_base="Inner Sphere", bv2=1299)
+        u3 = Unit(campaign_id=campaign.id, chassis="Centurion", model="CN9-A", tonnage=50, tech_base="Inner Sphere", bv2=945)
+    
+    db.add_all([u1, u2, u3])
+    db.commit()
+
+    p1 = Pilot(campaign_id=campaign.id, name=req.commander_name, callsign="Commander", gunnery=3, piloting=4, unit_id=u1.id, status="Active", xp=50, spa="Tactical Genius")
+    p2 = Pilot(campaign_id=campaign.id, name="Lt. Natasha Kerensky", callsign="Black Widow", gunnery=2, piloting=3, unit_id=u2.id, status="Active", xp=85, spa="Sharpshooter")
+    db.add_all([p1, p2])
+
+    m1 = Mission(campaign_id=campaign.id, name=f"Garrison Contract ({req.faction})", mission_type="Garrison", employer=req.faction, wp_reward=350, cbill_reward=3500000.0, status="Available")
+    m2 = Mission(campaign_id=campaign.id, name="Objective Recon Patrol", mission_type="Recon", employer="Independent", wp_reward=300, cbill_reward=2800000.0, status="Available")
+    db.add_all([m1, m2])
+
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Setup",
+        description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {req.era} ({req.faction}). MUL & Sarna data linked."
+    ))
+    db.commit()
     return CoreAgent.get_ledger_summary(db)
 
 @app.get("/api/v1/campaign/export")

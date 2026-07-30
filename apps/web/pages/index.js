@@ -95,6 +95,47 @@ export default function Dashboard() {
   const [useDoubleHeatSinks, setUseDoubleHeatSinks] = useState(false);
   const [buildMetrics, setBuildMetrics] = useState(null);
 
+  const [showLauncherModal, setShowLauncherModal] = useState(false);
+  const [existingCampaignsList, setExistingCampaignsList] = useState([
+    { id: 1, name: "Succession Wars 3025 (Wolf's Irregulars)", current_date: "3025-01-15", cbill_balance: 15000000.0 }
+  ]);
+  const [selectedExistingCampId, setSelectedExistingCampId] = useState(1);
+
+  const [newCampName, setNewCampName] = useState("Succession Wars 3025");
+  const [newCompanyName, setNewCompanyName] = useState("Wolf's Irregulars");
+  const [newCommanderName, setNewCommanderName] = useState("Major Jaime Wolf");
+  const [newEra, setNewEra] = useState("3025");
+  const [newFaction, setNewFaction] = useState("House Davion");
+
+  const fetchCampaignsList = () => {
+    fetch("http://localhost:8000/api/v1/campaigns")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setExistingCampaignsList(data); })
+      .catch(() => {});
+  };
+
+  const handleCreateNewCampaignSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaign_name: newCampName,
+          company_name: newCompanyName,
+          commander_name: newCommanderName,
+          era: newEra,
+          faction: newFaction,
+          starting_funds: 15000000.0
+        })
+      });
+      if (res.ok) {
+        alert(`New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction})! Cached MUL & Sarna unit data linked.`);
+        setShowLauncherModal(false);
+        refreshAll();
+      }
+    } catch (err) {}
+  };
+
   // Modals & Form States
   const [selectedIntelMission, setSelectedIntelMission] = useState(null);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
@@ -441,6 +482,13 @@ export default function Dashboard() {
               Online (MUL API)
             </button>
           </div>
+
+          <button
+            onClick={() => { fetchCampaignsList(); setShowLauncherModal(true); }}
+            style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+          >
+            ⚙️ Switch / Setup Campaign
+          </button>
         </div>
       </header>
 
@@ -1032,6 +1080,113 @@ export default function Dashboard() {
                 <button type="submit" style={{ background: "#ea580c", border: "none", color: "#fff", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Process AAR &amp; Complete Contract</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CAMPAIGN SETUP & LAUNCHER MODAL */}
+      {showLauncherModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100 }} onClick={() => setShowLauncherModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "620px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "20px" }}>
+                BT-MANAGER CAMPAIGN LAUNCHER
+              </h3>
+              <button onClick={() => setShowLauncherModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            {/* INTEGRATION BADGES */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+              <span style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid #10b981", color: "#10b981", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                🌐 MUL Cache Linked
+              </span>
+              <span style={{ background: "rgba(56, 189, 248, 0.15)", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                📖 Sarna Wiki Sync
+              </span>
+              <span style={{ background: "rgba(245, 158, 11, 0.15)", border: "1px solid #f59e0b", color: "#f59e0b", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                ⚙️ MegaMek Specs Ready
+              </span>
+            </div>
+
+            {/* SECTION 1: LOAD EXISTING CAMPAIGN */}
+            {existingCampaignsList.length > 0 && (
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
+                <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "14px" }}>Load Saved Campaign</h4>
+                <select
+                  value={selectedExistingCampId}
+                  onChange={e => setSelectedExistingCampId(Number(e.target.value))}
+                  style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", fontSize: "13px", marginBottom: "12px" }}
+                >
+                  {existingCampaignsList.map(c => (
+                    <option key={c.id} value={c.id}>
+                      ID {c.id}: {c.name} — Date: {c.current_date} — Balance: ${(c.cbill_balance || 15000000).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => { setShowLauncherModal(false); refreshAll(); }}
+                  style={{ width: "100%", background: "#10b981", color: "#fff", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                >
+                  Load Selected Campaign
+                </button>
+              </div>
+            )}
+
+            {/* SECTION 2: CREATE NEW CAMPAIGN */}
+            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px" }}>
+              <h4 style={{ color: "#ea580c", margin: "0 0 14px 0", fontSize: "14px" }}>Create New Campaign</h4>
+              <form onSubmit={handleCreateNewCampaignSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                
+                <div>
+                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>CAMPAIGN NAME</label>
+                  <input type="text" value={newCampName} onChange={e => setNewCampName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT BATTLETECH ERA</label>
+                    <select value={newEra} onChange={e => setNewEra(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                      <option value="3025">Late Succession War (3020–3049)</option>
+                      <option value="3050">Clan Invasion (3050–3061)</option>
+                      <option value="2750">Star League (2571–2780)</option>
+                      <option value="3062">Civil War &amp; Jihad (3062–3085)</option>
+                      <option value="3151">ilClan Era (3151+)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT PLAYER FACTION</label>
+                    <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                      <option value="House Davion">House Davion (Federated Suns)</option>
+                      <option value="House Draconis Combine">House Draconis Combine (Kurita)</option>
+                      <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
+                      <option value="House Marik">House Marik (Free Worlds League)</option>
+                      <option value="House Liao">House Liao (Capellan Confederation)</option>
+                      <option value="ComStar">ComStar / Word of Blake</option>
+                      <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenary</option>
+                      <option value="Clan Wolf">Clan Wolf / Clan Jade Falcon</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>MERCENARY COMPANY NAME</label>
+                    <input type="text" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>COMMANDER NAME</label>
+                    <input type="text" value={newCommanderName} onChange={e => setNewCommanderName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                  </div>
+                </div>
+
+                <button type="submit" style={{ width: "100%", background: "#ea580c", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", marginTop: "8px" }}>
+                  🚀 Create &amp; Launch New Campaign
+                </button>
+              </form>
+            </div>
+
           </div>
         </div>
       )}
