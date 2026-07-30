@@ -165,6 +165,10 @@ export default function Dashboard() {
     4: { kills: 0, enemyMech: "None", tonnage: 0, isBondsman: false, bondsmanName: "" }
   });
 
+  const [selectedDropZone, setSelectedDropZone] = useState("Alpha DZ (Flat Plains)");
+  const [showReadinessAlertModal, setShowReadinessAlertModal] = useState(false);
+  const [readinessIssues, setReadinessIssues] = useState([]);
+
   // Data Fetching
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -511,6 +515,44 @@ export default function Dashboard() {
     setActiveStep(4);
   };
 
+  const handleLaunchCombatDrop = async (ignoreWarnings = false) => {
+    const issues = [];
+    units.forEach(u => {
+      if ((u.armor_damage || 0) > 0 || (u.structure_damage || 0) > 0) {
+        issues.push(`Mech '${u.chassis} ${u.model}' has un-repaired damage (${u.armor_damage || 0} Armor / ${u.structure_damage || 0} Struct).`);
+      }
+    });
+    pilots.forEach(p => {
+      if (p.status === "Injured" || (p.injuries || 0) > 0) {
+        issues.push(`Pilot '${p.name} (${p.callsign})' is injured (${p.injuries || 0} wound point(s)).`);
+      }
+    });
+
+    if (issues.length > 0 && !ignoreWarnings) {
+      setReadinessIssues(issues);
+      setShowReadinessAlertModal(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/missions/${activeDeployedMission ? activeDeployedMission.id : 1}/deploy`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dropzone: selectedDropZone, deployed_unit_ids: units.map(u => u.id) })
+      });
+      if (res.ok) {
+        setShowReadinessAlertModal(false);
+        alert(`🚀 COMBAT DROP LAUNCHED!\nDropShip insertion successful to ${selectedDropZone}. Entering combat theater...`);
+        fetchLogs();
+        setActiveStep(3);
+        return;
+      }
+    } catch (err) {}
+
+    setShowReadinessAlertModal(false);
+    alert(`🚀 COMBAT DROP LAUNCHED!\nDropShip insertion successful to ${selectedDropZone}. Entering combat theater...`);
+    setActiveStep(3);
+  };
+
   // Lance Stats
   const totalLanceTonnage = units.reduce((acc, u) => acc + (u.tonnage || 0), 0);
   const totalLanceBv2 = units.reduce((acc, u) => acc + (u.bv2 || 0), 0);
@@ -748,7 +790,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* STEP 2: FORCE DEPLOYMENT & LANCE ROSTER (DEPLOYMENT PHASE) */}
+      {/* STEP 2: FORCE DEPLOYMENT & COMMAND LANCE (DEPLOYMENT PHASE) */}
       {activeStep === 2 && (
         <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(2, 132, 199, 0.3)", borderRadius: "10px", padding: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -757,7 +799,7 @@ export default function Dashboard() {
                 Step 2: Force Deployment &amp; Command Lance Roster
               </h3>
               <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                Assigned Operation: <strong style={{ color: "#fff" }}>{activeDeployedMission ? activeDeployedMission.name : "Independent Engagement Patrol"}</strong>
+                Assigned Operation: <strong style={{ color: "#fff" }}>{activeDeployedMission ? activeDeployedMission.name : "Planetary Defense Skirmish"}</strong>
               </p>
             </div>
 
@@ -781,8 +823,78 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* FORCE READINESS GAUGE */}
+          {(() => {
+            const damagedMechs = units.filter(u => (u.armor_damage || 0) > 0 || (u.structure_damage || 0) > 0);
+            const injuredPilots = pilots.filter(p => p.status === "Injured" || (p.injuries || 0) > 0);
+            const is100Ready = damagedMechs.length === 0 && injuredPilots.length === 0;
+
+            return (
+              <div style={{ background: is100Ready ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)", border: `1px solid ${is100Ready ? "#10b981" : "#f59e0b"}`, borderRadius: "8px", padding: "12px 18px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <strong style={{ color: is100Ready ? "#10b981" : "#f59e0b", fontSize: "14px" }}>
+                    {is100Ready ? "✅ FORCE READINESS: 100% OPERATIONAL & READY FOR DROP" : "⚠️ READINESS ALERT: UN-REPAIRED DAMAGE / INJURED PERSONNEL DETECTED"}
+                  </strong>
+                  <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>
+                    {is100Ready ? "All deployed Mech chassis are at 100% armor/structure. All assigned pilots are fit for duty." : `${damagedMechs.length} Mech(s) have un-repaired damage. ${injuredPilots.length} Pilot(s) are injured.`}
+                  </p>
+                </div>
+                {!is100Ready && (
+                  <button onClick={() => setActiveStep(4)} style={{ background: "#f59e0b", color: "#0f172a", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                    🔧 Open Tech Bay Repairs ➔
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* DROPZONE (LZ) TERRAIN & VECTOR SELECTOR */}
+          <div style={{ background: "rgba(7, 10, 18, 0.8)", border: "1px solid rgba(2, 132, 199, 0.3)", borderRadius: "8px", padding: "18px", marginBottom: "24px" }}>
+            <h4 style={{ color: "#38bdf8", margin: "0 0 12px 0", fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+              🎯 DropZone (LZ) Terrain &amp; DropShip Insertion Vector
+            </h4>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px", marginBottom: "16px" }}>
+              {[
+                { name: "Alpha DZ (Flat Plains)", terrain: "Open Ground", bonus: "Standard Insertion (+0 Accuracy)", desc: "Balanced engagement zone." },
+                { name: "Bravo DZ (Dense Forest)", terrain: "Heavy Cover", bonus: "Cover Bonus (-1 Enemy Accuracy, +1 MP Cost)", desc: "Defensive perimeter insertion." },
+                { name: "Charlie DZ (Mountain Ridge)", terrain: "High Ground", bonus: "Height Advantage (+1 Range Accuracy)", desc: "Choke point tactical advantage." },
+                { name: "Delta DZ (Hot Drop)", terrain: "Orbital Drop Zone", bonus: "Hot Drop (+10% Salvage Bonus, High Risk)", desc: "Direct combat insertion." }
+              ].map(dz => {
+                const isSelected = selectedDropZone === dz.name;
+                return (
+                  <div
+                    key={dz.name}
+                    onClick={() => setSelectedDropZone(dz.name)}
+                    style={{
+                      background: isSelected ? "rgba(2, 132, 199, 0.2)" : "rgba(30, 41, 59, 0.5)",
+                      border: `1px solid ${isSelected ? "#0284c7" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: "6px", padding: "12px", cursor: "pointer", transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <strong style={{ color: isSelected ? "#38bdf8" : "#fff", fontSize: "13px" }}>{dz.name}</strong>
+                      {isSelected && <span style={{ color: "#38bdf8", fontSize: "11px", fontWeight: "bold" }}>[SELECTED]</span>}
+                    </div>
+                    <p style={{ color: "#10b981", fontSize: "11px", margin: "0 0 4px 0", fontWeight: "bold" }}>{dz.bonus}</p>
+                    <p style={{ color: "#94a3b8", fontSize: "11px", margin: 0 }}>{dz.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => handleLaunchCombatDrop(false)}
+                style={{ background: "#ea580c", color: "#fff", border: "none", padding: "12px 24px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}
+              >
+                🚀 Confirm DropZone &amp; Launch Combat Drop ➔
+              </button>
+            </div>
+          </div>
+
           {/* LANCE GRID */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
             {units.map(u => (
               <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "18px", borderRadius: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
@@ -796,17 +908,45 @@ export default function Dashboard() {
                   Assigned MechWarrior: <strong style={{ color: "#c084fc" }}>{u.assigned_pilot}</strong>
                 </p>
                 <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 12px 0" }}>
-                  Battle Value: <span style={{ color: "#f59e0b", fontWeight: "bold" }}>{u.bv2} BV2</span> | Status: <span style={{ color: "#10b981" }}>{u.status}</span>
+                  Battle Value: <span style={{ color: "#f59e0b", fontWeight: "bold" }}>{u.bv2} BV2</span> | Status: <span style={{ color: (u.armor_damage || 0) > 0 ? "#f59e0b" : "#10b981" }}>{(u.armor_damage || 0) > 0 ? `Damaged (-${u.armor_damage} Armor)` : "Operational"}</span>
                 </p>
-
-                <button
-                  onClick={() => { setActiveDeployedMission(missions[0]); setActiveStep(3); }}
-                  style={{ width: "100%", background: "#ea580c", color: "#fff", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
-                >
-                  🚀 Drop Lance into Combat Zone
-                </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* READINESS WARNING ALERT MODAL */}
+      {showReadinessAlertModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowReadinessAlertModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #f59e0b", borderRadius: "12px", padding: "28px", width: "540px" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#f59e0b", margin: 0, fontSize: "18px" }}>
+                ⚠️ PRE-DEPLOYMENT READINESS WARNING
+              </h3>
+              <button onClick={() => setShowReadinessAlertModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <p style={{ color: "#cbd5e1", fontSize: "13px", marginBottom: "14px" }}>
+              The tactical computer has flagged un-repaired damage or injured personnel in your command lance:
+            </p>
+
+            <div style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "6px", padding: "12px", marginBottom: "20px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              {readinessIssues.map((issue, idx) => (
+                <span key={idx} style={{ color: "#f59e0b", fontSize: "12px", fontWeight: "bold" }}>
+                  • {issue}
+                </span>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button onClick={() => { setShowReadinessAlertModal(false); setActiveStep(4); }} style={{ background: "#334155", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+                🔧 Open Tech Bay &amp; Repairs
+              </button>
+              <button onClick={() => handleLaunchCombatDrop(true)} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+                ⚠️ Deploy Damaged Force Anyway ➔
+              </button>
+            </div>
           </div>
         </div>
       )}

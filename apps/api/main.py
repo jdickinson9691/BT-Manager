@@ -50,6 +50,10 @@ class CampaignCreateRequest(BaseModel):
     faction: str = "House Davion"
     starting_funds: float = 15000000.0
 
+class DeployForceRequest(BaseModel):
+    dropzone: str = "Alpha DZ (Flat Plains)"
+    deployed_unit_ids: Optional[List[int]] = []
+
 class NetworkConfigRequest(BaseModel):
     mul_online: bool = True
     sarna_online: bool = True
@@ -482,21 +486,37 @@ def market_buy_supplies(purchase: MarketPurchaseSuppliesRequest, db: Session = D
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/v1/missions/{mission_id}/accept")
-def accept_mission_contract(mission_id: int, db: Session = Depends(get_db)):
+def accept_mission(mission_id: int, db: Session = Depends(get_db)):
     mission = db.query(Mission).filter(Mission.id == mission_id).first()
     if not mission:
         raise HTTPException(status_code=404, detail="Mission not found")
     mission.status = "Active"
-    campaign = db.query(Campaign).filter(Campaign.id == mission.campaign_id).first()
+    campaign = db.query(Campaign).first()
     if campaign:
         db.add(CampaignLog(
             campaign_id=campaign.id,
             log_date=campaign.current_date,
-            event_type="Contract Deployed",
-            description=f"Contract Signed: '{mission.name}' ({mission.employer}). Deployed to theater."
+            event_type="Contract Signing",
+            description=f"Formally signed contract for Operation '{mission.name}' with {mission.employer}."
         ))
     db.commit()
-    return {"message": f"Successfully signed contract '{mission.name}'!", "mission": mission}
+    return {"message": f"Contract for '{mission.name}' accepted!", "mission": mission}
+
+@app.post("/api/v1/missions/{mission_id}/deploy")
+def deploy_force_to_combat(mission_id: int, req: DeployForceRequest, db: Session = Depends(get_db)):
+    mission = db.query(Mission).filter(Mission.id == mission_id).first()
+    campaign = db.query(Campaign).first()
+    if mission:
+        mission.status = "In Combat"
+    if campaign:
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Force Deployment",
+            description=f"Command Lance deployed to {req.dropzone} for Operation '{mission.name if mission else 'Combat Drop'}'. DropShip insertion vector established."
+        ))
+    db.commit()
+    return {"message": "Command Lance deployed to combat theater!", "status": "In Combat", "dropzone": req.dropzone}
 
 @app.post("/api/v1/starmap/jump")
 def starmap_jump_transit(req: JumpRequest, db: Session = Depends(get_db)):

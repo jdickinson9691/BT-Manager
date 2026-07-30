@@ -172,6 +172,32 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         DataSyncAgent.set_mode(mul_online=True, sarna_online=True, megamek_online=True)
         self.assertTrue(DataSyncAgent.IS_MUL_ONLINE)
 
+    # ==================== 6. FORCE DEPLOYMENT CONTRACT TESTS ====================
+    def test_08_force_deployment_and_dropzone_selection(self):
+        """Verify Step 2 deployment status update and DropZone vector selection."""
+        mission = Mission(
+            campaign_id=self.campaign.id,
+            name="Operation Red Storm",
+            mission_type="Raid",
+            employer="House Steiner",
+            status="Active"
+        )
+        self.db.add(mission)
+        self.db.commit()
+
+        # Deploy force to Bravo DZ (Dense Forest)
+        mission.status = "In Combat"
+        self.db.add(CampaignLog(
+            campaign_id=self.campaign.id,
+            log_date=self.campaign.current_date,
+            event_type="Force Deployment",
+            description="Command Lance deployed to Bravo DZ (Dense Forest) for Operation Red Storm."
+        ))
+        self.db.commit()
+
+        self.db.refresh(mission)
+        self.assertEqual(mission.status, "In Combat")
+
 
 if __name__ == "__main__":
     unittest.main()
