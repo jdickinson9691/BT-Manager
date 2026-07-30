@@ -172,6 +172,8 @@ export default function Dashboard() {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpActiveTab, setHelpActiveTab] = useState("tutorial");
 
+  const [aarUnitDamage, setAarUnitDamage] = useState({});
+
   // Data Fetching
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -479,7 +481,16 @@ export default function Dashboard() {
       };
     });
 
-    const unit_logs = units.map(u => ({ unit_id: u.id, armor_loss: 10, structure_loss: 0 }));
+    const unit_logs = units.map(u => {
+      const uDam = aarUnitDamage[u.id] || { armor_loss: 0, structure_loss: 0, destroyed_crit: "None" };
+      const crits = uDam.destroyed_crit && uDam.destroyed_crit !== "None" ? [{ location: "CT", component_name: uDam.destroyed_crit }] : [];
+      return {
+        unit_id: u.id,
+        armor_loss: Number(uDam.armor_loss || 0),
+        structure_loss: Number(uDam.structure_loss || 0),
+        critical_hits: crits
+      };
+    });
 
     try {
       const res = await fetch("http://localhost:8000/api/v1/aar/submit", {
@@ -1595,6 +1606,76 @@ export default function Dashboard() {
                                 style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: kData.isBondsman ? "#fff" : "#475569", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }}
                               />
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* AUTOMATED MECH COMBAT DAMAGE TRANSFER SECTION */}
+              <div>
+                <h4 style={{ color: "#10b981", margin: "14px 0 10px 0", fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  🔧 Mech Combat Damage &amp; Critical Hits (Transfer to Tech Bay)
+                </h4>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {units.map(u => {
+                    const uDam = aarUnitDamage[u.id] || { armor_loss: 0, structure_loss: 0, destroyed_crit: "None" };
+                    return (
+                      <div key={u.id} style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", borderRadius: "8px", padding: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                          <strong style={{ color: "#fff", fontSize: "13px" }}>{u.chassis} {u.model} ({u.tonnage}T)</strong>
+                          <span style={{ color: uDam.armor_loss > 0 ? "#f43f5e" : "#10b981", fontSize: "11px", fontWeight: "bold" }}>
+                            {uDam.armor_loss > 0 ? `-${uDam.armor_loss} Armor / -${uDam.structure_loss} Struct` : "No Damage"}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.5fr", gap: "10px" }}>
+                          <div>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>ARMOR DAMAGE SUSTAINED</label>
+                            <input
+                              type="number" min="0" max="100"
+                              value={uDam.armor_loss || 0}
+                              onChange={e => {
+                                const val = Number(e.target.value);
+                                setAarUnitDamage(prev => ({ ...prev, [u.id]: { ...prev[u.id], armor_loss: val } }));
+                              }}
+                              style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>STRUCTURE LOSS</label>
+                            <input
+                              type="number" min="0" max="50"
+                              value={uDam.structure_loss || 0}
+                              onChange={e => {
+                                const val = Number(e.target.value);
+                                setAarUnitDamage(prev => ({ ...prev, [u.id]: { ...prev[u.id], structure_loss: val } }));
+                              }}
+                              style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: "10px", color: "#94a3b8" }}>CRITICAL HIT COMPONENT</label>
+                            <select
+                              value={uDam.destroyed_crit || "None"}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setAarUnitDamage(prev => ({ ...prev, [u.id]: { ...prev[u.id], destroyed_crit: val } }));
+                              }}
+                              style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
+                            >
+                              <option value="None">None (No Critical Damage)</option>
+                              <option value="PPC">PPC (Center Torso)</option>
+                              <option value="AC/20">AC/20 Autocannon (Right Torso)</option>
+                              <option value="Engine Core">Engine Core (Center Torso)</option>
+                              <option value="Gyro">Gyroscope (Center Torso)</option>
+                              <option value="Left Arm Actuator">Left Arm Actuator</option>
+                            </select>
                           </div>
                         </div>
                       </div>

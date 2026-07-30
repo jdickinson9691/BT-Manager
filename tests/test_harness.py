@@ -198,6 +198,34 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.db.refresh(mission)
         self.assertEqual(mission.status, "In Combat")
 
+    # ==================== 7. AAR DAMAGE TRANSFER CONTRACT TESTS ====================
+    def test_09_aar_damage_transfer_to_tech_bay(self):
+        """Verify combat AAR armor/structure damage and critical hits transfer to Tech Bay."""
+        unit = Unit(campaign_id=self.campaign.id, chassis="Centurion", model="CN9-A", tonnage=50, bv2=945, armor_damage=0, structure_damage=0)
+        self.db.add(unit)
+        self.db.commit()
+
+        unit_logs = [{
+            "unit_id": unit.id,
+            "armor_loss": 25,
+            "structure_loss": 8,
+            "critical_hits": [{"location": "CT", "component_name": "PPC"}]
+        }]
+
+        OperationsAgent.process_aar(
+            db=self.db,
+            unit_logs=unit_logs,
+            pilot_logs=[]
+        )
+
+        self.db.refresh(unit)
+        self.assertEqual(unit.armor_damage, 25)
+        self.assertEqual(unit.structure_damage, 8)
+
+        crit = self.db.query(CriticalHit).filter(CriticalHit.unit_id == unit.id).first()
+        self.assertIsNotNone(crit)
+        self.assertEqual(crit.component_name, "PPC")
+
 
 if __name__ == "__main__":
     unittest.main()
