@@ -241,8 +241,12 @@ class CoreAgent:
 
     @classmethod
     def get_ledger_summary(cls, db: Session) -> Dict[str, Any]:
-        """Calculates current financial ledger totals."""
+        """Calculates current financial ledger totals including debt and interest."""
         campaign = cls.get_campaign(db)
+        loan_bal = getattr(campaign, 'loan_balance', 0.0) or 0.0
+        loan_rate = getattr(campaign, 'loan_interest_rate', 0.05) or 0.05
+        monthly_interest = loan_bal * loan_rate
+
         return {
             "campaign_name": campaign.name,
             "WP": campaign.wp_balance,
@@ -251,5 +255,57 @@ class CoreAgent:
             "current_date": campaign.current_date,
             "daily_overhead": campaign.daily_overhead,
             "mrb_rating": campaign.mrb_rating,
-            "reputation_score": campaign.reputation_score
+            "reputation_score": campaign.reputation_score,
+            "loan_balance": loan_bal,
+            "loan_interest_rate": loan_rate,
+            "monthly_interest_due": monthly_interest
+        }
+
+    @classmethod
+    def take_loan(cls, db: Session, principal: float = 1000000.0, interest_rate: float = 0.05) -> Dict[str, Any]:
+        """Takes out a financial credit loan from ComStar / MRB Bank."""
+        campaign = cls.get_campaign(db)
+        campaign.cbill_balance += principal
+        campaign.loan_balance = (campaign.loan_balance or 0.0) + principal
+        campaign.loan_interest_rate = interest_rate
+
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Loan Financed",
+            description=f"Secured ${principal:,.2f} C-Bills loan from ComStar / MRB Bank at {interest_rate*100:.1f}% monthly interest."
+        ))
+        db.commit()
+
+        return {
+            "message": f"Successfully secured ${principal:,.2f} C-Bills credit line!",
+            "cbill_balance": campaign.cbill_balance,
+            "loan_balance": campaign.loan_balance,
+            "loan_interest_rate": campaign.loan_interest_rate
+        }
+
+    @classmethod
+    def repay_loan(cls, db: Session, repayment_amount: float = 500000.0) -> Dict[str, Any]:
+        """Repays active debt balance to ComStar / MRB Bank."""
+        campaign = cls.get_campaign(db)
+        current_debt = campaign.loan_balance or 0.0
+        if current_debt <= 0:
+            raise ValueError("Campaign has no outstanding debt to repay")
+
+        actual_repay = min(repayment_amount, current_debt)
+        campaign.cbill_balance -= actual_repay
+        campaign.loan_balance -= actual_repay
+
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Loan Repayment",
+            description=f"Repaid ${actual_repay:,.2f} C-Bills to ComStar / MRB Bank. Remaining Debt: ${campaign.loan_balance:,.2f}."
+        ))
+        db.commit()
+
+        return {
+            "message": f"Successfully repaid ${actual_repay:,.2f} C-Bills to ComStar / MRB Bank!",
+            "cbill_balance": campaign.cbill_balance,
+            "remaining_loan_balance": campaign.loan_balance
         }

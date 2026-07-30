@@ -14,6 +14,8 @@ class Campaign(Base):
     daily_overhead = Column(Float, default=5000.0)
     mrb_rating = Column(String, default="C")
     reputation_score = Column(Integer, default=50)
+    loan_balance = Column(Float, default=0.0)
+    loan_interest_rate = Column(Float, default=0.05)
 
     units = relationship("Unit", back_populates="campaign")
     missions = relationship("Mission", back_populates="campaign")

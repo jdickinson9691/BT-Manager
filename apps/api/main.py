@@ -116,6 +116,13 @@ class IntegrateBondsmanRequest(BaseModel):
     bondsman_name: str = "MechWarrior Marcus Trent"
     callsign: str = "Bondsman"
 
+class TakeLoanRequest(BaseModel):
+    principal: float = 1000000.0
+    interest_rate: float = 0.05
+
+class RepayLoanRequest(BaseModel):
+    repayment_amount: float = 500000.0
+
 class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
@@ -427,6 +434,20 @@ def ransom_bondsman_endpoint(req: RansomBondsmanRequest, db: Session = Depends(g
 def integrate_bondsman_endpoint(req: IntegrateBondsmanRequest, db: Session = Depends(get_db)):
     try:
         return PersonnelAgent.integrate_bondsman(db, req.pilot_id, req.bondsman_name, req.callsign)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/ledger/loan/take")
+def take_loan_endpoint(req: TakeLoanRequest, db: Session = Depends(get_db)):
+    try:
+        return CoreAgent.take_loan(db, req.principal, req.interest_rate)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/ledger/loan/repay")
+def repay_loan_endpoint(req: RepayLoanRequest, db: Session = Depends(get_db)):
+    try:
+        return CoreAgent.repay_loan(db, req.repayment_amount)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -270,6 +270,28 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertIsNotNone(new_pilot)
         self.assertEqual(new_pilot.status, "Active")
 
+    # ==================== 10. COMSTAR BANK LOAN FINANCING CONTRACT TESTS ====================
+    def test_12_comstar_bank_loan_financing(self):
+        """Verify taking out a credit line loan increases treasury balance and tracking debt balance."""
+        initial_cbills = self.campaign.cbill_balance
+
+        # Take $1,000,000 loan at 5% interest
+        res_take = CoreAgent.take_loan(self.db, principal=1000000.0, interest_rate=0.05)
+        self.db.refresh(self.campaign)
+        self.assertEqual(self.campaign.cbill_balance, initial_cbills + 1000000.0)
+        self.assertEqual(self.campaign.loan_balance, 1000000.0)
+        self.assertEqual(self.campaign.loan_interest_rate, 0.05)
+
+        # Verify ledger summary includes loan metrics
+        summary = CoreAgent.get_ledger_summary(self.db)
+        self.assertEqual(summary["loan_balance"], 1000000.0)
+        self.assertEqual(summary["monthly_interest_due"], 50000.0)
+
+        # Repay $500,000 principal debt
+        res_repay = CoreAgent.repay_loan(self.db, repayment_amount=500000.0)
+        self.db.refresh(self.campaign)
+        self.assertEqual(self.campaign.loan_balance, 500000.0)
+
 
 if __name__ == "__main__":
     unittest.main()

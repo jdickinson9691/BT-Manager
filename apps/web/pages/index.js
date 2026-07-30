@@ -1362,6 +1362,69 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+
+          {/* COMSTAR / MRB BANK LOAN & FINANCING SUITE */}
+          <div style={{ background: "rgba(15, 20, 30, 0.9)", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", padding: "20px", marginTop: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <h4 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>
+                🏦 ComStar &amp; MRB Financial Credit &amp; Debt Financing Suite
+              </h4>
+              <span style={{ background: (balance.loan_balance || 0) > 0 ? "rgba(244, 63, 94, 0.2)" : "rgba(16, 185, 129, 0.2)", color: (balance.loan_balance || 0) > 0 ? "#f43f5e" : "#10b981", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                {(balance.loan_balance || 0) > 0 ? `Outstanding Debt: $${Number(balance.loan_balance || 0).toLocaleString()} C-Bills` : "Debt Free (Clean Credit)"}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(56, 189, 248, 0.2)", padding: "14px", borderRadius: "8px" }}>
+                <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Emergency Credit Line</h5>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>$1,000,000 C-Bills (5% Mo. Interest)</p>
+                <button
+                  onClick={() => {
+                    fetch("http://localhost:8000/api/v1/ledger/loan/take", {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ principal: 1000000.0, interest_rate: 0.05 })
+                    }).then(r => r.json()).then(d => { alert(d.message || "Financed!"); refreshAll(); });
+                  }}
+                  style={{ width: "100%", background: "#0284c7", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
+                >
+                  🚀 Finance $1M Credit Line
+                </button>
+              </div>
+
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(147, 51, 234, 0.2)", padding: "14px", borderRadius: "8px" }}>
+                <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Expansion Capital Loan</h5>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>$5,000,000 C-Bills (7.5% Mo. Interest)</p>
+                <button
+                  onClick={() => {
+                    fetch("http://localhost:8000/api/v1/ledger/loan/take", {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ principal: 5000000.0, interest_rate: 0.075 })
+                    }).then(r => r.json()).then(d => { alert(d.message || "Financed!"); refreshAll(); });
+                  }}
+                  style={{ width: "100%", background: "#9333ea", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
+                >
+                  🚀 Finance $5M Capital Loan
+                </button>
+              </div>
+
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(234, 88, 12, 0.2)", padding: "14px", borderRadius: "8px" }}>
+                <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Debt Repayment Facility</h5>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>Pay Down $500k Principal Debt</p>
+                <button
+                  onClick={() => {
+                    fetch("http://localhost:8000/api/v1/ledger/loan/repay", {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ repayment_amount: 500000.0 })
+                    }).then(r => r.json()).then(d => { alert(d.message || "Repaid!"); refreshAll(); });
+                  }}
+                  disabled={(balance.loan_balance || 0) <= 0}
+                  style={{ width: "100%", background: (balance.loan_balance || 0) > 0 ? "#10b981" : "#475569", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: (balance.loan_balance || 0) > 0 ? "pointer" : "not-allowed" }}
+                >
+                  💰 Repay $500k Debt Principal
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
