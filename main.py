@@ -71,16 +71,63 @@ def get_existing_campaigns():
     conn.close()
     return rows
 
+# ==================== STEP 1: CAMPAIGN LAUNCHER & SETUP DIALOG ====================
+ACTIVE_CAMP_ID = None
+
+setup_app = ctk.CTk()
+setup_app.geometry("600x650")
+setup_app.title("BT-Manager - Campaign Setup & Launcher")
+ctk.set_appearance_mode("Dark")
+
+ctk.CTkLabel(setup_app, text="BT-MANAGER CAMPAIGN LAUNCHER", font=("Arial", 16, "bold"), text_color="#F97316").pack(pady=15)
+form_frame = ctk.CTkScrollableFrame(setup_app, fg_color="#18181B", width=540, height=520)
+form_frame.pack(padx=20, pady=10, fill="both", expand=True)
+
 existing = get_existing_campaigns()
-if not existing:
+if existing:
+    ctk.CTkLabel(form_frame, text="Select Existing Campaign:", font=("Arial", 12, "bold"), text_color="#38BDF8").pack(anchor="w", padx=15, pady=(10, 2))
+    camp_opts = [f"ID {r[0]}: {r[1]} ({r[2] or 'Independent'})" for r in existing]
+    camp_var = ctk.StringVar(value=camp_opts[0])
+    ctk.CTkOptionMenu(form_frame, values=camp_opts, variable=camp_var, width=480).pack(padx=15, pady=5)
+    
+    def load_existing():
+        global ACTIVE_CAMP_ID
+        ACTIVE_CAMP_ID = int(camp_var.get().split(":")[0].replace("ID ", ""))
+        with open("active_campaign.txt", "w") as f: f.write(str(ACTIVE_CAMP_ID))
+        setup_app.quit(); setup_app.destroy()
+        
+    ctk.CTkButton(form_frame, text="Load Campaign", command=load_existing, fg_color="#10B981", font=("Arial", 12, "bold"), height=36).pack(pady=10)
+    ctk.CTkLabel(form_frame, text="--- OR START NEW CAMPAIGN ---", font=("Arial", 10, "bold"), text_color="#71717A").pack(pady=10)
+
+ctk.CTkLabel(form_frame, text="Campaign Name:", font=("Arial", 11, "bold")).pack(anchor="w", padx=15, pady=(5, 2))
+ent_cname = ctk.CTkEntry(form_frame, width=480)
+ent_cname.insert(0, "Succession Wars 3025")
+ent_cname.pack(padx=15, pady=2)
+
+ctk.CTkLabel(form_frame, text="Select Era:", font=("Arial", 11, "bold")).pack(anchor="w", padx=15, pady=(5, 2))
+era_var = ctk.StringVar(value=BATTLETECH_ERAS[0])
+ctk.CTkOptionMenu(form_frame, values=BATTLETECH_ERAS, variable=era_var, width=480).pack(padx=15, pady=2)
+
+ctk.CTkLabel(form_frame, text="Company Name:", font=("Arial", 11, "bold")).pack(anchor="w", padx=15, pady=(5, 2))
+ent_coname = ctk.CTkEntry(form_frame, width=480)
+ent_coname.insert(0, "Wolf's Irregulars")
+ent_coname.pack(padx=15, pady=2)
+
+def create_new_campaign():
+    global ACTIVE_CAMP_ID
+    cname = ent_cname.get()
+    era = era_var.get()
+    coname = ent_coname.get()
+    
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("INSERT INTO campaign (campaign_name, start_date, current_date, treasury, current_system, era) VALUES (?, ?, ?, ?, ?, ?)", ("Succession Wars 3025", "3025-01-01", "3025-01-15", 15000000, "Outreach", BATTLETECH_ERAS[0]))
-    camp_id = cur.lastrowid
-    cur.execute("INSERT INTO company (campaign_id, company_name, commander_name, mrb_rating) VALUES (?, ?, ?, ?)", (camp_id, "Wolf's Irregulars", "Major Jaime Wolf", "B"))
+    cur.execute("INSERT INTO campaign (campaign_name, start_date, current_date, treasury, current_system, era) VALUES (?, ?, ?, ?, ?, ?)", (cname, "3025-01-01", "3025-01-15", 15000000, "Outreach", era))
+    ACTIVE_CAMP_ID = cur.lastrowid
+    cur.execute("INSERT INTO company (campaign_id, company_name, commander_name, mrb_rating) VALUES (?, ?, ?, ?)", (ACTIVE_CAMP_ID, coname, "Major Jaime Wolf", "B"))
     co_id = cur.lastrowid
 
-    for sname, sdata in DEFAULT_SYSTEM_MAP.items():
+    sys_map = get_era_systems(era)
+    for sname, sdata in sys_map.items():
         cur.execute("INSERT INTO systems (system_name, faction, jump_cost, x_coord, y_coord) VALUES (?, ?, ?, ?, ?)", (sname, sdata[0], sdata[3], sdata[1], sdata[2]))
 
     cur.executemany("INSERT INTO roster (company_id, mech_name, tonnage, status, armor_status, repair_cost) VALUES (?, ?, ?, ?, ?, ?)", [
@@ -90,6 +137,10 @@ if not existing:
     cur.executemany("INSERT INTO personnel (company_id, pilot_name, rank, gunnery, piloting, status, salary, xp, spa, kills, bondsmen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         (co_id, "Lt. Natasha Kerensky", "Lieutenant", 2, 3, "Fit for Duty", 75000, 45, "None", 2, 0)
     ])
+    cur.executemany("INSERT INTO inventory (company_id, part_name, category, stock, cost) VALUES (?, ?, ?, ?, ?)", [
+        (co_id, "AC/20 Autocannon", "Weaponry", 2, 500000),
+        (co_id, "Heat Sink", "Internal", 6, 20000)
+    ])
     cur.executemany("INSERT INTO contracts (company_id, employer, mission_type, difficulty, payout, salvage_rights, is_active, enemy_faction, intel_summary) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)", [
         (co_id, "House Davion", "Garrison", "Medium", 3500000, "Shared (50%)", "Draconis Combine", "Standard garrison defense contract on Outreach."),
         (co_id, "Draconis Combine Mustered Soldier", "Objective Raid", "Hard", 4200000, "Full Salvage", "Federated Suns", "High-priority raiding contract."),
@@ -98,8 +149,22 @@ if not existing:
     conn.commit()
     conn.close()
 
-ACTIVE_CAMP_ID = 1
+    with open("active_campaign.txt", "w") as f: f.write(str(ACTIVE_CAMP_ID))
+    setup_app.quit(); setup_app.destroy()
 
+ctk.CTkButton(form_frame, text="Create & Launch New Campaign", command=create_new_campaign, fg_color="#F97316", font=("Arial", 12, "bold"), height=40).pack(pady=20)
+setup_app.mainloop()
+
+# Ensure we have a valid active campaign ID
+if not ACTIVE_CAMP_ID:
+    if os.path.exists("active_campaign.txt"):
+        try:
+            with open("active_campaign.txt", "r") as f: ACTIVE_CAMP_ID = int(f.read().strip())
+        except: ACTIVE_CAMP_ID = 1
+    else:
+        ACTIVE_CAMP_ID = 1
+
+# ==================== STEP 2: MAIN COMMAND DECK WINDOW ====================
 app = ctk.CTk()
 app.geometry("1400x900")
 app.title("BT-Manager - Full Native Command Deck")
@@ -110,15 +175,19 @@ def fetch_campaign():
     cur = conn.cursor()
     cur.execute("SELECT current_date, current_system, treasury, campaign_name, era FROM campaign WHERE id = ?", (ACTIVE_CAMP_ID,))
     camp = cur.fetchone()
+    if not camp:
+        camp = ("3025-01-15", "Outreach", 15000000, "Succession Wars 3025", BATTLETECH_ERAS[0])
     cur.execute("SELECT id, company_name FROM company WHERE campaign_id = ?", (ACTIVE_CAMP_ID,))
     comp = cur.fetchone()
+    if not comp:
+        comp = (1, "Wolf's Irregulars")
     conn.close()
     return camp, comp
 
 camp_data, comp_data = fetch_campaign()
-CO_ID = comp_data[0] if comp_data else 1
+CO_ID = comp_data[0]
 
-# HEADER BAR (Matching Screenshot 2)
+# TOP HEADER BAR MATCHING SCREENSHOT 2 EXACTLY
 header = ctk.CTkFrame(app, fg_color="#0F141E", border_width=1, border_color="#334155")
 header.pack(fill="x", padx=15, pady=10)
 
@@ -131,10 +200,20 @@ lbl_date.pack(side="left", padx=15, pady=10)
 lbl_system = ctk.CTkLabel(header, text=f"SYSTEM: {camp_data[1]} [ONLINE - MUL CONNECTED]", font=("Arial", 11, "bold"), text_color="#38BDF8")
 lbl_system.pack(side="left", padx=15, pady=10)
 
+# Online/Offline Pill Toggle Button in Header
+mode_frame = ctk.CTkFrame(header, fg_color="#1E293B", corner_radius=6)
+mode_frame.pack(side="right", padx=15, pady=8)
+
+btn_offline = ctk.CTkButton(mode_frame, text="Offline", font=("Arial", 10), fg_color="transparent", text_color="#CBD5E1", width=55, height=26, corner_radius=4)
+btn_offline.pack(side="left", padx=2, pady=2)
+
+btn_online = ctk.CTkButton(mode_frame, text="Online (MUL API)", font=("Arial", 10, "bold"), fg_color="#0284C7", text_color="#FFFFFF", width=105, height=26, corner_radius=4)
+btn_online.pack(side="right", padx=2, pady=2)
+
 lbl_treasury = ctk.CTkLabel(header, text=f"C-BILLS: ${camp_data[2]:,}", font=("Arial", 13, "bold"), text_color="#10B981")
 lbl_treasury.pack(side="right", padx=15, pady=10)
 
-# TAB VIEW
+# TABS VIEW
 tabview = ctk.CTkTabview(app, fg_color="#0C0D12")
 tabview.pack(fill="both", expand=True, padx=15, pady=5)
 
@@ -143,10 +222,10 @@ tab_maint = tabview.add("Maintenance & Engineering")
 tab_inv = tabview.add("Storage & Parts Inventory")
 tab_pers = tabview.add("Personnel & MedBay")
 
-# ==================== TAB 1: OPERATIONS & CONTRACTS ====================
+# ==================== OPERATIONS & CONTRACTS DECK ====================
 ctk.CTkLabel(tab_ops, text="Command & Operations Deck", font=("Arial", 16, "bold"), text_color="#F8FAFC").pack(anchor="w", padx=15, pady=(5, 10))
 
-# TOP SECTION: ACTIVE DEPLOYED OPERATION CARD
+# TOP DEPLOYED OPERATION BANNER
 active_op_frame = ctk.CTkFrame(tab_ops, fg_color="#070A12", border_width=1, border_color="#38BDF8")
 active_op_frame.pack(fill="x", padx=15, pady=5)
 
@@ -183,12 +262,12 @@ def refresh_active_operation():
 
 refresh_active_operation()
 
-# MAIN CONTENT GRID
+# MAIN CONTENT GRID MATCHING SCREENSHOT 2
 ops_grid = ctk.CTkFrame(tab_ops, fg_color="transparent")
 ops_grid.pack(fill="both", expand=True, padx=15, pady=10)
 
 # LEFT COLUMN: CONTROL BUTTONS
-left_col = ctk.CTkFrame(ops_grid, fg_color="transparent", width=450)
+left_col = ctk.CTkFrame(ops_grid, fg_color="transparent")
 left_col.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
 btn_row1 = ctk.CTkFrame(left_col, fg_color="transparent")
@@ -203,7 +282,7 @@ def advance_one_day():
     refresh_header()
     messagebox.showinfo("Logistics Update", "Advanced 1 Day. Daily overhead of $5,000 C-Bills processed.")
 
-btn_day = ctk.CTkButton(btn_row1, text="+1 Day (Process Logistics)", command=advance_one_day, fg_color="#10B981", font=("Arial", 12, "bold"), height=40)
+btn_day = ctk.CTkButton(btn_row1, text="+1 Day (Process Logistics)", command=advance_one_day, fg_color="#10B981", font=("Arial", 12, "bold"), height=42)
 btn_day.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
 def process_payroll():
@@ -215,7 +294,7 @@ def process_payroll():
     refresh_header()
     messagebox.showinfo("Payroll Settlement", "Processed Monthly Payroll. $150,000 C-Bills deducted for pilot salaries and technical upkeep.")
 
-btn_payroll = ctk.CTkButton(btn_row1, text="Process Monthly Payroll", command=process_payroll, fg_color="#EA580C", font=("Arial", 12, "bold"), height=40)
+btn_payroll = ctk.CTkButton(btn_row1, text="Process Monthly Payroll", command=process_payroll, fg_color="#EA580C", font=("Arial", 12, "bold"), height=42)
 btn_payroll.pack(side="right", fill="x", expand=True, padx=(5, 0))
 
 btn_row2 = ctk.CTkFrame(left_col, fg_color="transparent")
@@ -232,7 +311,7 @@ def add_faction_unit_dialog():
         conn.close()
         messagebox.showinfo("Unit Added", f"Unit '{val}' added to company roster!")
 
-btn_unit = ctk.CTkButton(btn_row2, text="+ Add Faction Unit", command=add_faction_unit_dialog, fg_color="#0284C7", font=("Arial", 12, "bold"), height=40)
+btn_unit = ctk.CTkButton(btn_row2, text="+ Add Faction Unit", command=add_faction_unit_dialog, fg_color="#0284C7", font=("Arial", 12, "bold"), height=42)
 btn_unit.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
 def build_custom_contract_dialog():
@@ -247,7 +326,7 @@ def build_custom_contract_dialog():
         refresh_mrb_board()
         messagebox.showinfo("Contract Created", f"Custom Contract '{val}' posted to MRB Board!")
 
-btn_contract = ctk.CTkButton(btn_row2, text="+ Build Custom Contract", command=build_custom_contract_dialog, fg_color="#9333EA", font=("Arial", 12, "bold"), height=40)
+btn_contract = ctk.CTkButton(btn_row2, text="+ Build Custom Contract", command=build_custom_contract_dialog, fg_color="#9333EA", font=("Arial", 12, "bold"), height=42)
 btn_contract.pack(side="right", fill="x", expand=True, padx=(5, 0))
 
 # RIGHT COLUMN: MRB BOARD & GALACTIC JUMPNET
@@ -293,7 +372,7 @@ def refresh_mrb_board():
 
 refresh_mrb_board()
 
-# GALACTIC JUMPNET CARD FROM SCREENSHOT
+# GALACTIC JUMPNET CARD FROM SCREENSHOT 2
 jump_card = ctk.CTkFrame(right_col, fg_color="#070A12", border_width=1, border_color="#38BDF8")
 jump_card.pack(fill="x", pady=5)
 
