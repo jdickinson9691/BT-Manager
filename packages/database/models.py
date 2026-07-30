@@ -105,6 +105,7 @@ class Pilot(Base):
     xp = Column(Integer, default=50)
     spa = Column(String, default="None")
     kills = Column(Integer, default=0)
+    bondsmen = Column(Integer, default=0)
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
