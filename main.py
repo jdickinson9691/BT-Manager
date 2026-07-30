@@ -1,3 +1,7 @@
+import multiprocessing
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+
 import customtkinter as ctk
 import sqlite3
 import math
@@ -32,7 +36,7 @@ def start_api_server():
     try:
         import uvicorn
         from apps.api.main import app as fastapi_app
-        uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="warning")
+        uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="warning", workers=1)
     except Exception as e:
         print("API server thread notice:", e)
 
