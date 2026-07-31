@@ -29,6 +29,11 @@ class CoreAgent:
                 conn.execute(text("ALTER TABLE pilots ADD COLUMN spa TEXT DEFAULT 'None'"))
             if "kills" not in columns:
                 conn.execute(text("ALTER TABLE pilots ADD COLUMN kills INTEGER DEFAULT 0"))
+            
+            result_c = conn.execute(text("PRAGMA table_info(campaigns)"))
+            c_columns = [row[1] for row in result_c.fetchall()]
+            if "era" not in c_columns:
+                conn.execute(text("ALTER TABLE campaigns ADD COLUMN era TEXT DEFAULT '3025'"))
             conn.commit()
 
     @classmethod
@@ -256,6 +261,7 @@ class CoreAgent:
             "daily_overhead": campaign.daily_overhead,
             "mrb_rating": campaign.mrb_rating,
             "reputation_score": campaign.reputation_score,
+            "era": getattr(campaign, 'era', "3025") or "3025",
             "loan_balance": loan_bal,
             "loan_interest_rate": loan_rate,
             "monthly_interest_due": monthly_interest

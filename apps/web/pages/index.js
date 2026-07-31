@@ -99,15 +99,114 @@ export default function Dashboard() {
 
   const [showLauncherModal, setShowLauncherModal] = useState(false);
   const [existingCampaignsList, setExistingCampaignsList] = useState([
-    { id: 1, name: "Succession Wars 3025 (Wolf's Irregulars)", current_date: "3025-01-15", cbill_balance: 15000000.0 }
+    { id: 1, name: "Succession Wars 3025 (Wolf's Irregulars)", current_date: "3025-01-15", cbill_balance: 15000000.0, era: "3025" }
   ]);
   const [selectedExistingCampId, setSelectedExistingCampId] = useState(1);
 
+  const [launcherWizardStep, setLauncherWizardStep] = useState(1); // 1 = Logistics, 2 = Custom Mechs & Pilots
   const [newCampName, setNewCampName] = useState("Succession Wars 3025");
   const [newCompanyName, setNewCompanyName] = useState("Wolf's Irregulars");
   const [newCommanderName, setNewCommanderName] = useState("Major Jaime Wolf");
   const [newEra, setNewEra] = useState("3025");
   const [newFaction, setNewFaction] = useState("House Davion");
+
+  const [wizardUnits, setWizardUnits] = useState([]);
+  const [wizardPilots, setWizardPilots] = useState([]);
+
+  const ERA_PRESETS = {
+    "2750": {
+      units: [
+        { chassis: "Royal Marauder", model: "MAD-1R", tonnage: 75, bv2: 1720, tech_base: "Inner Sphere SLDF" },
+        { chassis: "Black Knight", model: "BL-6-KNT", tonnage: 75, bv2: 1640, tech_base: "Inner Sphere SLDF" },
+        { chassis: "Orion", model: "ON1-K", tonnage: 75, bv2: 1429, tech_base: "Inner Sphere SLDF" },
+        { chassis: "Crab", model: "CRB-27", tonnage: 50, bv2: 1198, tech_base: "Inner Sphere SLDF" }
+      ],
+      pilots: [
+        { name: "Major Amanda Cameron", callsign: "Regina", gunnery: 2, piloting: 3, spa: "Royal Marksmanship (+1 Energy Accuracy)", xp: 85 },
+        { name: "Captain Arthur Pendelton", callsign: "Lancelot", gunnery: 3, piloting: 3, spa: "Commanding Presence (+1 Initiative)", xp: 60 }
+      ]
+    },
+    "2821": {
+      units: [
+        { chassis: "BattleMaster", model: "BLR-1D", tonnage: 85, bv2: 1505, tech_base: "Inner Sphere" },
+        { chassis: "Thunderbolt", model: "TDB-5S", tonnage: 65, bv2: 1335, tech_base: "Inner Sphere" },
+        { chassis: "Archer", model: "ARC-2K", tonnage: 70, bv2: 1356, tech_base: "Inner Sphere" },
+        { chassis: "Wolverine", model: "WVR-6R", tonnage: 55, bv2: 1101, tech_base: "Inner Sphere" }
+      ],
+      pilots: [
+        { name: "Commander Charles Marik", callsign: "Eagle", gunnery: 3, piloting: 4, spa: "Iron Will (Panic Resistance)", xp: 65 },
+        { name: "Lt. Greta Von Doom", callsign: "Valkyrie", gunnery: 3, piloting: 4, spa: "Pain Resistance", xp: 50 }
+      ]
+    },
+    "3025": {
+      units: [
+        { chassis: "Marauder", model: "MAD-3R", tonnage: 75, bv2: 1363, tech_base: "Inner Sphere" },
+        { chassis: "Warhammer", model: "WHM-6R", tonnage: 70, bv2: 1299, tech_base: "Inner Sphere" },
+        { chassis: "Shadow Hawk", model: "SHD-2H", tonnage: 55, bv2: 1064, tech_base: "Inner Sphere" },
+        { chassis: "Centurion", model: "CN9-A", tonnage: 50, bv2: 945, tech_base: "Inner Sphere" }
+      ],
+      pilots: [
+        { name: "Jaime Wolf", callsign: "Wolf-1", gunnery: 2, piloting: 3, spa: "Tactical Genius (Reroll Initiative Once)", xp: 90 },
+        { name: "Lt. Natasha Kerensky", callsign: "Black Widow", gunnery: 2, piloting: 3, spa: "Sharpshooter (+1 Accuracy to Called Shots)", xp: 85 }
+      ]
+    },
+    "3050": {
+      units: [
+        { chassis: "Timber Wolf", model: "Prime", tonnage: 75, bv2: 2737, tech_base: "Clan" },
+        { chassis: "Mad Dog", model: "Prime", tonnage: 60, bv2: 2210, tech_base: "Clan" },
+        { chassis: "Bushwacker", model: "BSW-S2", tonnage: 55, bv2: 1410, tech_base: "Inner Sphere" },
+        { chassis: "Axman", model: "AXM-1N", tonnage: 65, bv2: 1380, tech_base: "Inner Sphere" }
+      ],
+      pilots: [
+        { name: "Star Commander Vlad Ward", callsign: "Wolf-Alpha", gunnery: 2, piloting: 2, spa: "Trueborn Reflexes (+1 Piloting)", xp: 100 },
+        { name: "Phelan Kell", callsign: "Wolf-Beta", gunnery: 3, piloting: 3, spa: "Cluster Targeting (+1 Missile Accuracy)", xp: 75 }
+      ]
+    },
+    "3062": {
+      units: [
+        { chassis: "Thanatos", model: "THS-4S", tonnage: 75, bv2: 1850, tech_base: "Inner Sphere" },
+        { chassis: "Uziel", model: "UZL-2S", tonnage: 50, bv2: 1420, tech_base: "Inner Sphere" },
+        { chassis: "Hauptmann", model: "HA1-O", tonnage: 95, bv2: 2150, tech_base: "Inner Sphere" },
+        { chassis: "Mad Cat Mk II", model: "Standard", tonnage: 90, bv2: 2950, tech_base: "Clan" }
+      ],
+      pilots: [
+        { name: "Colonel George Hasek", callsign: "Duke", gunnery: 2, piloting: 3, spa: "Gunslinger (+1 Dual Fire)", xp: 95 },
+        { name: "Major Daniel Davion", callsign: "Fox-1", gunnery: 3, piloting: 3, spa: "Sniper (Range Accuracy)", xp: 80 }
+      ]
+    },
+    "3068": {
+      units: [
+        { chassis: "Archangel", model: "C-ANG-O Dominus", tonnage: 100, bv2: 2350, tech_base: "Word of Blake" },
+        { chassis: "Seraph", model: "C-SRP-O Dominus", tonnage: 85, bv2: 2120, tech_base: "Word of Blake" },
+        { chassis: "Legacy", model: "LGC-01", tonnage: 80, bv2: 1890, tech_base: "Inner Sphere" },
+        { chassis: "Devastator", model: "DVS-2", tonnage: 100, bv2: 2420, tech_base: "Inner Sphere" }
+      ],
+      pilots: [
+        { name: "Preceptor Apollyon", callsign: "Dominus", gunnery: 2, piloting: 2, spa: "Cybernetic Uplink (+1 C3 Network)", xp: 110 },
+        { name: "Adept Trent", callsign: "Adept-1", gunnery: 3, piloting: 3, spa: "Pain Suppression", xp: 70 }
+      ]
+    },
+    "3151": {
+      units: [
+        { chassis: "Savage Wolf", model: "Prime", tonnage: 75, bv2: 2890, tech_base: "Mixed Tech" },
+        { chassis: "Regent", model: "RGT-1A", tonnage: 90, bv2: 2750, tech_base: "Mixed Tech" },
+        { chassis: "Hammerhead", model: "HMR-HD", tonnage: 45, bv2: 1580, tech_base: "Inner Sphere" },
+        { chassis: "Dominator", model: "Standard", tonnage: 65, bv2: 2190, tech_base: "Mixed Tech" }
+      ],
+      pilots: [
+        { name: "Alaric Ward", callsign: "ilKhan", gunnery: 1, piloting: 2, spa: "Master Tactician", xp: 150 },
+        { name: "Chance Vickers", callsign: "Vanguard", gunnery: 2, piloting: 3, spa: "Alpha Strike Master", xp: 90 }
+      ]
+    }
+  };
+
+  const handleAdvanceToWizardStep2 = (e) => {
+    e.preventDefault();
+    const preset = ERA_PRESETS[newEra] || ERA_PRESETS["3025"];
+    setWizardUnits(JSON.parse(JSON.stringify(preset.units)));
+    setWizardPilots(JSON.parse(JSON.stringify(preset.pilots)));
+    setLauncherWizardStep(2);
+  };
 
   const fetchCampaignsList = () => {
     fetch("http://localhost:8000/api/v1/campaigns")
@@ -127,12 +226,15 @@ export default function Dashboard() {
           commander_name: newCommanderName,
           era: newEra,
           faction: newFaction,
-          starting_funds: 15000000.0
+          starting_funds: 15000000.0,
+          custom_units: wizardUnits,
+          custom_pilots: wizardPilots
         })
       });
       if (res.ok) {
-        alert(`New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction})! Cached MUL & Sarna unit data linked.`);
+        alert(`New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
         setShowLauncherModal(false);
+        setLauncherWizardStep(1);
         refreshAll();
       }
     } catch (err) {}
@@ -616,8 +718,9 @@ export default function Dashboard() {
       <header style={{ background: "rgba(15, 20, 30, 0.95)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <h2 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "16px", letterSpacing: "1px" }}>
-            SUCCESSION WARS 3025 | WOLF'S IRREGULARS
+            {balance.campaign_name ? balance.campaign_name.toUpperCase() : "SUCCESSION WARS 3025 | WOLF'S IRREGULARS"}
           </h2>
+          <span style={{ color: "#94a3b8", fontSize: "13px" }}>ERA: <strong style={{ color: "#fbbf24" }}>{balance.era || "3025"}</strong></span>
           <span style={{ color: "#94a3b8", fontSize: "13px" }}>DATE: <strong style={{ color: "#f8fafc" }}>{balance.current_date}</strong></span>
           <span style={{ color: "#94a3b8", fontSize: "13px" }}>
             SYSTEM: <strong style={{ color: "#38bdf8" }}>{currentSystem.name}</strong> <span style={{ color: "#10b981", fontSize: "11px", fontWeight: "bold" }}>[{onlineMulMode ? "ONLINE - MUL CONNECTED" : "OFFLINE CACHE"}]</span>
@@ -1960,8 +2063,8 @@ export default function Dashboard() {
               </span>
             </div>
 
-            {/* SECTION 1: LOAD EXISTING CAMPAIGN */}
-            {existingCampaignsList.length > 0 && (
+            {/* SECTION 1: LOAD EXISTING CAMPAIGN (Step 1 Only) */}
+            {launcherWizardStep === 1 && existingCampaignsList.length > 0 && (
               <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
                 <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "14px" }}>Load Saved Campaign</h4>
                 <select
@@ -1971,7 +2074,7 @@ export default function Dashboard() {
                 >
                   {existingCampaignsList.map(c => (
                     <option key={c.id} value={c.id}>
-                      ID {c.id}: {c.name} — Date: {c.current_date} — Balance: ${(c.cbill_balance || 15000000).toLocaleString()}
+                      ID {c.id}: {c.name} — Era: {c.era || "3025"} — Date: {c.current_date} — Balance: ${(c.cbill_balance || 15000000).toLocaleString()}
                     </option>
                   ))}
                 </select>
@@ -1984,62 +2087,214 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* SECTION 2: CREATE NEW CAMPAIGN */}
-            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px" }}>
-              <h4 style={{ color: "#ea580c", margin: "0 0 14px 0", fontSize: "14px" }}>Create New Campaign</h4>
-              <form onSubmit={handleCreateNewCampaignSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                
-                <div>
-                  <label style={{ fontSize: "12px", color: "#94a3b8" }}>CAMPAIGN NAME</label>
-                  <input type="text" value={newCampName} onChange={e => setNewCampName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+            {/* SECTION 2: CREATE NEW CAMPAIGN (2-STEP WIZARD) */}
+            {launcherWizardStep === 1 ? (
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                  <h4 style={{ color: "#ea580c", margin: 0, fontSize: "14px" }}>Step 1 of 2: Campaign Logistics &amp; Era</h4>
+                  <span style={{ fontSize: "11px", background: "rgba(234, 88, 12, 0.2)", color: "#ea580c", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>LOGISTICS SETUP</span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <form onSubmit={handleAdvanceToWizardStep2} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  
                   <div>
-                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT BATTLETECH ERA</label>
-                    <select value={newEra} onChange={e => setNewEra(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                      <option value="2750">Star League Era (2571–2780)</option>
-                      <option value="2821">Early Succession Wars (2781–2900)</option>
-                      <option value="3025">Late Succession Wars / Renaissance (2901–3049)</option>
-                      <option value="3050">Clan Invasion (3050–3061)</option>
-                      <option value="3062">Civil War (3062–3067)</option>
-                      <option value="3068">Word of Blake Jihad (3068–3085)</option>
-                      <option value="3151">ilClan &amp; Dark Age (3085–3151+)</option>
-                    </select>
+                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>CAMPAIGN NAME</label>
+                    <input type="text" value={newCampName} onChange={e => setNewCampName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT PLAYER FACTION</label>
-                    <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                      <option value="House Davion">House Davion (Federated Suns)</option>
-                      <option value="House Draconis Combine">House Draconis Combine (Kurita)</option>
-                      <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
-                      <option value="House Marik">House Marik (Free Worlds League)</option>
-                      <option value="House Liao">House Liao (Capellan Confederation)</option>
-                      <option value="ComStar">ComStar / Word of Blake</option>
-                      <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenary</option>
-                      <option value="Clan Wolf">Clan Wolf / Clan Jade Falcon</option>
-                    </select>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT BATTLETECH ERA</label>
+                      <select value={newEra} onChange={e => setNewEra(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                        <option value="2750">Star League Era (2571–2780)</option>
+                        <option value="2821">Early Succession Wars (2781–2900)</option>
+                        <option value="3025">Late Succession Wars / Renaissance (2901–3049)</option>
+                        <option value="3050">Clan Invasion (3050–3061)</option>
+                        <option value="3062">Civil War (3062–3067)</option>
+                        <option value="3068">Word of Blake Jihad (3068–3085)</option>
+                        <option value="3151">ilClan &amp; Dark Age (3085–3151+)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT PLAYER FACTION</label>
+                      <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                        <option value="House Davion">House Davion (Federated Suns)</option>
+                        <option value="House Draconis Combine">House Draconis Combine (Kurita)</option>
+                        <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
+                        <option value="House Marik">House Marik (Free Worlds League)</option>
+                        <option value="House Liao">House Liao (Capellan Confederation)</option>
+                        <option value="ComStar">ComStar / Word of Blake</option>
+                        <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenary</option>
+                        <option value="Clan Wolf">Clan Wolf / Clan Jade Falcon</option>
+                      </select>
+                    </div>
                   </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>MERCENARY COMPANY NAME</label>
+                      <input type="text" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>COMMANDER NAME</label>
+                      <input type="text" value={newCommanderName} onChange={e => setNewCommanderName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                    </div>
+                  </div>
+
+                  <button type="submit" style={{ width: "100%", background: "#38bdf8", color: "#0f172a", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", marginTop: "8px" }}>
+                    Next: Configure Roster &amp; Pilots ➔
+                  </button>
+                </form>
+              </div>
+            ) : (
+              /* STEP 2: CUSTOM MECH ROSTER & PILOT SETUP */
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px", maxHeight: "65vh", overflowY: "auto" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                  <div>
+                    <h4 style={{ color: "#10b981", margin: 0, fontSize: "14px" }}>Step 2 of 2: Configure Company Mechs &amp; Pilots</h4>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#94a3b8" }}>Era {newEra} pre-populated defaults. Edit specs, add, or remove units &amp; MechWarriors before launching.</p>
+                  </div>
+                  <span style={{ fontSize: "11px", background: "rgba(16, 185, 129, 0.2)", color: "#10b981", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>ROSTER SETUP</span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>MERCENARY COMPANY NAME</label>
-                    <input type="text" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                <form onSubmit={handleCreateNewCampaignSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  
+                  {/* SECTION A: STARTING MECH ROSTER */}
+                  <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <h5 style={{ color: "#38bdf8", margin: 0, fontSize: "13px" }}>🤖 STARTING MECH ROSTER ({wizardUnits.length} UNITS)</h5>
+                      <button
+                        type="button"
+                        onClick={() => setWizardUnits([...wizardUnits, { chassis: "Medium Mech", model: "Variant", tonnage: 55, bv2: 1200, tech_base: "Inner Sphere" }])}
+                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        + Add Mech
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {wizardUnits.map((u, idx) => (
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1.5fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>CHASSIS</label>
+                            <input type="text" value={u.chassis} onChange={e => { const copy = [...wizardUnits]; copy[idx].chassis = e.target.value; setWizardUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
+                            <input type="text" value={u.model} onChange={e => { const copy = [...wizardUnits]; copy[idx].model = e.target.value; setWizardUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>TONNAGE</label>
+                            <input type="number" value={u.tonnage} onChange={e => { const copy = [...wizardUnits]; copy[idx].tonnage = Number(e.target.value); setWizardUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>BV2</label>
+                            <input type="number" value={u.bv2} onChange={e => { const copy = [...wizardUnits]; copy[idx].bv2 = Number(e.target.value); setWizardUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
+                            <select value={u.tech_base} onChange={e => { const copy = [...wizardUnits]; copy[idx].tech_base = e.target.value; setWizardUnits(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                              <option value="Inner Sphere">Inner Sphere</option>
+                              <option value="Clan">Clan</option>
+                              <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
+                              <option value="Word of Blake">Word of Blake</option>
+                              <option value="Mixed Tech">Mixed Tech</option>
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setWizardUnits(wizardUnits.filter((_, i) => i !== idx))}
+                            style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>COMMANDER NAME</label>
-                    <input type="text" value={newCommanderName} onChange={e => setNewCommanderName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
-                  </div>
-                </div>
+                  {/* SECTION B: STARTING PILOT ROSTER */}
+                  <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <h5 style={{ color: "#f59e0b", margin: 0, fontSize: "13px" }}>👨‍✈️ STARTING PILOT ROSTER ({wizardPilots.length} MECHWARRIORS)</h5>
+                      <button
+                        type="button"
+                        onClick={() => setWizardPilots([...wizardPilots, { name: "MechWarrior", callsign: "Rookie", gunnery: 4, piloting: 5, spa: "None", xp: 50 }])}
+                        style={{ background: "#d97706", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        + Add Pilot
+                      </button>
+                    </div>
 
-                <button type="submit" style={{ width: "100%", background: "#ea580c", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", marginTop: "8px" }}>
-                  🚀 Create &amp; Launch New Campaign
-                </button>
-              </form>
-            </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {wizardPilots.map((p, idx) => (
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
+                            <input type="text" value={p.name} onChange={e => { const copy = [...wizardPilots]; copy[idx].name = e.target.value; setWizardPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>CALLSIGN</label>
+                            <input type="text" value={p.callsign} onChange={e => { const copy = [...wizardPilots]; copy[idx].callsign = e.target.value; setWizardPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>GUNNERY</label>
+                            <select value={p.gunnery} onChange={e => { const copy = [...wizardPilots]; copy[idx].gunnery = Number(e.target.value); setWizardPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                              {[1, 2, 3, 4, 5, 6].map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>PILOTING</label>
+                            <select value={p.piloting} onChange={e => { const copy = [...wizardPilots]; copy[idx].piloting = Number(e.target.value); setWizardPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                              {[1, 2, 3, 4, 5, 6].map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>SPECIAL PILOT ABILITY (SPA)</label>
+                            <select value={p.spa} onChange={e => { const copy = [...wizardPilots]; copy[idx].spa = e.target.value; setWizardPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                              <option value="None">None</option>
+                              <option value="Sharpshooter (+1 Accuracy to Called Shots)">Sharpshooter (+1 Accuracy)</option>
+                              <option value="Tactical Genius (Reroll Initiative Once)">Tactical Genius (Reroll Init)</option>
+                              <option value="Royal Marksmanship (+1 Energy Accuracy)">Royal Marksmanship (+1 Energy)</option>
+                              <option value="Trueborn Reflexes (+1 Piloting)">Trueborn Reflexes (+1 Piloting)</option>
+                              <option value="Gunslinger (+1 Dual Fire)">Gunslinger (+1 Dual Fire)</option>
+                              <option value="Marksman (Energy Weapon Range Boost)">Marksman (Range Boost)</option>
+                              <option value="Dodge (Physical Evasion)">Dodge (Evasion)</option>
+                              <option value="Iron Will (Panic Resistance)">Iron Will (Panic Resist)</option>
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setWizardPilots(wizardPilots.filter((_, i) => i !== idx))}
+                            style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginTop: "4px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setLauncherWizardStep(1)}
+                      style={{ background: "#475569", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                    >
+                      ⬅ Back to Logistics
+                    </button>
+                    <button
+                      type="submit"
+                      style={{ background: "#ea580c", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}
+                    >
+                      🚀 Finish &amp; Launch Custom Campaign
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
           </div>
         </div>

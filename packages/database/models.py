@@ -16,6 +16,7 @@ class Campaign(Base):
     reputation_score = Column(Integer, default=50)
     loan_balance = Column(Float, default=0.0)
     loan_interest_rate = Column(Float, default=0.05)
+    era = Column(String, default="3025")
 
     units = relationship("Unit", back_populates="campaign")
     missions = relationship("Mission", back_populates="campaign")

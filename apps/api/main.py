@@ -42,6 +42,21 @@ class JumpRequest(BaseModel):
     distance_ly: float = 22.1
     jump_cost: float = 120000.0
 
+class CustomStarterUnit(BaseModel):
+    chassis: str
+    model: str
+    tonnage: int
+    bv2: int
+    tech_base: str = "Inner Sphere"
+
+class CustomStarterPilot(BaseModel):
+    name: str
+    callsign: str
+    gunnery: int = 4
+    piloting: int = 5
+    spa: str = "None"
+    xp: int = 50
+
 class CampaignCreateRequest(BaseModel):
     campaign_name: str = "Succession Wars 3025"
     company_name: str = "Wolf's Irregulars"
@@ -49,6 +64,8 @@ class CampaignCreateRequest(BaseModel):
     era: str = "3025"
     faction: str = "House Davion"
     starting_funds: float = 15000000.0
+    custom_units: Optional[List[CustomStarterUnit]] = None
+    custom_pilots: Optional[List[CustomStarterPilot]] = None
 
 class DeployForceRequest(BaseModel):
     dropzone: str = "Alpha DZ (Flat Plains)"
@@ -236,7 +253,7 @@ def get_balance(db: Session = Depends(get_db)):
 @app.get("/api/v1/campaigns")
 def list_campaigns(db: Session = Depends(get_db)):
     camps = db.query(Campaign).all()
-    return [{"id": c.id, "name": c.name, "current_date": c.current_date, "cbill_balance": c.cbill_balance, "mrb_rating": c.mrb_rating} for c in camps]
+    return [{"id": c.id, "name": c.name, "current_date": c.current_date, "cbill_balance": c.cbill_balance, "mrb_rating": c.mrb_rating, "era": getattr(c, 'era', "3025") or "3025"} for c in camps]
 
 @app.post("/api/v1/campaigns/create")
 def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
@@ -250,46 +267,50 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
         current_date=era_details["default_date"],
         daily_overhead=5000.0,
         mrb_rating="C",
-        reputation_score=50
+        reputation_score=50,
+        era=req.era
     )
     db.add(campaign)
     db.commit()
     db.refresh(campaign)
 
-    # Seed era-accurate starting units
+    # Seed starting units (use custom_units if provided, else era defaults)
     created_units = []
-    for u in era_details["starting_units"]:
+    units_to_seed = [u.dict() if hasattr(u, "dict") else u for u in req.custom_units] if req.custom_units else era_details["starting_units"]
+    
+    for u in units_to_seed:
         unit = Unit(
             campaign_id=campaign.id,
-            chassis=u["chassis"],
-            model=u["model"],
-            tonnage=u["tonnage"],
-            tech_base=u["tech_base"],
-            bv2=u["bv2"]
+            chassis=u.get("chassis", "Marauder"),
+            model=u.get("model", "MAD-3R"),
+            tonnage=int(u.get("tonnage", 75)),
+            tech_base=u.get("tech_base", "Inner Sphere"),
+            bv2=int(u.get("bv2", 1363))
         )
         db.add(unit)
         db.commit()
         db.refresh(unit)
         created_units.append(unit)
 
-    # Seed era-accurate pilots
-    pilot_data_list = era_details["pilots"]
-    for idx, p_info in enumerate(pilot_data_list):
+    # Seed starting pilots (use custom_pilots if provided, else era defaults)
+    pilots_to_seed = [p.dict() if hasattr(p, "dict") else p for p in req.custom_pilots] if req.custom_pilots else era_details["pilots"]
+    
+    for idx, p_info in enumerate(pilots_to_seed):
         assigned_u_id = created_units[idx].id if idx < len(created_units) else None
         db.add(Pilot(
             campaign_id=campaign.id,
-            name=p_info["name"],
-            callsign=p_info["callsign"],
-            gunnery=p_info["gunnery"],
-            piloting=p_info["piloting"],
+            name=p_info.get("name", "MechWarrior"),
+            callsign=p_info.get("callsign", "Ace"),
+            gunnery=int(p_info.get("gunnery", 4)),
+            piloting=int(p_info.get("piloting", 5)),
             unit_id=assigned_u_id,
             status="Active",
-            xp=p_info["xp"],
-            spa=p_info["spa"]
+            xp=int(p_info.get("xp", 50)),
+            spa=p_info.get("spa", "None")
         ))
 
-    # Add Commander Pilot if provided
-    if req.commander_name and not any(p["name"] == req.commander_name for p in pilot_data_list):
+    # Add Commander Pilot if provided and not already in custom list
+    if req.commander_name and not any(p.get("name") == req.commander_name for p in pilots_to_seed):
         db.add(Pilot(
             campaign_id=campaign.id,
             name=req.commander_name,
@@ -319,7 +340,7 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
         campaign_id=campaign.id,
         log_date=campaign.current_date,
         event_type="Setup",
-        description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {era_details['name']} ({req.faction}). Era-specific units, equipment, and pilots linked."
+        description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {era_details['name']} ({req.faction}). Custom roster & pilots linked."
     ))
     db.commit()
     return CoreAgent.get_ledger_summary(db)

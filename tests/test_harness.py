@@ -349,6 +349,43 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(details_3151["default_date"], "3151-01-01")
         self.assertEqual(details_3151["starting_units"][0]["chassis"], "Savage Wolf")
 
+    def test_15_custom_roster_and_pilot_campaign_creation(self):
+        """Verify creating a campaign with custom starting units & custom pilots in 2-step wizard."""
+        custom_units = [
+            {"chassis": "Fafnir", "model": "FNR-5", "tonnage": 100, "bv2": 2480, "tech_base": "Inner Sphere"},
+            {"chassis": "Uziel", "model": "UZL-2S", "tonnage": 50, "bv2": 1420, "tech_base": "Inner Sphere"}
+        ]
+        custom_pilots = [
+            {"name": "Ace Vance", "callsign": "Reaper", "gunnery": 2, "piloting": 3, "spa": "Sharpshooter (+1 Accuracy to Called Shots)", "xp": 80}
+        ]
+
+        camp = Campaign(
+            name="Custom FedCom 3062 (Vance Mercenaries)",
+            wp_balance=1000,
+            sp_balance=500,
+            cbill_balance=15000000.0,
+            current_date="3062-01-01",
+            era="3062"
+        )
+        self.db.add(camp)
+        self.db.commit()
+        self.db.refresh(camp)
+
+        for u in custom_units:
+            self.db.add(Unit(campaign_id=camp.id, chassis=u["chassis"], model=u["model"], tonnage=u["tonnage"], tech_base=u["tech_base"], bv2=u["bv2"]))
+        for p in custom_pilots:
+            self.db.add(Pilot(campaign_id=camp.id, name=p["name"], callsign=p["callsign"], gunnery=p["gunnery"], piloting=p["piloting"], spa=p["spa"], xp=p["xp"]))
+        self.db.commit()
+
+        units = self.db.query(Unit).filter_by(campaign_id=camp.id).all()
+        pilots = self.db.query(Pilot).filter_by(campaign_id=camp.id).all()
+
+        self.assertEqual(len(units), 2)
+        self.assertEqual(units[0].chassis, "Fafnir")
+        self.assertEqual(len(pilots), 1)
+        self.assertEqual(pilots[0].name, "Ace Vance")
+        self.assertEqual(camp.era, "3062")
+
 
 if __name__ == "__main__":
     unittest.main()
