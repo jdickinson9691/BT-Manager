@@ -13,6 +13,7 @@ from packages.agents.operations_agent import OperationsAgent
 from packages.agents.maintenance_agent import MaintenanceAgent
 from packages.agents.personnel_agent import PersonnelAgent
 from packages.agents.contract_generator import ContractGenerator
+from packages.agents.era_faction_agent import EraFactionAgent
 
 
 class TestBattleTechAgentHarness(unittest.TestCase):
@@ -323,6 +324,30 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertGreater(res["threat_multiplier"], 1.40)
         self.assertGreater(res["opfor_enemy_bv"], 7000)
         self.assertIn("Extreme Threat", res["opfor_threat_rating"])
+
+    # ==================== 12. ERA HISTORICAL DATA REGISTRY SEEDING TESTS ====================
+    def test_14_era_historical_data_registry_seeding(self):
+        """Verify EraFactionAgent retrieves 7 eras and seeding populates era-accurate units & equipment."""
+        eras = EraFactionAgent.get_supported_eras()
+        self.assertEqual(len(eras), 7)
+        codes = [e["code"] for e in eras]
+        self.assertIn("2750", codes)
+        self.assertIn("2821", codes)
+        self.assertIn("3025", codes)
+        self.assertIn("3050", codes)
+        self.assertIn("3062", codes)
+        self.assertIn("3068", codes)
+        self.assertIn("3151", codes)
+
+        # Create Star League 2750 Campaign
+        details_2750 = EraFactionAgent.get_era_details("2750")
+        self.assertEqual(details_2750["default_date"], "2750-01-01")
+        self.assertEqual(details_2750["starting_units"][0]["chassis"], "Royal Marauder")
+
+        # Create ilClan 3151 Campaign
+        details_3151 = EraFactionAgent.get_era_details("3151")
+        self.assertEqual(details_3151["default_date"], "3151-01-01")
+        self.assertEqual(details_3151["starting_units"][0]["chassis"], "Savage Wolf")
 
 
 if __name__ == "__main__":

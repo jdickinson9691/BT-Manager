@@ -240,12 +240,14 @@ def list_campaigns(db: Session = Depends(get_db)):
 
 @app.post("/api/v1/campaigns/create")
 def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
+    era_details = EraFactionAgent.get_era_details(req.era)
+    
     campaign = Campaign(
         name=f"{req.campaign_name} ({req.company_name})",
         wp_balance=1000,
         sp_balance=500,
         cbill_balance=req.starting_funds,
-        current_date="3025-01-01" if req.era == "3025" else "3050-03-01",
+        current_date=era_details["default_date"],
         daily_overhead=5000.0,
         mrb_rating="C",
         reputation_score=50
@@ -254,22 +256,60 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
     db.commit()
     db.refresh(campaign)
 
-    # Seed era/faction starter units from MUL cache
-    if req.era == "3050" or "Clan" in req.faction:
-        u1 = Unit(campaign_id=campaign.id, chassis="Timber Wolf", model="Prime", tonnage=75, tech_base="Clan", bv2=2737)
-        u2 = Unit(campaign_id=campaign.id, chassis="Mad Dog", model="Prime", tonnage=60, tech_base="Clan", bv2=2150)
-        u3 = Unit(campaign_id=campaign.id, chassis="Stormcrow", model="Prime", tonnage=55, tech_base="Clan", bv2=2080)
-    else:
-        u1 = Unit(campaign_id=campaign.id, chassis="Marauder", model="MAD-3R", tonnage=75, tech_base="Inner Sphere", bv2=1363)
-        u2 = Unit(campaign_id=campaign.id, chassis="Warhammer", model="WHM-6R", tonnage=70, tech_base="Inner Sphere", bv2=1299)
-        u3 = Unit(campaign_id=campaign.id, chassis="Centurion", model="CN9-A", tonnage=50, tech_base="Inner Sphere", bv2=945)
-    
-    db.add_all([u1, u2, u3])
-    db.commit()
+    # Seed era-accurate starting units
+    created_units = []
+    for u in era_details["starting_units"]:
+        unit = Unit(
+            campaign_id=campaign.id,
+            chassis=u["chassis"],
+            model=u["model"],
+            tonnage=u["tonnage"],
+            tech_base=u["tech_base"],
+            bv2=u["bv2"]
+        )
+        db.add(unit)
+        db.commit()
+        db.refresh(unit)
+        created_units.append(unit)
 
-    p1 = Pilot(campaign_id=campaign.id, name=req.commander_name, callsign="Commander", gunnery=3, piloting=4, unit_id=u1.id, status="Active", xp=50, spa="Tactical Genius")
-    p2 = Pilot(campaign_id=campaign.id, name="Lt. Natasha Kerensky", callsign="Black Widow", gunnery=2, piloting=3, unit_id=u2.id, status="Active", xp=85, spa="Sharpshooter")
-    db.add_all([p1, p2])
+    # Seed era-accurate pilots
+    pilot_data_list = era_details["pilots"]
+    for idx, p_info in enumerate(pilot_data_list):
+        assigned_u_id = created_units[idx].id if idx < len(created_units) else None
+        db.add(Pilot(
+            campaign_id=campaign.id,
+            name=p_info["name"],
+            callsign=p_info["callsign"],
+            gunnery=p_info["gunnery"],
+            piloting=p_info["piloting"],
+            unit_id=assigned_u_id,
+            status="Active",
+            xp=p_info["xp"],
+            spa=p_info["spa"]
+        ))
+
+    # Add Commander Pilot if provided
+    if req.commander_name and not any(p["name"] == req.commander_name for p in pilot_data_list):
+        db.add(Pilot(
+            campaign_id=campaign.id,
+            name=req.commander_name,
+            callsign="Commander",
+            gunnery=3,
+            piloting=4,
+            unit_id=created_units[0].id if created_units else None,
+            status="Active",
+            xp=50,
+            spa="Tactical Genius"
+        ))
+
+    # Seed era-accurate starting inventory equipment
+    for item in era_details["inventory"]:
+        db.add(Inventory(
+            campaign_id=campaign.id,
+            component_name=item["component_name"],
+            quantity=item["quantity"],
+            category=item["category"]
+        ))
 
     m1 = Mission(campaign_id=campaign.id, name=f"Garrison Contract ({req.faction})", mission_type="Garrison", employer=req.faction, wp_reward=350, cbill_reward=3500000.0, status="Available")
     m2 = Mission(campaign_id=campaign.id, name="Objective Recon Patrol", mission_type="Recon", employer="Independent", wp_reward=300, cbill_reward=2800000.0, status="Available")
@@ -279,7 +319,7 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
         campaign_id=campaign.id,
         log_date=campaign.current_date,
         event_type="Setup",
-        description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {req.era} ({req.faction}). MUL & Sarna data linked."
+        description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {era_details['name']} ({req.faction}). Era-specific units, equipment, and pilots linked."
     ))
     db.commit()
     return CoreAgent.get_ledger_summary(db)

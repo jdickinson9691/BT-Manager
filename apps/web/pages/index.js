@@ -1998,11 +1998,13 @@ export default function Dashboard() {
                   <div>
                     <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT BATTLETECH ERA</label>
                     <select value={newEra} onChange={e => setNewEra(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                      <option value="3025">Late Succession War (3020–3049)</option>
+                      <option value="2750">Star League Era (2571–2780)</option>
+                      <option value="2821">Early Succession Wars (2781–2900)</option>
+                      <option value="3025">Late Succession Wars / Renaissance (2901–3049)</option>
                       <option value="3050">Clan Invasion (3050–3061)</option>
-                      <option value="2750">Star League (2571–2780)</option>
-                      <option value="3062">Civil War &amp; Jihad (3062–3085)</option>
-                      <option value="3151">ilClan Era (3151+)</option>
+                      <option value="3062">Civil War (3062–3067)</option>
+                      <option value="3068">Word of Blake Jihad (3068–3085)</option>
+                      <option value="3151">ilClan &amp; Dark Age (3085–3151+)</option>
                     </select>
                   </div>
 
