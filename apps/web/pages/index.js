@@ -257,8 +257,16 @@ export default function Dashboard() {
     { name: "MechWarrior Marcus Trent", callsign: "Reaper", gunnery: 3, piloting: 4, spa: "Sharpshooter (+1 Accuracy)", unit_chassis: "Catapult" },
     { name: "MechWarrior Elena Vance", callsign: "Valkyrie", gunnery: 4, piloting: 5, spa: "None", unit_chassis: "Warhammer" }
   ]);
+  const [availableFactionUnits, setAvailableFactionUnits] = useState([]);
+  const [pendingMissionContract, setPendingMissionContract] = useState(null);
   const [opforTargetBv, setOpForTargetBv] = useState(5463);
   const [opforConfirmed, setOpForConfirmed] = useState(false);
+
+  const [customAlertConfig, setCustomAlertConfig] = useState({ show: false, title: "TACTICAL ALERT", message: "", onConfirm: null });
+
+  const showAlert = (message, title = "TACTICAL ALERT", onConfirm = null) => {
+    setCustomAlertConfig({ show: true, title, message, onConfirm });
+  };
 
   const [customMissionName, setCustomMissionName] = useState("");
   const [customEmployer, setCustomEmployer] = useState("House Davion");
@@ -467,36 +475,62 @@ export default function Dashboard() {
   };
 
   const handleAcceptContract = async (mission) => {
-    setActiveDeployedMission(mission);
+    setPendingMissionContract(mission);
     const targetBv = mission.negotiated_opfor_bv || totalLanceBv2 || 5463;
     setOpForTargetBv(targetBv);
     setOpForConfirmed(false);
 
-    try {
-      if (mission.id) {
-        await fetch(`http://localhost:8000/api/v1/missions/${mission.id}/accept`, { method: "POST" });
-      }
-    } catch (e) {}
-
-    // Generate procedural OpFor forces for tabletop review
+    // Fetch era & faction specific units for OpFor review
     try {
       const res = await fetch("http://localhost:8000/api/v1/contracts/opfor/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_bv: targetBv, era: balance.era || "3025" })
+        body: JSON.stringify({ target_bv: targetBv, era: balance.era || "3025", enemy_faction: mission.enemy_faction || "OpFor Force" })
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.opfor_units) {
           setActiveOpForUnits(data.opfor_units);
           setActiveOpForPilots(data.opfor_pilots);
+          if (data.available_faction_units) {
+            setAvailableFactionUnits(data.available_faction_units);
+          }
         }
       }
     } catch (e) {}
 
-    alert(`Contract Signed: '${mission.name}' (${mission.employer})! Proceeding to Step 2: Force Deployment & OpFor Tabletop Setup.`);
-    setActiveStep(2);
     setShowOpForSetupModal(true);
+  };
+
+  const handleConfirmOpForAndSignContract = async () => {
+    const rosterBv = activeOpForUnits.reduce((acc, u) => acc + (u.bv2 || 1200), 0);
+    const targetBv = opforTargetBv || totalLanceBv2 || 5463;
+    const bvRatio = targetBv > 0 ? (rosterBv / targetBv) : 1.0;
+    
+    let basePayout = pendingMissionContract ? (pendingMissionContract.cbill_reward || 3500000) : 3500000;
+    let adjustedPayout = Math.round(basePayout * bvRatio);
+
+    const signedMission = pendingMissionContract ? {
+      ...pendingMissionContract,
+      cbill_reward: adjustedPayout
+    } : { name: "Planetary Defense", employer: "House Davion", cbill_reward: adjustedPayout, salvage_rights: "50% Negotiated Salvage" };
+
+    setActiveDeployedMission(signedMission);
+
+    try {
+      if (pendingMissionContract && pendingMissionContract.id) {
+        await fetch(`http://localhost:8000/api/v1/missions/${pendingMissionContract.id}/accept`, { method: "POST" });
+      }
+    } catch (e) {}
+
+    setOpForConfirmed(true);
+    setShowOpForSetupModal(false);
+    setActiveStep(2);
     refreshAll();
+
+    showAlert(
+      `Contract Signed & Locked: '${signedMission.name}' (${signedMission.employer})!\n\nOpFor Battle Value: ${rosterBv.toLocaleString()} BV2 (${(bvRatio * 100).toFixed(1)}% of Target)\nFinal Adjusted Payout: $${adjustedPayout.toLocaleString()} C-Bills\n\nProceeding to Step 2: Force Deployment & Command Lance Setup.`,
+      "📋 CONTRACT OFFICIALLY SIGNED & LOCKED"
+    );
   };
 
   const handleJumpToSystem = async (system) => {
@@ -1907,42 +1941,72 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {activeOpForUnits.map((u, idx) => (
-                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1.5fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
-                      <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>CHASSIS</label>
-                        <input type="text" value={u.chassis} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].chassis = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                    <div key={idx} style={{ background: "#0f172a", padding: "10px", borderRadius: "6px", border: "1px solid #334155" }}>
+                      
+                      {/* ERA & FACTION UNIT PRESET DROPDOWN SELECTOR */}
+                      {availableFactionUnits.length > 0 && (
+                        <div style={{ marginBottom: "6px" }}>
+                          <label style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold" }}>🎯 ERA &amp; FACTION PRESET MECH / VEHICLE</label>
+                          <select
+                            value={`${u.chassis} ${u.model}`}
+                            onChange={e => {
+                              const selVal = e.target.value;
+                              const matched = availableFactionUnits.find(m => `${m.chassis} ${m.model}` === selVal);
+                              if (matched) {
+                                const copy = [...activeOpForUnits];
+                                copy[idx] = { ...copy[idx], chassis: matched.chassis, model: matched.model, tonnage: matched.tonnage, bv2: matched.bv2, tech_base: matched.tech_base || "Inner Sphere" };
+                                setActiveOpForUnits(copy);
+                              }
+                            }}
+                            style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                          >
+                            <option value="">-- Select Opposing Faction Unit Preset --</option>
+                            {availableFactionUnits.map((m, mIdx) => (
+                              <option key={mIdx} value={`${m.chassis} ${m.model}`}>
+                                {m.chassis} {m.model} ({m.tonnage}T) — {m.bv2} BV2 [{m.tech_base || "IS"}]
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1.5fr auto", gap: "8px", alignItems: "center" }}>
+                        <div>
+                          <label style={{ fontSize: "9px", color: "#64748b" }}>CHASSIS</label>
+                          <input type="text" value={u.chassis} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].chassis = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
+                          <input type="text" value={u.model} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].model = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "9px", color: "#64748b" }}>TONNAGE</label>
+                          <input type="number" value={u.tonnage} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tonnage = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "9px", color: "#64748b" }}>BV2</label>
+                          <input type="number" value={u.bv2} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].bv2 = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
+                          <select value={u.tech_base} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tech_base = e.target.value; setActiveOpForUnits(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                            <option value="Inner Sphere">Inner Sphere</option>
+                            <option value="Clan">Clan</option>
+                            <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
+                            <option value="Word of Blake">Word of Blake</option>
+                            <option value="Mixed Tech">Mixed Tech</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
+                          style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                        >
+                          ✕
+                        </button>
                       </div>
-                      <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
-                        <input type="text" value={u.model} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].model = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>TONNAGE</label>
-                        <input type="number" value={u.tonnage} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tonnage = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>BV2</label>
-                        <input type="number" value={u.bv2} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].bv2 = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
-                        <select value={u.tech_base} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tech_base = e.target.value; setActiveOpForUnits(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
-                          <option value="Inner Sphere">Inner Sphere</option>
-                          <option value="Clan">Clan</option>
-                          <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
-                          <option value="Word of Blake">Word of Blake</option>
-                          <option value="Mixed Tech">Mixed Tech</option>
-                        </select>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
-                        style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
-                      >
-                        ✕
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -2016,18 +2080,14 @@ export default function Dashboard() {
                   onClick={() => setShowOpForSetupModal(false)}
                   style={{ background: "#475569", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
                 >
-                  Close
+                  Cancel &amp; Abort Signing
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setOpForConfirmed(true);
-                    setShowOpForSetupModal(false);
-                    alert(`OpFor Tabletop Roster Confirmed! ${activeOpForUnits.length} enemy units locked. Defeated units will be available for Salvage & Bondsmen in AAR.`);
-                  }}
+                  onClick={handleConfirmOpForAndSignContract}
                   style={{ background: "#10b981", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
                 >
-                  ⚔️ Confirm OpFor &amp; Lock Tabletop Roster
+                  ⚔️ Confirm OpFor &amp; Launch Contract ➔
                 </button>
               </div>
 
@@ -3181,6 +3241,41 @@ export default function Dashboard() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM IN-APP CYBERPUNK ALERT & CONFIRMATION MODAL OVERLAY */}
+      {customAlertConfig.show && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999999 }}>
+          <div style={{ background: "#0f172a", border: "2px solid #38bdf8", borderRadius: "12px", padding: "28px", width: "520px", boxShadow: "0 0 30px rgba(56, 189, 248, 0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ background: "rgba(56, 189, 248, 0.2)", padding: "10px", borderRadius: "8px", color: "#38bdf8", fontSize: "22px" }}>📋</div>
+              <div>
+                <h4 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "16px", letterSpacing: "1px" }}>
+                  {customAlertConfig.title}
+                </h4>
+                <span style={{ color: "#94a3b8", fontSize: "11px" }}>Command Tactical Communications System</span>
+              </div>
+            </div>
+
+            <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0, whiteSpace: "pre-line", lineHeight: "1.6" }}>
+                {customAlertConfig.message}
+              </p>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  if (customAlertConfig.onConfirm) customAlertConfig.onConfirm();
+                  setCustomAlertConfig({ show: false, title: "TACTICAL ALERT", message: "", onConfirm: null });
+                }}
+                style={{ background: "#ea580c", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer", letterSpacing: "0.5px" }}
+              >
+                [ ACKNOWLEDGE &amp; PROCEED ]
+              </button>
+            </div>
           </div>
         </div>
       )}

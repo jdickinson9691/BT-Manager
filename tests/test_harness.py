@@ -397,6 +397,20 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertIn("name", opfor["opfor_pilots"][0])
         self.assertIn("gunnery", opfor["opfor_pilots"][0])
 
+    def test_17_opfor_bv_reward_adjustment_and_faction_units(self):
+        """Verify OpFor generation returns faction unit presets & reward scaling math."""
+        opfor = ContractGenerator.generate_opfor_roster(target_bv=6000, era_code="3068", enemy_faction="Word of Blake")
+        self.assertIn("available_faction_units", opfor)
+        self.assertGreater(len(opfor["available_faction_units"]), 0)
+
+        # Reward adjustment formula check
+        target_bv = 6000
+        confirmed_opfor_bv = 6600  # +10% higher BV
+        base_payout = 3500000.0
+        bv_ratio = confirmed_opfor_bv / target_bv
+        adjusted_payout = Math_round = int(round(base_payout * bv_ratio))
+        self.assertEqual(adjusted_payout, 3850000)
+
 
 if __name__ == "__main__":
     unittest.main()

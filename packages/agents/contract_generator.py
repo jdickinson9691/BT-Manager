@@ -183,8 +183,8 @@ class ContractGenerator:
         }
 
     @classmethod
-    def generate_opfor_roster(cls, target_bv: int = 5000, era_code: str = "3025") -> Dict[str, Any]:
-        """Generates structured enemy units and MechWarriors targeting specified BV2 and era rules."""
+    def generate_opfor_roster(cls, target_bv: int = 5000, era_code: str = "3025", enemy_faction: str = "OpFor Force") -> Dict[str, Any]:
+        """Generates structured enemy units and MechWarriors targeting specified BV2, era, and faction rules."""
         from packages.agents.era_faction_agent import EraFactionAgent
         era_info = EraFactionAgent.get_era_details(era_code)
 
@@ -195,7 +195,9 @@ class ContractGenerator:
                 {"chassis": "Marauder", "model": "MAD-3R", "tonnage": 75, "bv2": 1363, "tech_base": "Inner Sphere"},
                 {"chassis": "Warhammer", "model": "WHM-6R", "tonnage": 70, "bv2": 1299, "tech_base": "Inner Sphere"},
                 {"chassis": "Hunchback", "model": "HBK-4G", "tonnage": 50, "bv2": 1041, "tech_base": "Inner Sphere"},
-                {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "tech_base": "Inner Sphere"}
+                {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "tech_base": "Inner Sphere"},
+                {"chassis": "Awesome", "model": "AWS-8Q", "tonnage": 80, "bv2": 1605, "tech_base": "Inner Sphere"},
+                {"chassis": "Locust", "model": "LCT-1V", "tonnage": 20, "bv2": 556, "tech_base": "Inner Sphere"}
             ]
 
         # Select 4 enemy units aiming for target BV
@@ -232,6 +234,8 @@ class ContractGenerator:
             "target_bv": target_bv,
             "actual_bv": accumulated_bv,
             "bv_match_pct": round((accumulated_bv / target_bv * 100.0) if target_bv > 0 else 100.0, 1),
+            "enemy_faction": enemy_faction,
             "opfor_units": opfor_units,
-            "opfor_pilots": opfor_pilots
+            "opfor_pilots": opfor_pilots,
+            "available_faction_units": preset_units
         }
