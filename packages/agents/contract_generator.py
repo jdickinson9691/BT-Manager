@@ -126,3 +126,58 @@ class ContractGenerator:
         )
 
         return f"{random.choice(openings)} {random.choice(highlights)} {salvage_text}"
+
+    @classmethod
+    def negotiate_contract(
+        cls,
+        db: Session,
+        mission_id: int,
+        payout_multiplier: float = 1.0,
+        salvage_pct: float = 50.0,
+        blc_pct: float = 50.0,
+        player_lance_bv: int = 5463
+    ) -> Dict[str, Any]:
+        """Calculates negotiated payout, OpFor threat multiplier, and Enemy BV."""
+        from packages.database.models import Mission
+        mission = db.query(Mission).filter(Mission.id == mission_id).first()
+        if not mission:
+            raise ValueError("Mission contract not found")
+
+        negotiated_cbill = mission.cbill_reward * payout_multiplier
+
+        payout_ratio = payout_multiplier
+        salvage_ratio = salvage_pct / 50.0
+        blc_ratio = blc_pct / 50.0
+
+        threat_multiplier = round(1.0 + (payout_ratio - 1.0) * 0.25 + (salvage_ratio - 1.0) * 0.20 + (blc_ratio - 1.0) * 0.15, 2)
+        threat_multiplier = max(0.75, min(2.25, threat_multiplier))
+
+        opfor_enemy_bv = int(round(player_lance_bv * threat_multiplier))
+
+        if threat_multiplier < 0.85:
+            threat_rating = "🟢 Low Threat (Local Planetary Militia)"
+            opfor_units = ["Locust LCT-1V (20T)", "Stinger STG-3R (20T)", "Scorpion Tank (35T)", "Vedette Tank (50T)"]
+        elif threat_multiplier <= 1.15:
+            threat_rating = "🟡 Moderate Threat (Standard House Line Garrison)"
+            opfor_units = ["Wasp WSP-1A (20T)", "Hunchback HBK-4G (50T)", "Catapult CPLT-A1 (65T)", "Warhammer WHM-6R (70T)"]
+        elif threat_multiplier <= 1.45:
+            threat_rating = "🟠 High Threat (Veteran Regular Command Regulars)"
+            opfor_units = ["Griffin GRF-1N (55T)", "Marauder MAD-3R (75T)", "Warhammer WHM-6R (70T)", "Awesome AWS-8Q (80T)"]
+        else:
+            threat_rating = "🔴 Extreme Threat (Elite House Guards & Clan Star)"
+            opfor_units = ["Timber Wolf Prime (75T)", "Dire Wolf Prime (100T)", "Mad Dog Prime (60T)", "Summoner Prime (70T)"]
+
+        return {
+            "mission_id": mission.id,
+            "mission_name": mission.name,
+            "original_cbill": mission.cbill_reward,
+            "negotiated_cbill": negotiated_cbill,
+            "payout_multiplier": payout_multiplier,
+            "salvage_pct": salvage_pct,
+            "blc_pct": blc_pct,
+            "threat_multiplier": threat_multiplier,
+            "player_lance_bv": player_lance_bv,
+            "opfor_enemy_bv": opfor_enemy_bv,
+            "opfor_threat_rating": threat_rating,
+            "opfor_composition": opfor_units
+        }

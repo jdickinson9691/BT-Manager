@@ -123,6 +123,13 @@ class TakeLoanRequest(BaseModel):
 class RepayLoanRequest(BaseModel):
     repayment_amount: float = 500000.0
 
+class NegotiateContractRequest(BaseModel):
+    mission_id: int
+    payout_multiplier: float = 1.0
+    salvage_pct: float = 50.0
+    blc_pct: float = 50.0
+    player_lance_bv: int = 5463
+
 class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
@@ -448,6 +455,20 @@ def take_loan_endpoint(req: TakeLoanRequest, db: Session = Depends(get_db)):
 def repay_loan_endpoint(req: RepayLoanRequest, db: Session = Depends(get_db)):
     try:
         return CoreAgent.repay_loan(db, req.repayment_amount)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/contracts/negotiate")
+def negotiate_contract_endpoint(req: NegotiateContractRequest, db: Session = Depends(get_db)):
+    try:
+        return ContractGenerator.negotiate_contract(
+            db=db,
+            mission_id=req.mission_id,
+            payout_multiplier=req.payout_multiplier,
+            salvage_pct=req.salvage_pct,
+            blc_pct=req.blc_pct,
+            player_lance_bv=req.player_lance_bv
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

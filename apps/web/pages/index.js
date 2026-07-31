@@ -175,6 +175,10 @@ export default function Dashboard() {
 
   const [aarUnitDamage, setAarUnitDamage] = useState({});
 
+  const [negPayoutMult, setNegPayoutMult] = useState(1.0);
+  const [negSalvagePct, setNegSalvagePct] = useState(50);
+  const [negBlcPct, setNegBlcPct] = useState(50);
+
   // Data Fetching
   const fetchBalance = () => {
     fetch("http://localhost:8000/api/v1/ledger/balance")
@@ -1429,76 +1433,138 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* RICH TACTICAL INTEL BRIEFING MODAL */}
+      {/* RICH TACTICAL INTEL BRIEFING & CONTRACT NEGOTIATION MODAL */}
       {selectedIntelMission && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }} onClick={() => setSelectedIntelMission(null)}>
-          <div style={{ background: "#0f141e", border: "1px solid #38bdf8", borderRadius: "12px", padding: "28px", width: "580px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0f141e", border: "1px solid #38bdf8", borderRadius: "12px", padding: "28px", width: "680px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
-                📋 CONTRACT TACTICAL INTEL BRIEFING
+                📋 CONTRACT NEGOTIATION &amp; TACTICAL INTEL BRIEFING
               </h3>
               <button onClick={() => setSelectedIntelMission(null)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
             </div>
 
-            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "16px" }}>
-              <h4 style={{ color: "#fff", margin: "0 0 8px 0", fontSize: "16px" }}>{selectedIntelMission.name}</h4>
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 4px 0" }}>
-                Employer: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{selectedIntelMission.enemy_faction || "OpFor Force"}</span>
-              </p>
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
-                Mission Type: <strong style={{ color: "#38bdf8" }}>{selectedIntelMission.mission_type}</strong> | Difficulty: <span style={{ color: "#f59e0b" }}>{selectedIntelMission.difficulty || "Medium"}</span>
-              </p>
-            </div>
+            {(() => {
+              const baseOpForBv = totalLanceBv2 || 5463;
+              const payoutRatio = negPayoutMult;
+              const salvageRatio = negSalvagePct / 50.0;
+              const blcRatio = negBlcPct / 50.0;
+              const threatMult = Math.max(0.75, Math.min(2.25, Number((1.0 + (payoutRatio - 1.0) * 0.25 + (salvageRatio - 1.0) * 0.20 + (blcRatio - 1.0) * 0.15).toFixed(2))));
+              const negotiatedOpForBv = Math.round(baseOpForBv * threatMult);
+              const negotiatedPayout = Math.round((selectedIntelMission.cbill_reward || 3500000) * negPayoutMult);
 
-            {/* OPFOR INTEL & CLIMATE */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-              <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(244, 63, 94, 0.3)", padding: "12px", borderRadius: "6px" }}>
-                <span style={{ fontSize: "11px", color: "#f43f5e", fontWeight: "bold" }}>🎯 ESTIMATED OPFOR THREAT</span>
-                <p style={{ color: "#fff", fontSize: "13px", margin: "4px 0 0 0" }}>3x Enemy Mechs (Heavy Lance)</p>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>Est. Tonnage: 195T | Est. BV2: ~3,800</p>
-              </div>
+              let threatRatingText = "🟢 Low Threat (Local Planetary Militia)";
+              let opforCompositionText = "1x Locust (20T), 1x Stinger (20T), 2x Light Armor Tanks";
+              if (threatMult > 1.45) {
+                threatRatingText = "🔴 Extreme Threat (Elite House Guards & Clan Assault Star)";
+                opforCompositionText = "1x Timber Wolf Prime (75T), 1x Dire Wolf Prime (100T), 2x Heavy Star Mechs";
+              } else if (threatMult > 1.15) {
+                threatRatingText = "🟠 High Threat (Veteran Regular Command Regulars)";
+                opforCompositionText = "1x Marauder (75T), 1x Warhammer (70T), 1x Griffin (55T), 1x Awesome (80T)";
+              } else if (threatMult >= 0.85) {
+                threatRatingText = "🟡 Moderate Threat (Standard House Line Garrison)";
+                opforCompositionText = "1x Hunchback (50T), 1x Catapult (65T), 1x Warhammer (70T), 1x Wasp (20T)";
+              }
 
-              <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(56, 189, 248, 0.3)", padding: "12px", borderRadius: "6px" }}>
-                <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>🌡️ PLANETARY CLIMATE</span>
-                <p style={{ color: "#fff", fontSize: "13px", margin: "4px 0 0 0" }}>Arid / Extreme Heat (+20%)</p>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "2px 0 0 0" }}>Heat Sink Dissipation: -15% Penalty</p>
-              </div>
-            </div>
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px" }}>
+                    <h4 style={{ color: "#fff", margin: "0 0 8px 0", fontSize: "16px" }}>{selectedIntelMission.name}</h4>
+                    <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 4px 0" }}>
+                      Employer: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{selectedIntelMission.enemy_faction || "OpFor Force"}</span>
+                    </p>
+                    <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
+                      Mission Type: <strong style={{ color: "#38bdf8" }}>{selectedIntelMission.mission_type}</strong> | Base Payout: <span style={{ color: "#10b981", fontWeight: "bold" }}>${(selectedIntelMission.cbill_reward || 3500000).toLocaleString()} C-Bills</span>
+                    </p>
+                  </div>
 
-            {/* FINANCIAL & SALVAGE CLAUSES */}
-            <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "18px" }}>
-              <h4 style={{ color: "#10b981", margin: "0 0 10px 0", fontSize: "14px" }}>Contract Terms &amp; Compensation</h4>
-              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
-                Base C-Bill Payout: <strong style={{ color: "#10b981" }}>${(selectedIntelMission.cbill_reward || 3500000).toLocaleString()} C-Bills</strong>
-              </p>
-              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
-                Warchest WP Bonus: <strong style={{ color: "#f59e0b" }}>+{(selectedIntelMission.wp_reward || 350)} WP</strong>
-              </p>
-              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 4px 0" }}>
-                Salvage Recovery Clause: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.salvage_rights || "Shared (50%)"}</strong>
-              </p>
-              <p style={{ color: "#cbd5e1", fontSize: "13px", margin: 0 }}>
-                Battle Loss Compensation (BLC): <strong style={{ color: "#cbd5e1" }}>50% Armor/Structure Coverage</strong>
-              </p>
-            </div>
+                  {/* INTERACTIVE CONTRACT NEGOTIATION SLIDERS */}
+                  <div style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(245, 158, 11, 0.4)", padding: "16px", borderRadius: "8px" }}>
+                    <h4 className="font-orbitron" style={{ color: "#f59e0b", margin: "0 0 12px 0", fontSize: "14px", textTransform: "uppercase" }}>
+                      ⚙️ Dynamic Contract Term Negotiation (Affects OpFor Threat)
+                    </h4>
 
-            {/* FORCE READINESS COMPARISON */}
-            <div style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "12px 16px", borderRadius: "8px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <span style={{ fontSize: "11px", color: "#94a3b8" }}>ACTIVE COMMAND LANCE READINESS</span>
-                <p style={{ color: "#10b981", fontSize: "14px", fontWeight: "bold", margin: "2px 0 0 0" }}>
-                  {totalLanceTonnage} Tons ({units.length} Mechs) | {totalLanceBv2} BV2
-                </p>
-              </div>
-              <span style={{ background: "rgba(16, 185, 129, 0.2)", color: "#10b981", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" }}>
-                Suitability: High Match
-              </span>
-            </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      {/* SLIDER 1: BASE PAYOUT */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                          <span style={{ color: "#cbd5e1" }}>Base Payout Multiplier: <strong style={{ color: "#10b981" }}>{negPayoutMult.toFixed(2)}x (${negotiatedPayout.toLocaleString()} C-Bills)</strong></span>
+                          <span style={{ color: "#94a3b8" }}>Range: 0.50x to 2.00x</span>
+                        </div>
+                        <input
+                          type="range" min="0.5" max="2.0" step="0.05"
+                          value={negPayoutMult}
+                          onChange={e => setNegPayoutMult(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "#10b981", cursor: "pointer" }}
+                        />
+                      </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setSelectedIntelMission(null)}>Close Briefing</button>
-              <button style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { handleAcceptContract(selectedIntelMission); setSelectedIntelMission(null); }}>Sign &amp; Deploy Contract ➔</button>
-            </div>
+                      {/* SLIDER 2: SALVAGE RIGHTS % */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                          <span style={{ color: "#cbd5e1" }}>Salvage Rights Recovery: <strong style={{ color: "#38bdf8" }}>{negSalvagePct}% Salvage</strong></span>
+                          <span style={{ color: "#94a3b8" }}>25% Exchange to 100% Full</span>
+                        </div>
+                        <input
+                          type="range" min="25" max="100" step="25"
+                          value={negSalvagePct}
+                          onChange={e => setNegSalvagePct(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "#38bdf8", cursor: "pointer" }}
+                        />
+                      </div>
+
+                      {/* SLIDER 3: BATTLE LOSS COMPENSATION (BLC) */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                          <span style={{ color: "#cbd5e1" }}>Battle Loss Comp (BLC): <strong style={{ color: "#f59e0b" }}>{negBlcPct}% Armor/Structure Coverage</strong></span>
+                          <span style={{ color: "#94a3b8" }}>0% None to 100% Full</span>
+                        </div>
+                        <input
+                          type="range" min="0" max="100" step="25"
+                          value={negBlcPct}
+                          onChange={e => setNegBlcPct(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "#f59e0b", cursor: "pointer" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DYNAMIC OPFOR ENEMY BV & THREAT GAUGE */}
+                  <div style={{ background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(244, 63, 94, 0.4)", padding: "16px", borderRadius: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "12px", color: "#f43f5e", fontWeight: "bold" }}>🎯 NEGOTIATED OPFOR THREAT &amp; ENEMY BV GAUGE</span>
+                      <span style={{ background: threatMult > 1.15 ? "rgba(244, 63, 94, 0.2)" : "rgba(16, 185, 129, 0.2)", color: threatMult > 1.15 ? "#f43f5e" : "#10b981", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                        Threat Multiplier: {threatMult.toFixed(2)}x
+                      </span>
+                    </div>
+
+                    <p style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", margin: "0 0 4px 0" }}>
+                      {threatRatingText}
+                    </p>
+                    <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "0 0 6px 0" }}>
+                      Calculated Enemy BV: <strong style={{ color: "#f59e0b" }}>{negotiatedOpForBv.toLocaleString()} BV2</strong> (vs Player Lance {baseOpForBv.toLocaleString()} BV2)
+                    </p>
+                    <p style={{ color: "#94a3b8", fontSize: "11px", margin: 0 }}>
+                      OpFor Intelligence Projection: <em>{opforCompositionText}</em>
+                    </p>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+                    <button style={{ background: "#475569", border: "none", color: "#fff", padding: "10px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => setSelectedIntelMission(null)}>Close Briefing</button>
+                    <button
+                      style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}
+                      onClick={() => {
+                        const updatedMission = { ...selectedIntelMission, cbill_reward: negotiatedPayout, salvage_rights: `${negSalvagePct}% Negotiated Salvage` };
+                        handleAcceptContract(updatedMission);
+                        setSelectedIntelMission(null);
+                      }}
+                    >
+                      Sign &amp; Deploy Negotiated Contract (${negotiatedPayout.toLocaleString()}) ➔
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

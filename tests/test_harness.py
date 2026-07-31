@@ -292,6 +292,38 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.db.refresh(self.campaign)
         self.assertEqual(self.campaign.loan_balance, 500000.0)
 
+    # ==================== 11. DYNAMIC CONTRACT NEGOTIATION & OPFOR BV CONTRACT TESTS ====================
+    def test_13_contract_negotiation_and_opfor_enemy_bv(self):
+        """Verify contract term negotiation recalculates payout and OpFor Enemy BV scaling."""
+        mission = Mission(
+            campaign_id=self.campaign.id,
+            name="Operation Crimson Lance",
+            mission_type="Garrison Defense",
+            employer="House Davion",
+            cbill_reward=4000000.0,
+            wp_reward=400,
+            salvage_rights="Shared (50%)",
+            status="Available"
+        )
+        self.db.add(mission)
+        self.db.commit()
+
+        # Negotiate higher payout (1.5x), 100% salvage, 100% BLC
+        res = ContractGenerator.negotiate_contract(
+            db=self.db,
+            mission_id=mission.id,
+            payout_multiplier=1.5,
+            salvage_pct=100.0,
+            blc_pct=100.0,
+            player_lance_bv=5000
+        )
+
+        self.assertEqual(res["negotiated_cbill"], 6000000.0)
+        # Threat multiplier: 1.0 + (1.5 - 1.0)*0.25 + (2.0 - 1.0)*0.20 + (2.0 - 1.0)*0.15 = 1.0 + 0.125 + 0.20 + 0.15 = 1.475 -> 1.48
+        self.assertGreater(res["threat_multiplier"], 1.40)
+        self.assertGreater(res["opfor_enemy_bv"], 7000)
+        self.assertIn("Extreme Threat", res["opfor_threat_rating"])
+
 
 if __name__ == "__main__":
     unittest.main()
