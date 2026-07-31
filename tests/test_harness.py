@@ -31,8 +31,9 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.campaign = Campaign(
             name="Succession Wars 3025 Test",
             current_date="3025-01-15",
-            cbill_balance=15000000.0,
-            wp_balance=500,
+            wp_balance=1500,
+            sp_balance=800,
+            cbill_balance=0.0,
             reputation_score=75,
             mrb_rating="B"
         )
@@ -51,8 +52,8 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         """Verify CoreAgent returns ledger summary correctly."""
         summary = CoreAgent.get_ledger_summary(self.db)
         self.assertEqual(summary["campaign_name"], "Succession Wars 3025 Test")
-        self.assertEqual(summary["CBills"], 15000000.0)
-        self.assertEqual(summary["WP"], 500)
+        self.assertEqual(summary["WP"], 1500)
+        self.assertEqual(summary["SP"], 800)
         self.assertEqual(summary["mrb_rating"], "B")
 
     # ==================== 2. OPERATIONS AGENT CONTRACT TESTS ====================
@@ -63,22 +64,21 @@ class TestBattleTechAgentHarness(unittest.TestCase):
             name="Operation Iron Shield Test",
             mission_type="Garrison Defense",
             employer="House Davion",
-            base_cbill=3500000.0,
             wp_reward=400,
+            sp_reward=200,
             salvage_rights="Shared (50%)",
             blc_coverage=0.5
         )
         self.assertIsNotNone(contract.id)
         self.assertEqual(contract.name, "Operation Iron Shield Test")
         self.assertEqual(contract.status, "Active")
-        # MRB Rating B gives 1.08x bonus -> 3,500,000 * 1.08 = 3,780,000
-        self.assertAlmostEqual(contract.cbill_reward, 3780000.0, places=2)
+        # MRB Rating B gives 1.08x bonus -> 400 * 1.08 = 432 WP
+        self.assertEqual(contract.wp_reward, 432)
 
     def test_03_contract_generator_official_rules(self):
-        """Verify ContractGenerator incorporates Campaign Operations v5.0 payout & climate rules."""
+        """Verify ContractGenerator incorporates Campaign Operations & Chaos Campaign payout & climate rules."""
         proc_contract = ContractGenerator.generate_procedural_contract()
         self.assertTrue(any(f in proc_contract["employer"] for f in ["Davion", "Draconis", "Steiner", "Marik", "Liao", "ComStar", "Independent", "Solaris", "Wolf"]))
-        self.assertGreater(proc_contract["base_cbill"], 0)
         self.assertGreater(proc_contract["wp_reward"], 0)
 
     def test_04_combat_aar_kill_tracker_and_xp_engine(self):
@@ -111,7 +111,7 @@ class TestBattleTechAgentHarness(unittest.TestCase):
             db=self.db,
             unit_logs=unit_logs,
             pilot_logs=pilot_logs,
-            salvage_cbill_value=500000.0,
+            salvage_cbill_value=0.0,
             salvage_items=["PPC", "Medium Laser"]
         )
 
@@ -247,18 +247,18 @@ class TestBattleTechAgentHarness(unittest.TestCase):
 
     # ==================== 9. BONDSMEN RANSOM & INTEGRATION CONTRACT TESTS ====================
     def test_11_bondsmen_ransom_and_integration(self):
-        """Verify bondsman ransom adds C-Bills and bondsman integration recruits active pilot."""
+        """Verify bondsman ransom adds Warchest Points (WP) and bondsman integration recruits active pilot."""
         pilot = Pilot(campaign_id=self.campaign.id, name="Capt. Grayson Carlyle", callsign="Shadow", gunnery=2, piloting=3, bondsmen=2)
         self.db.add(pilot)
         self.db.commit()
 
-        initial_cbills = self.campaign.cbill_balance
+        initial_wp = self.campaign.wp_balance
 
-        # Ransom bondsman 1 for $250,000 C-Bills
-        res_ransom = PersonnelAgent.ransom_bondsman(self.db, pilot.id, ransom_amount=250000.0)
+        # Ransom bondsman 1 for 50 WP
+        res_ransom = PersonnelAgent.ransom_bondsman(self.db, pilot.id, ransom_amount=50)
         self.db.refresh(self.campaign)
         self.db.refresh(pilot)
-        self.assertEqual(self.campaign.cbill_balance, initial_cbills + 250000.0)
+        self.assertEqual(self.campaign.wp_balance, initial_wp + 50)
         self.assertEqual(pilot.bondsmen, 1)
 
         # Integrate bondsman 2 into active roster
@@ -273,36 +273,36 @@ class TestBattleTechAgentHarness(unittest.TestCase):
 
     # ==================== 10. COMSTAR BANK LOAN FINANCING CONTRACT TESTS ====================
     def test_12_comstar_bank_loan_financing(self):
-        """Verify taking out a credit line loan increases treasury balance and tracking debt balance."""
-        initial_cbills = self.campaign.cbill_balance
+        """Verify taking out a credit line loan increases WP treasury balance and tracking debt balance."""
+        initial_wp = self.campaign.wp_balance
 
-        # Take $1,000,000 loan at 5% interest
-        res_take = CoreAgent.take_loan(self.db, principal=1000000.0, interest_rate=0.05)
+        # Take 500 WP loan at 5% interest
+        res_take = CoreAgent.take_loan(self.db, principal=500.0, interest_rate=0.05)
         self.db.refresh(self.campaign)
-        self.assertEqual(self.campaign.cbill_balance, initial_cbills + 1000000.0)
-        self.assertEqual(self.campaign.loan_balance, 1000000.0)
+        self.assertEqual(self.campaign.wp_balance, initial_wp + 500)
+        self.assertEqual(self.campaign.loan_balance, 500.0)
         self.assertEqual(self.campaign.loan_interest_rate, 0.05)
 
         # Verify ledger summary includes loan metrics
         summary = CoreAgent.get_ledger_summary(self.db)
-        self.assertEqual(summary["loan_balance"], 1000000.0)
-        self.assertEqual(summary["monthly_interest_due"], 50000.0)
+        self.assertEqual(summary["loan_balance"], 500.0)
+        self.assertEqual(summary["monthly_interest_due"], 25.0)
 
-        # Repay $500,000 principal debt
-        res_repay = CoreAgent.repay_loan(self.db, repayment_amount=500000.0)
+        # Repay 100 WP principal debt
+        res_repay = CoreAgent.repay_loan(self.db, repayment_amount=100.0)
         self.db.refresh(self.campaign)
-        self.assertEqual(self.campaign.loan_balance, 500000.0)
+        self.assertEqual(self.campaign.loan_balance, 400.0)
 
     # ==================== 11. DYNAMIC CONTRACT NEGOTIATION & OPFOR BV CONTRACT TESTS ====================
     def test_13_contract_negotiation_and_opfor_enemy_bv(self):
-        """Verify contract term negotiation recalculates payout and OpFor Enemy BV scaling."""
+        """Verify contract term negotiation recalculates WP payout and OpFor Enemy BV scaling."""
         mission = Mission(
             campaign_id=self.campaign.id,
             name="Operation Crimson Lance",
             mission_type="Garrison Defense",
             employer="House Davion",
-            cbill_reward=4000000.0,
             wp_reward=400,
+            sp_reward=200,
             salvage_rights="Shared (50%)",
             status="Available"
         )
@@ -319,7 +319,7 @@ class TestBattleTechAgentHarness(unittest.TestCase):
             player_lance_bv=5000
         )
 
-        self.assertEqual(res["negotiated_cbill"], 6000000.0)
+        self.assertEqual(res["negotiated_wp"], 600)
         # Threat multiplier: 1.0 + (1.5 - 1.0)*0.25 + (2.0 - 1.0)*0.20 + (2.0 - 1.0)*0.15 = 1.0 + 0.125 + 0.20 + 0.15 = 1.475 -> 1.48
         self.assertGreater(res["threat_multiplier"], 1.40)
         self.assertGreater(res["opfor_enemy_bv"], 7000)
@@ -363,7 +363,7 @@ class TestBattleTechAgentHarness(unittest.TestCase):
             name="Custom FedCom 3062 (Vance Mercenaries)",
             wp_balance=1000,
             sp_balance=500,
-            cbill_balance=15000000.0,
+            cbill_balance=0.0,
             current_date="3062-01-01",
             era="3062"
         )
@@ -406,10 +406,14 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         # Reward adjustment formula check
         target_bv = 6000
         confirmed_opfor_bv = 6600  # +10% higher BV
-        base_payout = 3500000.0
+        base_payout = 400
         bv_ratio = confirmed_opfor_bv / target_bv
-        adjusted_payout = Math_round = int(round(base_payout * bv_ratio))
-        self.assertEqual(adjusted_payout, 3850000)
+        adjusted_payout = int(round(base_payout * bv_ratio))
+        self.assertEqual(adjusted_payout, 440)
+
+
+if __name__ == "__main__":
+    unittest.main()
 
 
 if __name__ == "__main__":

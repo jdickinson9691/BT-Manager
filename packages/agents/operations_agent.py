@@ -13,7 +13,7 @@ class OperationsAgent:
 
     @classmethod
     def advance_timeline(cls, db: Session, days: int) -> Dict[str, Any]:
-        """Advances campaign timeline by specified days and deducts daily overhead."""
+        """Advances campaign timeline by specified days and deducts daily overhead in SP."""
         campaign = db.query(Campaign).first()
         if not campaign:
             raise ValueError("No active campaign found")
@@ -23,8 +23,8 @@ class OperationsAgent:
         campaign.current_date = new_dt.strftime("%Y-%m-%d")
 
         overhead_discount = 0.85 if campaign.mrb_rating == "A" else 0.92 if campaign.mrb_rating == "B" else 1.0
-        overhead_cost = campaign.daily_overhead * days * overhead_discount
-        campaign.cbill_balance -= overhead_cost
+        overhead_cost = int(round((campaign.daily_overhead or 10.0) * days * overhead_discount))
+        campaign.sp_balance = max(0, (campaign.sp_balance or 0) - overhead_cost)
 
         pilots = db.query(Pilot).filter(Pilot.status == "Injured").all()
         recovered_names = []
@@ -36,7 +36,7 @@ class OperationsAgent:
                     p.status = "Active"
                     recovered_names.append(p.name)
 
-        log_desc = f"Advanced campaign timeline by {days} day(s). Daily overhead: ${overhead_cost:,.2f} C-Bills."
+        log_desc = f"Advanced campaign timeline by {days} day(s). Support overhead: {overhead_cost} SP."
         if recovered_names:
             log_desc += f" MedBay Release: {', '.join(recovered_names)} fully healed!"
 
@@ -51,7 +51,7 @@ class OperationsAgent:
         return {
             "message": f"Advanced {days} day(s)",
             "current_date": campaign.current_date,
-            "overhead_incurred": overhead_cost,
+            "overhead_incurred_sp": overhead_cost,
             "recovered_pilots": recovered_names
         }
 
@@ -65,8 +65,8 @@ class OperationsAgent:
         briefing = ContractGenerator.generate_procedural_contract(era=campaign.current_date[:4])
 
         mrb_bonus = 1.15 if campaign.mrb_rating == "A" else 1.08 if campaign.mrb_rating == "B" else 1.0
-        final_cbills = briefing["base_cbill"] * mrb_bonus
         final_wp = int(briefing["wp_reward"] * mrb_bonus)
+        final_sp = int(briefing.get("sp_reward", 200) * mrb_bonus)
 
         mission = Mission(
             campaign_id=campaign.id,
@@ -74,7 +74,8 @@ class OperationsAgent:
             mission_type=briefing["mission_type"],
             employer=briefing["employer"],
             wp_reward=final_wp,
-            cbill_reward=final_cbills,
+            sp_reward=final_sp,
+            cbill_reward=0.0,
             salvage_rights=briefing["salvage_rights"],
             blc_coverage=0.5,
             transport_allowance=0.5,
@@ -112,7 +113,7 @@ class OperationsAgent:
         if not mission:
             raise ValueError("Mission not found")
 
-        reward_wp = mission.wp_reward
+        reward_wp = mission.wp_reward or 400
         if objectives:
             for obj in objectives:
                 if obj.get("completed", False):
@@ -121,19 +122,17 @@ class OperationsAgent:
         settlement = WarchestEngine.calculate_track_settlement(
             entry_fee_wp=entry_fee_wp,
             objective_rewards_wp=reward_wp,
-            bonus_sp=bonus_sp,
-            blc_payout_cbills=mission.cbill_reward
+            bonus_sp=bonus_sp
         )
 
         campaign.wp_balance += settlement["net_wp"]
         campaign.sp_balance += settlement["total_sp_earned"]
-        campaign.cbill_balance += settlement["total_cbills_earned"]
         mission.status = "Completed"
 
         ledger_desc = (
             f"Settled Warchest Track '{mission.name}'. "
             f"Entry Fee: -{entry_fee_wp} WP | Objective Payout: +{reward_wp} WP | "
-            f"Financial Settlement: +{settlement['net_wp']} WP, +{settlement['total_sp_earned']} SP, +${settlement['total_cbills_earned']:,.2f} C-Bills."
+            f"Financial Settlement: +{settlement['net_wp']} WP, +{settlement['total_sp_earned']} SP."
         )
 
         db.add(CampaignLog(
@@ -156,8 +155,8 @@ class OperationsAgent:
         name: str,
         mission_type: str = "Raid",
         employer: str = "House Davion",
-        base_cbill: float = 3000000.0,
-        wp_reward: int = 350,
+        wp_reward: int = 400,
+        sp_reward: int = 200,
         salvage_rights: str = "Shared (50%)",
         blc_coverage: float = 0.5,
         transport_allowance: float = 0.5,
@@ -169,8 +168,8 @@ class OperationsAgent:
             raise ValueError("No active campaign found")
 
         mrb_bonus = 1.15 if campaign.mrb_rating == "A" else 1.08 if campaign.mrb_rating == "B" else 1.0
-        final_cbills = base_cbill * mrb_bonus
         final_wp = int(wp_reward * mrb_bonus)
+        final_sp = int(sp_reward * mrb_bonus)
 
         mission = Mission(
             campaign_id=campaign.id,
@@ -178,7 +177,8 @@ class OperationsAgent:
             mission_type=mission_type,
             employer=employer,
             wp_reward=final_wp,
-            cbill_reward=final_cbills,
+            sp_reward=final_sp,
+            cbill_reward=0.0,
             salvage_rights=salvage_rights,
             blc_coverage=blc_coverage,
             transport_allowance=transport_allowance,

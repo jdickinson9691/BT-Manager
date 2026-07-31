@@ -135,8 +135,8 @@ class PersonnelAgent:
         }
 
     @classmethod
-    def ransom_bondsman(cls, db: Session, pilot_id: int, ransom_amount: float = 250000.0) -> Dict[str, Any]:
-        """Ransoms a captured bondsman back to their employer for C-Bills."""
+    def ransom_bondsman(cls, db: Session, pilot_id: int, ransom_amount: int = 50) -> Dict[str, Any]:
+        """Ransoms a captured bondsman back to their employer for Warchest Points (WP)."""
         from packages.database.models import CampaignLog
         pilot = db.query(Pilot).filter(Pilot.id == pilot_id).first()
         if not pilot:
@@ -145,20 +145,20 @@ class PersonnelAgent:
             raise ValueError("Pilot has no active bondsmen to ransom")
 
         campaign = db.query(Campaign).filter(Campaign.id == pilot.campaign_id).first()
-        campaign.cbill_balance += ransom_amount
+        campaign.wp_balance += ransom_amount
         pilot.bondsmen -= 1
 
         db.add(CampaignLog(
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Bondsman Ransom",
-            description=f"Ransomed captured enemy bondsman back to employer for ${ransom_amount:,.2f} C-Bills."
+            description=f"Ransomed captured enemy bondsman back to employer for {ransom_amount} WP."
         ))
         db.commit()
 
         return {
-            "message": f"Successfully ransomed bondsman for ${ransom_amount:,.2f} C-Bills!",
-            "cbill_balance": campaign.cbill_balance,
+            "message": f"Successfully ransomed bondsman for {ransom_amount} WP!",
+            "wp_balance": campaign.wp_balance,
             "remaining_bondsmen": pilot.bondsmen
         }
 

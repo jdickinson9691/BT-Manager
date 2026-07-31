@@ -797,8 +797,11 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span className="font-mono" style={{ color: "#38bdf8", fontSize: "15px", fontWeight: "bold" }}>
+            WARCHEST: {(balance.WP || 1500).toLocaleString()} WP
+          </span>
           <span className="font-mono" style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold" }}>
-            C-BILLS: ${(balance.CBills || 15000000).toLocaleString()}
+            SUPPORT: {(balance.SP || 800).toLocaleString()} SP
           </span>
 
           {/* INTEGRATION NETWORK STATUS TOGGLES */}
@@ -931,8 +934,8 @@ export default function Dashboard() {
                       <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
                         Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction}</span>
                       </p>
-                      <p className="font-mono" style={{ color: "#10b981", fontSize: "13px", margin: "4px 0 0 0" }}>
-                        Payout: ${m.cbill_reward.toLocaleString()} C-Bills | +{m.wp_reward} Warchest WP
+                      <p className="font-mono" style={{ color: "#38bdf8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                        Payout: {(m.wp_reward || 400).toLocaleString()} Warchest WP | +{m.sp_reward || 200} Support SP
                       </p>
                     </div>
 
@@ -1541,11 +1544,11 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
             {/* MONTHLY EXPENSES BREAKDOWN */}
             <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "20px", borderRadius: "8px" }}>
-              <h4 style={{ color: "#ea580c", margin: "0 0 12px 0" }}>Monthly Expenditure Rates</h4>
-              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Daily Base Overhead: <strong>$5,000 C-Bills / day</strong></p>
-              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Pilot &amp; Tech Staff Salaries: <strong>$150,000 C-Bills / month</strong></p>
-              <p style={{ color: "#10b981", fontSize: "15px", fontWeight: "bold", marginTop: "16px" }}>
-                Current Treasury Balance: ${(balance.CBills || 15000000).toLocaleString()} C-Bills
+              <h4 style={{ color: "#ea580c", margin: "0 0 12px 0" }}>Monthly Support &amp; Expenditure Rates</h4>
+              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Daily Base Overhead: <strong>10 Support Points (SP) / day</strong></p>
+              <p style={{ color: "#cbd5e1", fontSize: "13px" }}>Pilot &amp; Tech Staff Support: <strong>150 Support Points (SP) / month</strong></p>
+              <p style={{ color: "#38bdf8", fontSize: "15px", fontWeight: "bold", marginTop: "16px" }}>
+                Current Treasury: {(balance.WP || 1500).toLocaleString()} WP | {(balance.SP || 800).toLocaleString()} SP
               </p>
             </div>
 
@@ -1565,60 +1568,60 @@ export default function Dashboard() {
           <div style={{ background: "rgba(15, 20, 30, 0.9)", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", padding: "20px", marginTop: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <h4 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>
-                🏦 ComStar &amp; MRB Financial Credit &amp; Debt Financing Suite
+                🏦 ComStar &amp; MRB Warchest Credit &amp; Debt Financing Suite
               </h4>
               <span style={{ background: (balance.loan_balance || 0) > 0 ? "rgba(244, 63, 94, 0.2)" : "rgba(16, 185, 129, 0.2)", color: (balance.loan_balance || 0) > 0 ? "#f43f5e" : "#10b981", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
-                {(balance.loan_balance || 0) > 0 ? `Outstanding Debt: $${Number(balance.loan_balance || 0).toLocaleString()} C-Bills` : "Debt Free (Clean Credit)"}
+                {(balance.loan_balance || 0) > 0 ? `Outstanding Debt: ${Number(balance.loan_balance || 0).toLocaleString()} WP` : "Debt Free (Clean Credit)"}
               </span>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
               <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(56, 189, 248, 0.2)", padding: "14px", borderRadius: "8px" }}>
                 <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Emergency Credit Line</h5>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>$1,000,000 C-Bills (5% Mo. Interest)</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>500 WP Credit (5% Mo. Interest)</p>
                 <button
                   onClick={() => {
                     fetch("http://localhost:8000/api/v1/ledger/loan/take", {
                       method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ principal: 1000000.0, interest_rate: 0.05 })
-                    }).then(r => r.json()).then(d => { alert(d.message || "Financed!"); refreshAll(); });
+                      body: JSON.stringify({ principal: 500.0, interest_rate: 0.05 })
+                    }).then(r => r.json()).then(d => { showAlert(d.message || "Financed!"); refreshAll(); });
                   }}
                   style={{ width: "100%", background: "#0284c7", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
                 >
-                  🚀 Finance $1M Credit Line
+                  🚀 Finance 500 WP Credit Line
                 </button>
               </div>
 
               <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(147, 51, 234, 0.2)", padding: "14px", borderRadius: "8px" }}>
                 <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Expansion Capital Loan</h5>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>$5,000,000 C-Bills (7.5% Mo. Interest)</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>2,000 WP Capital (7.5% Mo. Interest)</p>
                 <button
                   onClick={() => {
                     fetch("http://localhost:8000/api/v1/ledger/loan/take", {
                       method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ principal: 5000000.0, interest_rate: 0.075 })
-                    }).then(r => r.json()).then(d => { alert(d.message || "Financed!"); refreshAll(); });
+                      body: JSON.stringify({ principal: 2000.0, interest_rate: 0.075 })
+                    }).then(r => r.json()).then(d => { showAlert(d.message || "Financed!"); refreshAll(); });
                   }}
                   style={{ width: "100%", background: "#9333ea", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
                 >
-                  🚀 Finance $5M Capital Loan
+                  🚀 Finance 2,000 WP Capital Loan
                 </button>
               </div>
 
               <div style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(234, 88, 12, 0.2)", padding: "14px", borderRadius: "8px" }}>
                 <h5 style={{ color: "#fff", margin: "0 0 6px 0", fontSize: "14px" }}>Debt Repayment Facility</h5>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>Pay Down $500k Principal Debt</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 10px 0" }}>Pay Down 100 WP Debt Principal</p>
                 <button
                   onClick={() => {
                     fetch("http://localhost:8000/api/v1/ledger/loan/repay", {
                       method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ repayment_amount: 500000.0 })
-                    }).then(r => r.json()).then(d => { alert(d.message || "Repaid!"); refreshAll(); });
+                      body: JSON.stringify({ repayment_amount: 100.0 })
+                    }).then(r => r.json()).then(d => { showAlert(d.message || "Repaid!"); refreshAll(); });
                   }}
                   disabled={(balance.loan_balance || 0) <= 0}
                   style={{ width: "100%", background: (balance.loan_balance || 0) > 0 ? "#10b981" : "#475569", color: "#fff", border: "none", padding: "8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px", cursor: (balance.loan_balance || 0) > 0 ? "pointer" : "not-allowed" }}
                 >
-                  💰 Repay $500k Debt Principal
+                  💰 Repay 100 WP Debt Principal
                 </button>
               </div>
             </div>
@@ -1644,7 +1647,8 @@ export default function Dashboard() {
               const blcRatio = negBlcPct / 50.0;
               const threatMult = Math.max(0.75, Math.min(2.25, Number((1.0 + (payoutRatio - 1.0) * 0.25 + (salvageRatio - 1.0) * 0.20 + (blcRatio - 1.0) * 0.15).toFixed(2))));
               const negotiatedOpForBv = Math.round(baseOpForBv * threatMult);
-              const negotiatedPayout = Math.round((selectedIntelMission.cbill_reward || 3500000) * negPayoutMult);
+              const baseWpReward = selectedIntelMission.wp_reward || 400;
+              const negotiatedPayout = Math.round(baseWpReward * negPayoutMult);
 
               let threatRatingText = "🟢 Low Threat (Local Planetary Militia)";
               let opforCompositionText = "1x Locust (20T), 1x Stinger (20T), 2x Light Armor Tanks";
@@ -1667,21 +1671,19 @@ export default function Dashboard() {
                       Employer: <strong style={{ color: "#cbd5e1" }}>{selectedIntelMission.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{selectedIntelMission.enemy_faction || "OpFor Force"}</span>
                     </p>
                     <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
-                      Mission Type: <strong style={{ color: "#38bdf8" }}>{selectedIntelMission.mission_type}</strong> | Base Payout: <span style={{ color: "#10b981", fontWeight: "bold" }}>${(selectedIntelMission.cbill_reward || 3500000).toLocaleString()} C-Bills</span>
+                      Mission Type: <strong style={{ color: "#38bdf8" }}>{selectedIntelMission.mission_type}</strong> | Base Warchest Payout: <span style={{ color: "#38bdf8", fontWeight: "bold" }}>{baseWpReward.toLocaleString()} WP</span>
                     </p>
                   </div>
 
-                  {/* INTERACTIVE CONTRACT NEGOTIATION SLIDERS */}
                   <div style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(245, 158, 11, 0.4)", padding: "16px", borderRadius: "8px" }}>
                     <h4 className="font-orbitron" style={{ color: "#f59e0b", margin: "0 0 12px 0", fontSize: "14px", textTransform: "uppercase" }}>
                       ⚙️ Dynamic Contract Term Negotiation (Affects OpFor Threat)
                     </h4>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                      {/* SLIDER 1: BASE PAYOUT */}
                       <div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                          <span style={{ color: "#cbd5e1" }}>Base Payout Multiplier: <strong style={{ color: "#10b981" }}>{negPayoutMult.toFixed(2)}x (${negotiatedPayout.toLocaleString()} C-Bills)</strong></span>
+                          <span style={{ color: "#cbd5e1" }}>Base Payout Multiplier: <strong style={{ color: "#10b981" }}>{negPayoutMult.toFixed(2)}x ({negotiatedPayout.toLocaleString()} WP)</strong></span>
                           <span style={{ color: "#94a3b8" }}>Range: 0.50x to 2.00x</span>
                         </div>
                         <input
@@ -1692,7 +1694,6 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      {/* SLIDER 2: SALVAGE RIGHTS % */}
                       <div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
                           <span style={{ color: "#cbd5e1" }}>Salvage Rights Recovery: <strong style={{ color: "#38bdf8" }}>{negSalvagePct}% Salvage</strong></span>
@@ -1706,7 +1707,6 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      {/* SLIDER 3: BATTLE LOSS COMPENSATION (BLC) */}
                       <div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
                           <span style={{ color: "#cbd5e1" }}>Battle Loss Comp (BLC): <strong style={{ color: "#f59e0b" }}>{negBlcPct}% Armor/Structure Coverage</strong></span>
@@ -1722,7 +1722,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* DYNAMIC OPFOR ENEMY BV & THREAT GAUGE */}
                   <div style={{ background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(244, 63, 94, 0.4)", padding: "16px", borderRadius: "8px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                       <span style={{ fontSize: "12px", color: "#f43f5e", fontWeight: "bold" }}>🎯 NEGOTIATED OPFOR THREAT &amp; ENEMY BV GAUGE</span>
@@ -1747,12 +1746,12 @@ export default function Dashboard() {
                     <button
                       style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}
                       onClick={() => {
-                        const updatedMission = { ...selectedIntelMission, cbill_reward: negotiatedPayout, salvage_rights: `${negSalvagePct}% Negotiated Salvage` };
+                        const updatedMission = { ...selectedIntelMission, wp_reward: negotiatedPayout, salvage_rights: `${negSalvagePct}% Negotiated Salvage` };
                         handleAcceptContract(updatedMission);
                         setSelectedIntelMission(null);
                       }}
                     >
-                      Sign &amp; Deploy Negotiated Contract (${negotiatedPayout.toLocaleString()}) ➔
+                      Sign &amp; Deploy Negotiated Contract ({negotiatedPayout.toLocaleString()} WP) →
                     </button>
                   </div>
                 </div>

@@ -10,11 +10,11 @@ class MaintenanceAgent:
     """
 
     AVAILABLE_MARKET_MECHS = [
-        {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "cbill_cost": 4500000.0, "wp_cost": 450, "tech_base": "Inner Sphere"},
-        {"chassis": "Hunchback", "model": "HBK-4G", "tonnage": 50, "bv2": 1041, "cbill_cost": 3800000.0, "wp_cost": 380, "tech_base": "Inner Sphere"},
-        {"chassis": "Catapult", "model": "CPT-C1", "tonnage": 65, "bv2": 1399, "cbill_cost": 5900000.0, "wp_cost": 590, "tech_base": "Inner Sphere"},
-        {"chassis": "Atlas", "model": "AS7-D", "tonnage": 100, "bv2": 1897, "cbill_cost": 9600000.0, "wp_cost": 960, "tech_base": "Inner Sphere"},
-        {"chassis": "Timber Wolf", "model": "Prime", "tonnage": 75, "bv2": 2737, "cbill_cost": 14200000.0, "wp_cost": 1420, "tech_base": "Clan"}
+        {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "wp_cost": 450, "tech_base": "Inner Sphere"},
+        {"chassis": "Hunchback", "model": "HBK-4G", "tonnage": 50, "bv2": 1041, "wp_cost": 380, "tech_base": "Inner Sphere"},
+        {"chassis": "Catapult", "model": "CPT-C1", "tonnage": 65, "bv2": 1399, "wp_cost": 590, "tech_base": "Inner Sphere"},
+        {"chassis": "Atlas", "model": "AS7-D", "tonnage": 100, "bv2": 1897, "wp_cost": 960, "tech_base": "Inner Sphere"},
+        {"chassis": "Timber Wolf", "model": "Prime", "tonnage": 75, "bv2": 2737, "wp_cost": 1420, "tech_base": "Clan"}
     ]
 
     @classmethod
@@ -30,21 +30,17 @@ class MaintenanceAgent:
         model: str,
         tonnage: int,
         bv2: int,
-        cbill_cost: float,
-        wp_cost: int = 0,
+        wp_cost: int = 400,
         tech_base: str = "Inner Sphere"
     ) -> Dict[str, Any]:
-        """Purchases a Mech from the procurement market and adds it to the roster."""
+        """Purchases a Mech from the procurement market using Warchest Points (WP)."""
         campaign = db.query(Campaign).first()
         if not campaign:
             raise ValueError("No active campaign found")
 
-        if campaign.cbill_balance < cbill_cost:
-            raise ValueError("Insufficient C-Bill balance for Mech procurement")
         if campaign.wp_balance < wp_cost:
-            raise ValueError("Insufficient WP balance for Mech procurement")
+            raise ValueError(f"Insufficient WP balance ({campaign.wp_balance} WP) for Mech procurement ({wp_cost} WP required).")
 
-        campaign.cbill_balance -= cbill_cost
         campaign.wp_balance -= wp_cost
 
         new_unit = Unit(
@@ -64,29 +60,30 @@ class MaintenanceAgent:
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Procurement",
-            description=f"Procured {chassis} {model} ({tonnage}T) for ${cbill_cost:,.2f} C-Bills."
+            description=f"Procured {chassis} {model} ({tonnage}T) for {wp_cost} WP."
         ))
         db.commit()
         db.refresh(new_unit)
 
         return {
             "message": f"Successfully procured {chassis} {model}!",
-            "unit_id": new_unit.id
+            "unit_id": new_unit.id,
+            "wp_balance": campaign.wp_balance
         }
 
     @classmethod
     def sell_unit(cls, db: Session, unit_id: int) -> Dict[str, Any]:
-        """Sells a Mech from the roster for C-Bills based on its condition."""
+        """Sells a Mech from the roster for Warchest Points (WP) based on its condition."""
         unit = db.query(Unit).filter(Unit.id == unit_id).first()
         if not unit:
             raise ValueError("Unit not found")
         campaign = db.query(Campaign).filter(Campaign.id == unit.campaign_id).first()
 
-        base_value = unit.tonnage * 80000.0
-        condition_factor = max(0.2, 1.0 - ((unit.armor_damage * 500 + unit.structure_damage * 2500) / base_value))
-        salvage_payout = round(base_value * 0.6 * condition_factor, 2)
+        base_wp = unit.tonnage * 8.0
+        condition_factor = max(0.2, 1.0 - ((unit.armor_damage * 0.5 + unit.structure_damage * 2.5) / base_wp))
+        salvage_wp = int(round(base_wp * 0.6 * condition_factor))
 
-        campaign.cbill_balance += salvage_payout
+        campaign.wp_balance += salvage_wp
         unit_name = f"{unit.chassis} {unit.model}"
 
         db.delete(unit)
@@ -94,7 +91,7 @@ class MaintenanceAgent:
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Sales",
-            description=f"Sold {unit_name} to local scrap market for ${salvage_payout:,.2f} C-Bills."
+            description=f"Sold {unit_name} to local market for {salvage_wp} WP."
         ))
         db.commit()
 

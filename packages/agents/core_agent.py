@@ -172,11 +172,11 @@ class CoreAgent:
         """Seeds a rich starter mercenary campaign ('Wolf's Irregulars') into the database."""
         campaign = Campaign(
             name="Wolf's Irregulars",
-            wp_balance=1250,
-            sp_balance=750,
-            cbill_balance=15000000.0,
+            wp_balance=1500,
+            sp_balance=800,
+            cbill_balance=0.0,
             current_date="3025-01-15",
-            daily_overhead=5000.0,
+            daily_overhead=10.0,
             mrb_rating="B",
             reputation_score=72
         )
@@ -202,7 +202,8 @@ class CoreAgent:
             mission_type="Garrison",
             employer="House Davion",
             wp_reward=350,
-            cbill_reward=3500000.0,
+            sp_reward=150,
+            cbill_reward=0.0,
             salvage_rights="Shared (50%)",
             status="Available"
         )
@@ -212,7 +213,8 @@ class CoreAgent:
             mission_type="Raid",
             employer="Draconis Combine Mustered Soldier",
             wp_reward=450,
-            cbill_reward=4200000.0,
+            sp_reward=250,
+            cbill_reward=0.0,
             salvage_rights="Full Salvage",
             status="Available"
         )
@@ -222,7 +224,8 @@ class CoreAgent:
             mission_type="Recon",
             employer="Independent Local Government",
             wp_reward=300,
-            cbill_reward=2800000.0,
+            sp_reward=100,
+            cbill_reward=0.0,
             salvage_rights="Shared (25%)",
             status="Available"
         )
@@ -238,7 +241,7 @@ class CoreAgent:
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Setup",
-            description="Mercenary company 'Wolf's Irregulars' established on Outreach."
+            description="Mercenary company 'Wolf's Irregulars' established on Outreach with Warchest Points economy."
         ))
 
         db.commit()
@@ -256,7 +259,7 @@ class CoreAgent:
             "campaign_name": campaign.name,
             "WP": campaign.wp_balance,
             "SP": campaign.sp_balance,
-            "CBills": campaign.cbill_balance,
+            "CBills": 0.0,
             "current_date": campaign.current_date,
             "daily_overhead": campaign.daily_overhead,
             "mrb_rating": campaign.mrb_rating,
@@ -268,10 +271,10 @@ class CoreAgent:
         }
 
     @classmethod
-    def take_loan(cls, db: Session, principal: float = 1000000.0, interest_rate: float = 0.05) -> Dict[str, Any]:
-        """Takes out a financial credit loan from ComStar / MRB Bank."""
+    def take_loan(cls, db: Session, principal: float = 500.0, interest_rate: float = 0.05) -> Dict[str, Any]:
+        """Takes out a Warchest Point credit loan from ComStar / MRB Bank."""
         campaign = cls.get_campaign(db)
-        campaign.cbill_balance += principal
+        campaign.wp_balance += int(principal)
         campaign.loan_balance = (campaign.loan_balance or 0.0) + principal
         campaign.loan_interest_rate = interest_rate
 
@@ -279,39 +282,42 @@ class CoreAgent:
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Loan Financed",
-            description=f"Secured ${principal:,.2f} C-Bills loan from ComStar / MRB Bank at {interest_rate*100:.1f}% monthly interest."
+            description=f"Secured {int(principal)} WP Warchest Credit Line from ComStar / MRB Bank at {interest_rate*100:.1f}% monthly interest."
         ))
         db.commit()
 
         return {
-            "message": f"Successfully secured ${principal:,.2f} C-Bills credit line!",
-            "cbill_balance": campaign.cbill_balance,
+            "message": f"Successfully secured {int(principal)} WP credit line!",
+            "wp_balance": campaign.wp_balance,
             "loan_balance": campaign.loan_balance,
             "loan_interest_rate": campaign.loan_interest_rate
         }
 
     @classmethod
-    def repay_loan(cls, db: Session, repayment_amount: float = 500000.0) -> Dict[str, Any]:
-        """Repays active debt balance to ComStar / MRB Bank."""
+    def repay_loan(cls, db: Session, repayment_amount: float = 100.0) -> Dict[str, Any]:
+        """Repays active WP debt balance to ComStar / MRB Bank."""
         campaign = cls.get_campaign(db)
         current_debt = campaign.loan_balance or 0.0
         if current_debt <= 0:
             raise ValueError("Campaign has no outstanding debt to repay")
 
         actual_repay = min(repayment_amount, current_debt)
-        campaign.cbill_balance -= actual_repay
+        if campaign.wp_balance < actual_repay:
+            raise ValueError(f"Insufficient WP balance ({campaign.wp_balance} WP) to repay {int(actual_repay)} WP debt.")
+
+        campaign.wp_balance -= int(actual_repay)
         campaign.loan_balance -= actual_repay
 
         db.add(CampaignLog(
             campaign_id=campaign.id,
             log_date=campaign.current_date,
             event_type="Loan Repayment",
-            description=f"Repaid ${actual_repay:,.2f} C-Bills to ComStar / MRB Bank. Remaining Debt: ${campaign.loan_balance:,.2f}."
+            description=f"Repaid {int(actual_repay)} WP to ComStar / MRB Bank. Remaining Debt: {int(campaign.loan_balance)} WP."
         ))
         db.commit()
 
         return {
-            "message": f"Successfully repaid ${actual_repay:,.2f} C-Bills to ComStar / MRB Bank!",
-            "cbill_balance": campaign.cbill_balance,
+            "message": f"Successfully repaid {int(actual_repay)} WP to ComStar / MRB Bank!",
+            "wp_balance": campaign.wp_balance,
             "remaining_loan_balance": campaign.loan_balance
         }

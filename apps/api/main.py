@@ -63,7 +63,7 @@ class CampaignCreateRequest(BaseModel):
     commander_name: str = "Major Jaime Wolf"
     era: str = "3025"
     faction: str = "House Davion"
-    starting_funds: float = 15000000.0
+    starting_funds: float = 1500.0
     custom_units: Optional[List[CustomStarterUnit]] = None
     custom_pilots: Optional[List[CustomStarterPilot]] = None
 
@@ -98,8 +98,7 @@ class BuyMechRequest(BaseModel):
     model: str
     tonnage: int
     bv2: int
-    cbill_cost: float
-    wp_cost: int = 0
+    wp_cost: int = 400
     tech_base: str = "Inner Sphere"
 
 class ValidateBuildRequest(BaseModel):
@@ -116,8 +115,7 @@ class CommitLoadoutRequest(BaseModel):
     model: str
     tonnage: int
     bv2: int
-    sp_cost: float
-    cbill_cost: float
+    sp_cost: float = 50.0
     components_used: Optional[List[str]] = []
 
 class UnitDamageUpdate(BaseModel):
@@ -126,7 +124,7 @@ class UnitDamageUpdate(BaseModel):
 
 class RansomBondsmanRequest(BaseModel):
     pilot_id: int
-    ransom_amount: float = 250000.0
+    ransom_amount: int = 50
 
 class IntegrateBondsmanRequest(BaseModel):
     pilot_id: int
@@ -134,11 +132,11 @@ class IntegrateBondsmanRequest(BaseModel):
     callsign: str = "Bondsman"
 
 class TakeLoanRequest(BaseModel):
-    principal: float = 1000000.0
+    principal: float = 500.0
     interest_rate: float = 0.05
 
 class RepayLoanRequest(BaseModel):
-    repayment_amount: float = 500000.0
+    repayment_amount: float = 100.0
 
 class NegotiateContractRequest(BaseModel):
     mission_id: int
@@ -151,8 +149,8 @@ class MissionCreate(BaseModel):
     name: str
     mission_type: str = "Raid"
     employer: str = "House Davion"
-    base_cbill: float = 3000000.0
-    wp_reward: int = 350
+    wp_reward: int = 400
+    sp_reward: int = 200
     salvage_rights: str = "Shared (50%)"
     blc_coverage: float = 0.5
     transport_allowance: float = 0.5
@@ -445,7 +443,6 @@ def buy_procurement_mech(req: BuyMechRequest, db: Session = Depends(get_db)):
             model=req.model,
             tonnage=req.tonnage,
             bv2=req.bv2,
-            cbill_cost=req.cbill_cost,
             wp_cost=req.wp_cost,
             tech_base=req.tech_base
         )

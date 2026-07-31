@@ -71,11 +71,12 @@ class ContractGenerator:
         climate = random.choice(cls.CLIMATES)
 
         difficulty_tier = random.choice(["Low", "Medium", "High", "Extreme"])
+        difficulty_tier = random.choice(["Low", "Medium", "High", "Extreme"])
         difficulty_mult = {"Low": 0.8, "Medium": 1.0, "High": 1.4, "Extreme": 2.0}[difficulty_tier]
 
-        # Campaign Operations v5.0 Formula: Base (Tonnage/BV2 est) * Risk Factor
-        base_cbill = round(3500000.0 * difficulty_mult, 2)
-        wp_reward = int(350 * difficulty_mult)
+        # Chaos Campaign Rules Formula: Base Warchest Points * Risk Factor
+        wp_reward = int(400 * difficulty_mult)
+        sp_reward = int(200 * difficulty_mult)
 
         intel_summary = (
             f"Employer {employer} requests immediate deployment to {location} for a {mission_type}. "
@@ -89,8 +90,8 @@ class ContractGenerator:
             "enemy_faction": enemy,
             "mission_type": mission_type,
             "difficulty": difficulty_tier,
-            "base_cbill": base_cbill,
             "wp_reward": wp_reward,
+            "sp_reward": sp_reward,
             "salvage_rights": random.choice(["Exchange Value (25%)", "Shared (50%)", "Full Salvage (100%)"]),
             "blc_coverage": 0.5 if difficulty_tier in ["Medium", "High"] else 0.75 if difficulty_tier == "Extreme" else 0.25,
             "climate": climate["name"],
@@ -120,8 +121,8 @@ class ContractGenerator:
         ]
 
         salvage_text = (
-            f"Salvage ops secured ${salvage_cash:,.2f} C-Bills in liquid component value and {recovered_items_count} component item(s)."
-            if salvage_cash > 0 or recovered_items_count > 0 else
+            f"Salvage ops secured {recovered_items_count} component item(s) and field support scrap."
+            if recovered_items_count > 0 else
             "Salvage rights yield nominal battlefield recovery."
         )
 
@@ -137,13 +138,15 @@ class ContractGenerator:
         blc_pct: float = 50.0,
         player_lance_bv: int = 5463
     ) -> Dict[str, Any]:
-        """Calculates negotiated payout, OpFor threat multiplier, and Enemy BV."""
+        """Calculates negotiated payout in Warchest Points (WP/SP), OpFor threat multiplier, and Enemy BV."""
         from packages.database.models import Mission
         mission = db.query(Mission).filter(Mission.id == mission_id).first()
         if not mission:
             raise ValueError("Mission contract not found")
 
-        negotiated_cbill = mission.cbill_reward * payout_multiplier
+        base_wp = mission.wp_reward or 400
+        negotiated_wp = int(round(base_wp * payout_multiplier))
+        negotiated_sp = int(round(getattr(mission, 'sp_reward', 200) or 200 * payout_multiplier))
 
         payout_ratio = payout_multiplier
         salvage_ratio = salvage_pct / 50.0
@@ -170,8 +173,9 @@ class ContractGenerator:
         return {
             "mission_id": mission.id,
             "mission_name": mission.name,
-            "original_cbill": mission.cbill_reward,
-            "negotiated_cbill": negotiated_cbill,
+            "original_wp": base_wp,
+            "negotiated_wp": negotiated_wp,
+            "negotiated_sp": negotiated_sp,
             "payout_multiplier": payout_multiplier,
             "salvage_pct": salvage_pct,
             "blc_pct": blc_pct,
