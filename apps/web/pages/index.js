@@ -1942,73 +1942,120 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {activeOpForUnits.map((u, idx) => (
-                    <div key={idx} style={{ background: "#0f172a", padding: "10px", borderRadius: "6px", border: "1px solid #334155" }}>
-                      
-                      {/* ERA & FACTION UNIT PRESET DROPDOWN SELECTOR */}
-                      {availableFactionUnits.length > 0 && (
-                        <div style={{ marginBottom: "6px" }}>
-                          <label style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold" }}>🎯 ERA &amp; FACTION PRESET MECH / VEHICLE</label>
-                          <select
-                            value={`${u.chassis} ${u.model}`}
-                            onChange={e => {
-                              const selVal = e.target.value;
-                              const matched = availableFactionUnits.find(m => `${m.chassis} ${m.model}` === selVal);
-                              if (matched) {
-                                const copy = [...activeOpForUnits];
-                                copy[idx] = { ...copy[idx], chassis: matched.chassis, model: matched.model, tonnage: matched.tonnage, bv2: matched.bv2, tech_base: matched.tech_base || "Inner Sphere" };
-                                setActiveOpForUnits(copy);
-                              }
-                            }}
-                            style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
-                          >
-                            <option value="">-- Select Opposing Faction Unit Preset --</option>
-                            {availableFactionUnits.map((m, mIdx) => (
-                              <option key={mIdx} value={`${m.chassis} ${m.model}`}>
-                                {m.chassis} {m.model} ({m.tonnage}T) — {m.bv2} BV2 [{m.tech_base || "IS"}]
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                  {activeOpForUnits.map((u, idx) => {
+                    const pool = (availableFactionUnits.length > 0 ? availableFactionUnits : [
+                      { chassis: "Marauder", model: "MAD-3R", tonnage: 75, bv2: 1363, tech_base: "Inner Sphere" },
+                      { chassis: "Warhammer", model: "WHM-6R", tonnage: 70, bv2: 1299, tech_base: "Inner Sphere" },
+                      { chassis: "Catapult", model: "CPLT-A1", tonnage: 65, bv2: 1285, tech_base: "Inner Sphere" },
+                      { chassis: "Hunchback", model: "HBK-4G", tonnage: 50, bv2: 1041, tech_base: "Inner Sphere" },
+                      { chassis: "Centurion", model: "CN9-A", tonnage: 50, bv2: 945, tech_base: "Inner Sphere" },
+                      { chassis: "Awesome", model: "AWS-8Q", tonnage: 80, bv2: 1605, tech_base: "Inner Sphere" },
+                      { chassis: "Locust", model: "LCT-1V", tonnage: 20, bv2: 556, tech_base: "Inner Sphere" },
+                      { chassis: "Timber Wolf", model: "Prime", tonnage: 75, bv2: 2737, tech_base: "Clan" },
+                      { chassis: "Dire Wolf", model: "Prime", tonnage: 100, bv2: 3020, tech_base: "Clan" },
+                      { chassis: "Archangel", model: "C-ANG-O", tonnage: 100, bv2: 2350, tech_base: "Word of Blake" }
+                    ]);
 
-                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1.5fr auto", gap: "8px", alignItems: "center" }}>
-                        <div>
-                          <label style={{ fontSize: "9px", color: "#64748b" }}>CHASSIS</label>
-                          <input type="text" value={u.chassis} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].chassis = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                    const currentTech = u.tech_base || "Inner Sphere";
+                    const filteredUnits = currentTech === "Mixed Tech"
+                      ? pool
+                      : pool.filter(m => (m.tech_base || "Inner Sphere") === currentTech);
+                    const displayUnits = filteredUnits.length > 0 ? filteredUnits : pool;
+
+                    return (
+                      <div key={idx} style={{ background: "#0f172a", padding: "10px", borderRadius: "6px", border: "1px solid #334155" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 1fr auto", gap: "8px", alignItems: "center" }}>
+                          
+                          {/* 1. TECH BASE SELECTOR */}
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
+                            <select
+                              value={currentTech}
+                              onChange={e => {
+                                const newTech = e.target.value;
+                                const copy = [...activeOpForUnits];
+                                copy[idx].tech_base = newTech;
+                                const matchedList = newTech === "Mixed Tech" ? pool : pool.filter(m => (m.tech_base || "Inner Sphere") === newTech);
+                                if (matchedList.length > 0) {
+                                  const first = matchedList[0];
+                                  copy[idx].chassis = first.chassis;
+                                  copy[idx].model = first.model;
+                                  copy[idx].tonnage = first.tonnage;
+                                  copy[idx].bv2 = first.bv2;
+                                }
+                                setActiveOpForUnits(copy);
+                              }}
+                              style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}
+                            >
+                              <option value="Inner Sphere">Inner Sphere</option>
+                              <option value="Clan">Clan</option>
+                              <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
+                              <option value="Word of Blake">Word of Blake</option>
+                              <option value="Mixed Tech">Mixed Tech</option>
+                            </select>
+                          </div>
+
+                          {/* 2. CHASSIS DROPDOWN SELECTOR (DETERMINED BY TECH BASE & OPPONENT FACTION) */}
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold" }}>SELECT CHASSIS (FACTION &amp; ERA)</label>
+                            <select
+                              value={`${u.chassis} (${u.model})`}
+                              onChange={e => {
+                                const selVal = e.target.value;
+                                const matched = pool.find(m => `${m.chassis} (${m.model})` === selVal || `${m.chassis} ${m.model}` === selVal || m.chassis === selVal);
+                                if (matched) {
+                                  const copy = [...activeOpForUnits];
+                                  copy[idx] = {
+                                    ...copy[idx],
+                                    chassis: matched.chassis,
+                                    model: matched.model,
+                                    tonnage: matched.tonnage,
+                                    bv2: matched.bv2,
+                                    tech_base: matched.tech_base || currentTech
+                                  };
+                                  setActiveOpForUnits(copy);
+                                }
+                              }}
+                              style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                            >
+                              {displayUnits.map((m, mIdx) => (
+                                <option key={mIdx} value={`${m.chassis} (${m.model})`}>
+                                  {m.chassis} {m.model} ({m.tonnage}T — {m.bv2} BV2)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 3. MODEL */}
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
+                            <input type="text" value={u.model} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].model = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+
+                          {/* 4. TONNAGE (AUTO-UPDATES) */}
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#10b981", fontWeight: "bold" }}>TONNAGE</label>
+                            <input type="number" value={u.tonnage} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tonnage = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #10b981", color: "#10b981", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }} />
+                          </div>
+
+                          {/* 5. BV2 (AUTO-UPDATES) */}
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#f59e0b", fontWeight: "bold" }}>BV2</label>
+                            <input type="number" value={u.bv2} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].bv2 = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #f59e0b", color: "#f59e0b", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }} />
+                          </div>
+
+                          {/* REMOVE BUTTON */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
+                            style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                          >
+                            ✕
+                          </button>
                         </div>
-                        <div>
-                          <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
-                          <input type="text" value={u.model} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].model = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: "9px", color: "#64748b" }}>TONNAGE</label>
-                          <input type="number" value={u.tonnage} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tonnage = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: "9px", color: "#64748b" }}>BV2</label>
-                          <input type="number" value={u.bv2} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].bv2 = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
-                          <select value={u.tech_base} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tech_base = e.target.value; setActiveOpForUnits(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
-                            <option value="Inner Sphere">Inner Sphere</option>
-                            <option value="Clan">Clan</option>
-                            <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
-                            <option value="Word of Blake">Word of Blake</option>
-                            <option value="Mixed Tech">Mixed Tech</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
-                          style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
-                        >
-                          ✕
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
