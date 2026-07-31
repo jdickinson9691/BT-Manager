@@ -386,6 +386,17 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(pilots[0].name, "Ace Vance")
         self.assertEqual(camp.era, "3062")
 
+    # ==================== 13. TABLETOP OPFOR SETUP & SALVAGE/BONDSMEN ENGINE TESTS ====================
+    def test_16_opfor_roster_generation_and_aar_salvage_bondsmen_link(self):
+        """Verify ContractGenerator.generate_opfor_roster generates enemy forces matching target BV2 & era."""
+        opfor = ContractGenerator.generate_opfor_roster(target_bv=7200, era_code="3050")
+        self.assertEqual(opfor["target_bv"], 7200)
+        self.assertEqual(len(opfor["opfor_units"]), 4)
+        self.assertEqual(len(opfor["opfor_pilots"]), 4)
+        self.assertGreater(opfor["actual_bv"], 4000)
+        self.assertIn("name", opfor["opfor_pilots"][0])
+        self.assertIn("gunnery", opfor["opfor_pilots"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

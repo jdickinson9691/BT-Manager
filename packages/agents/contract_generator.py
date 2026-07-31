@@ -181,3 +181,57 @@ class ContractGenerator:
             "opfor_threat_rating": threat_rating,
             "opfor_composition": opfor_units
         }
+
+    @classmethod
+    def generate_opfor_roster(cls, target_bv: int = 5000, era_code: str = "3025") -> Dict[str, Any]:
+        """Generates structured enemy units and MechWarriors targeting specified BV2 and era rules."""
+        from packages.agents.era_faction_agent import EraFactionAgent
+        era_info = EraFactionAgent.get_era_details(era_code)
+
+        # Pool of potential enemy mechs and vehicles for the era
+        preset_units = era_info.get("market_units", []) + era_info.get("starting_units", [])
+        if not preset_units:
+            preset_units = [
+                {"chassis": "Marauder", "model": "MAD-3R", "tonnage": 75, "bv2": 1363, "tech_base": "Inner Sphere"},
+                {"chassis": "Warhammer", "model": "WHM-6R", "tonnage": 70, "bv2": 1299, "tech_base": "Inner Sphere"},
+                {"chassis": "Hunchback", "model": "HBK-4G", "tonnage": 50, "bv2": 1041, "tech_base": "Inner Sphere"},
+                {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "tech_base": "Inner Sphere"}
+            ]
+
+        # Select 4 enemy units aiming for target BV
+        opfor_units = []
+        accumulated_bv = 0
+        for i in range(4):
+            u_choice = preset_units[i % len(preset_units)]
+            u_copy = dict(u_choice)
+            opfor_units.append(u_copy)
+            accumulated_bv += u_copy.get("bv2", 1200)
+
+        # Enemy pilots
+        first_names = ["Marcus", "Elena", "Viktor", "Kendra", "Hans", "Sergei", "Sven", "Tariq"]
+        last_names = ["Trent", "Vance", "Steiner", "Marik", "Kurita", "Liao", "Davion", "Kerensky"]
+        callsigns = ["Ironhide", "Valkyrie", "Ghost", "Spectre", "Reaper", "Hellhound", "Shadow", "Saber"]
+
+        opfor_pilots = []
+        for i in range(len(opfor_units)):
+            name = f"MechWarrior {first_names[i % len(first_names)]} {last_names[(i+2) % len(last_names)]}"
+            cs = callsigns[i % len(callsigns)]
+            gunnery = 3 if target_bv > 6000 else 4
+            piloting = 4 if target_bv > 6000 else 5
+            spa = "Sharpshooter (+1 Accuracy)" if i == 0 and target_bv > 5500 else "None"
+            opfor_pilots.append({
+                "name": name,
+                "callsign": cs,
+                "gunnery": gunnery,
+                "piloting": piloting,
+                "spa": spa,
+                "unit_chassis": opfor_units[i]["chassis"]
+            })
+
+        return {
+            "target_bv": target_bv,
+            "actual_bv": accumulated_bv,
+            "bv_match_pct": round((accumulated_bv / target_bv * 100.0) if target_bv > 0 else 100.0, 1),
+            "opfor_units": opfor_units,
+            "opfor_pilots": opfor_pilots
+        }

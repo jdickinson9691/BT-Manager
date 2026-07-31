@@ -533,6 +533,14 @@ def negotiate_contract_endpoint(req: NegotiateContractRequest, db: Session = Dep
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+class GenerateOpForRequest(BaseModel):
+    target_bv: int = 5000
+    era: str = "3025"
+
+@app.post("/api/v1/contracts/opfor/generate")
+def generate_opfor_endpoint(req: GenerateOpForRequest):
+    return ContractGenerator.generate_opfor_roster(target_bv=req.target_bv, era_code=req.era)
+
 @app.get("/api/v1/sarna/search")
 def search_sarna_wiki(query: str):
     return SarnaClient.search_sarna(query)

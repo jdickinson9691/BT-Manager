@@ -245,6 +245,20 @@ export default function Dashboard() {
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [showCustomContractModal, setShowCustomContractModal] = useState(false);
   const [showAarModal, setShowAarModal] = useState(false);
+  const [showOpForSetupModal, setShowOpForSetupModal] = useState(false);
+
+  const [activeOpForUnits, setActiveOpForUnits] = useState([
+    { chassis: "Catapult", model: "CPLT-A1", tonnage: 65, bv2: 1285, tech_base: "Inner Sphere" },
+    { chassis: "Warhammer", model: "WHM-6R", tonnage: 70, bv2: 1299, tech_base: "Inner Sphere" },
+    { chassis: "Marauder", model: "MAD-3R", tonnage: 75, bv2: 1363, tech_base: "Inner Sphere" },
+    { chassis: "Hunchback", model: "HBK-4G", tonnage: 50, bv2: 1041, tech_base: "Inner Sphere" }
+  ]);
+  const [activeOpForPilots, setActiveOpForPilots] = useState([
+    { name: "MechWarrior Marcus Trent", callsign: "Reaper", gunnery: 3, piloting: 4, spa: "Sharpshooter (+1 Accuracy)", unit_chassis: "Catapult" },
+    { name: "MechWarrior Elena Vance", callsign: "Valkyrie", gunnery: 4, piloting: 5, spa: "None", unit_chassis: "Warhammer" }
+  ]);
+  const [opforTargetBv, setOpForTargetBv] = useState(5463);
+  const [opforConfirmed, setOpForConfirmed] = useState(false);
 
   const [customMissionName, setCustomMissionName] = useState("");
   const [customEmployer, setCustomEmployer] = useState("House Davion");
@@ -454,13 +468,34 @@ export default function Dashboard() {
 
   const handleAcceptContract = async (mission) => {
     setActiveDeployedMission(mission);
+    const targetBv = mission.negotiated_opfor_bv || totalLanceBv2 || 5463;
+    setOpForTargetBv(targetBv);
+    setOpForConfirmed(false);
+
     try {
       if (mission.id) {
         await fetch(`http://localhost:8000/api/v1/missions/${mission.id}/accept`, { method: "POST" });
       }
     } catch (e) {}
-    alert(`Contract Signed: '${mission.name}' (${mission.employer})! Proceeding to Step 2: Force Deployment.`);
+
+    // Generate procedural OpFor forces for tabletop review
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/contracts/opfor/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_bv: targetBv, era: balance.era || "3025" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.opfor_units) {
+          setActiveOpForUnits(data.opfor_units);
+          setActiveOpForPilots(data.opfor_pilots);
+        }
+      }
+    } catch (e) {}
+
+    alert(`Contract Signed: '${mission.name}' (${mission.employer})! Proceeding to Step 2: Force Deployment & OpFor Tabletop Setup.`);
     setActiveStep(2);
+    setShowOpForSetupModal(true);
     refreshAll();
   };
 
@@ -986,6 +1021,27 @@ export default function Dashboard() {
               </div>
             );
           })()}
+
+          {/* OPFOR TABLETOP ROSTER & BV PARITY CARD */}
+          <div style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(244, 63, 94, 0.4)", borderRadius: "8px", padding: "18px", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h4 style={{ color: "#f43f5e", margin: 0, fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  ⚔️ OpFor Opponent Roster &amp; Tabletop Miniature Setup ({activeOpForUnits.length} Enemy Units)
+                </h4>
+                <p style={{ color: "#cbd5e1", fontSize: "12px", margin: "2px 0 0 0" }}>
+                  Target BV: <strong style={{ color: "#f59e0b" }}>{(opforTargetBv || totalLanceBv2 || 5463).toLocaleString()} BV2</strong> | Roster BV: <strong style={{ color: "#10b981" }}>{activeOpForUnits.reduce((acc, u) => acc + (u.bv2 || 1200), 0).toLocaleString()} BV2</strong> | Status: <strong style={{ color: opforConfirmed ? "#10b981" : "#f59e0b" }}>{opforConfirmed ? "✅ OpFor Confirmed &amp; Locked" : "⚠️ Pending Tabletop Roster Audit"}</strong>
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowOpForSetupModal(true)}
+                style={{ background: opforConfirmed ? "#10b981" : "#f43f5e", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}
+              >
+                {opforConfirmed ? "✅ Edit OpFor Roster" : "⚔️ Setup OpFor Tabletop Forces ➔"}
+              </button>
+            </div>
+          </div>
 
           {/* DROPZONE (LZ) TERRAIN & VECTOR SELECTOR */}
           <div style={{ background: "rgba(7, 10, 18, 0.8)", border: "1px solid rgba(2, 132, 199, 0.3)", borderRadius: "8px", padding: "18px", marginBottom: "24px" }}>
@@ -1803,6 +1859,183 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* OPFOR TACTICAL SETUP & TABLETOP ROSTER CONFIRMATION MODAL */}
+      {showOpForSetupModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowOpForSetupModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #f43f5e", borderRadius: "12px", padding: "28px", width: "750px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 className="font-orbitron" style={{ color: "#f43f5e", margin: 0, fontSize: "18px" }}>
+                ⚔️ TABLETOP OPFOR FORCE SETUP &amp; BV PARITY AUDIT
+              </h3>
+              <button onClick={() => setShowOpForSetupModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              
+              {/* BV PARITY METER */}
+              {(() => {
+                const rosterBv = activeOpForUnits.reduce((acc, u) => acc + (u.bv2 || 1200), 0);
+                const targetBv = opforTargetBv || totalLanceBv2 || 5463;
+                const matchPct = targetBv > 0 ? ((rosterBv / targetBv) * 100).toFixed(1) : 100;
+                const isMatched = Math.abs(100 - matchPct) <= 10;
+
+                return (
+                  <div style={{ background: "rgba(30, 41, 59, 0.7)", border: `1px solid ${isMatched ? "#10b981" : "#f59e0b"}`, padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>BV PARITY AUDIT</span>
+                      <p style={{ margin: "2px 0 0 0", color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                        Target: <span style={{ color: "#f59e0b" }}>{targetBv.toLocaleString()} BV2</span> | Actual OpFor: <span style={{ color: "#38bdf8" }}>{rosterBv.toLocaleString()} BV2</span>
+                      </p>
+                    </div>
+                    <span style={{ background: isMatched ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)", color: isMatched ? "#10b981" : "#f59e0b", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                      {matchPct}% Parity ({isMatched ? "✅ Matched" : "⚠️ Variance"})
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* SECTION A: OPFOR MECH & VEHICLE ROSTER */}
+              <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <h5 style={{ color: "#38bdf8", margin: 0, fontSize: "13px" }}>🤖 OPFOR MECHS &amp; VEHICLES ({activeOpForUnits.length} UNITS)</h5>
+                  <button
+                    type="button"
+                    onClick={() => setActiveOpForUnits([...activeOpForUnits, { chassis: "Heavy Mech", model: "Variant", tonnage: 65, bv2: 1400, tech_base: "Inner Sphere" }])}
+                    style={{ background: "#0284c7", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    + Add Enemy Unit
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {activeOpForUnits.map((u, idx) => (
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1.5fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>CHASSIS</label>
+                        <input type="text" value={u.chassis} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].chassis = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>MODEL</label>
+                        <input type="text" value={u.model} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].model = e.target.value; setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>TONNAGE</label>
+                        <input type="number" value={u.tonnage} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tonnage = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>BV2</label>
+                        <input type="number" value={u.bv2} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].bv2 = Number(e.target.value); setActiveOpForUnits(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>TECH BASE</label>
+                        <select value={u.tech_base} onChange={e => { const copy = [...activeOpForUnits]; copy[idx].tech_base = e.target.value; setActiveOpForUnits(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                          <option value="Inner Sphere">Inner Sphere</option>
+                          <option value="Clan">Clan</option>
+                          <option value="Inner Sphere SLDF">Inner Sphere SLDF</option>
+                          <option value="Word of Blake">Word of Blake</option>
+                          <option value="Mixed Tech">Mixed Tech</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
+                        style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION B: OPFOR PILOTS & SKILLS */}
+              <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <h5 style={{ color: "#f59e0b", margin: 0, fontSize: "13px" }}>👨‍✈️ OPFOR PILOTS &amp; SKILLS ({activeOpForPilots.length} ENEMY PILOTS)</h5>
+                  <button
+                    type="button"
+                    onClick={() => setActiveOpForPilots([...activeOpForPilots, { name: "Enemy MechWarrior", callsign: "Vanguard", gunnery: 4, piloting: 5, spa: "None", unit_chassis: activeOpForUnits[0]?.chassis || "Marauder" }])}
+                    style={{ background: "#d97706", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    + Add Enemy Pilot
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {activeOpForPilots.map((p, idx) => (
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
+                        <input type="text" value={p.name} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].name = e.target.value; setActiveOpForPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>CALLSIGN</label>
+                        <input type="text" value={p.callsign} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].callsign = e.target.value; setActiveOpForPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>GUNNERY</label>
+                        <select value={p.gunnery} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].gunnery = Number(e.target.value); setActiveOpForPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                          {[1, 2, 3, 4, 5, 6].map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>PILOTING</label>
+                        <select value={p.piloting} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].piloting = Number(e.target.value); setActiveOpForPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                          {[1, 2, 3, 4, 5, 6].map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#64748b" }}>SPECIAL PILOT ABILITY (SPA)</label>
+                        <select value={p.spa} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].spa = e.target.value; setActiveOpForPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                          <option value="None">None</option>
+                          <option value="Sharpshooter (+1 Accuracy to Called Shots)">Sharpshooter (+1 Accuracy)</option>
+                          <option value="Tactical Genius (Reroll Initiative Once)">Tactical Genius (Reroll Init)</option>
+                          <option value="Royal Marksmanship (+1 Energy Accuracy)">Royal Marksmanship (+1 Energy)</option>
+                          <option value="Trueborn Reflexes (+1 Piloting)">Trueborn Reflexes (+1 Piloting)</option>
+                          <option value="Gunslinger (+1 Dual Fire)">Gunslinger (+1 Dual Fire)</option>
+                          <option value="Marksman (Energy Weapon Range Boost)">Marksman (Range Boost)</option>
+                          <option value="Dodge (Physical Evasion)">Dodge (Evasion)</option>
+                          <option value="Iron Will (Panic Resistance)">Iron Will (Panic Resist)</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveOpForPilots(activeOpForPilots.filter((_, i) => i !== idx))}
+                        style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOpForSetupModal(false)}
+                  style={{ background: "#475569", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpForConfirmed(true);
+                    setShowOpForSetupModal(false);
+                    alert(`OpFor Tabletop Roster Confirmed! ${activeOpForUnits.length} enemy units locked. Defeated units will be available for Salvage & Bondsmen in AAR.`);
+                  }}
+                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                >
+                  ⚔️ Confirm OpFor &amp; Lock Tabletop Roster
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AAR & KILL TRACKER & SALVAGE SUITE MODAL */}
       {showAarModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowAarModal(false)}>
@@ -1867,17 +2100,26 @@ export default function Dashboard() {
                               value={kData.enemyMech}
                               onChange={e => {
                                 const selected = e.target.value;
-                                const tonnage = selected.includes("75") || selected.includes("70") || selected.includes("65") ? 65 : 50;
+                                const matched = activeOpForUnits.find(u => `${u.chassis} ${u.model}` === selected);
+                                const tonnage = matched ? matched.tonnage : 65;
                                 setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], enemyMech: selected, tonnage } }));
                               }}
                               style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "6px", borderRadius: "4px", fontSize: "12px" }}
                             >
-                              <option value="Catapult CPLT-A1">Catapult CPLT-A1 (65T Heavy)</option>
-                              <option value="Warhammer WHM-6R">Warhammer WHM-6R (70T Heavy)</option>
-                              <option value="Marauder MAD-3R">Marauder MAD-3R (75T Heavy)</option>
-                              <option value="Hunchback HBK-4G">Hunchback HBK-4G (50T Medium)</option>
-                              <option value="Timber Wolf">Timber Wolf (75T Heavy Clan)</option>
-                              <option value="Jenner JR7-D">Jenner JR7-D (35T Light)</option>
+                              {activeOpForUnits.length > 0 ? (
+                                activeOpForUnits.map((u, uIdx) => (
+                                  <option key={uIdx} value={`${u.chassis} ${u.model}`}>
+                                    {u.chassis} {u.model} ({u.tonnage}T {u.tech_base}) - {u.bv2} BV2
+                                  </option>
+                                ))
+                              ) : (
+                                <>
+                                  <option value="Catapult CPLT-A1">Catapult CPLT-A1 (65T Heavy)</option>
+                                  <option value="Warhammer WHM-6R">Warhammer WHM-6R (70T Heavy)</option>
+                                  <option value="Marauder MAD-3R">Marauder MAD-3R (75T Heavy)</option>
+                                  <option value="Hunchback HBK-4G">Hunchback HBK-4G (50T Medium)</option>
+                                </>
+                              )}
                             </select>
                           </div>
 
@@ -1889,20 +2131,39 @@ export default function Dashboard() {
                                 checked={kData.isBondsman}
                                 onChange={e => {
                                   const checked = e.target.checked;
-                                  setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], isBondsman: checked } }));
+                                  const defaultName = activeOpForPilots.length > 0 ? activeOpForPilots[0].name : "MechWarrior Marcus Trent";
+                                  setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], isBondsman: checked, bondsmanName: checked ? (kData.bondsmanName || defaultName) : "" } }));
                                 }}
                               />
-                              <input
-                                type="text"
-                                placeholder="Bondsman Name"
-                                value={kData.bondsmanName}
-                                onChange={e => {
-                                  const name = e.target.value;
-                                  setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], bondsmanName: name } }));
-                                }}
-                                disabled={!kData.isBondsman}
-                                style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: kData.isBondsman ? "#fff" : "#475569", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }}
-                              />
+                              {activeOpForPilots.length > 0 ? (
+                                <select
+                                  value={kData.bondsmanName}
+                                  onChange={e => {
+                                    const name = e.target.value;
+                                    setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], bondsmanName: name } }));
+                                  }}
+                                  disabled={!kData.isBondsman}
+                                  style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: kData.isBondsman ? "#fff" : "#475569", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }}
+                                >
+                                  {activeOpForPilots.map((opP, pIdx) => (
+                                    <option key={pIdx} value={opP.name}>
+                                      {opP.name} ({opP.callsign}) [G{opP.gunnery}/P{opP.piloting}]
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  placeholder="Bondsman Name"
+                                  value={kData.bondsmanName}
+                                  onChange={e => {
+                                    const name = e.target.value;
+                                    setAarPilotKills(prev => ({ ...prev, [p.id]: { ...prev[p.id], bondsmanName: name } }));
+                                  }}
+                                  disabled={!kData.isBondsman}
+                                  style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: kData.isBondsman ? "#fff" : "#475569", padding: "4px 8px", borderRadius: "4px", fontSize: "11px" }}
+                                />
+                              )}
                             </div>
                           </div>
                         </div>
