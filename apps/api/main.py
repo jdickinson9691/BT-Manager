@@ -443,6 +443,36 @@ def get_master_unit_database(era_code: str = "3025", faction: Optional[str] = No
 def get_factions_by_era(era_code: str = "3025"):
     return {"era_code": era_code, "factions": EraFactionAgent.get_factions_for_era(era_code)}
 
+class ConvertCurrencyRequest(BaseModel):
+    conversion_type: str
+    amount: int
+
+@app.post("/api/v1/finances/convert")
+def convert_wp_sp_currency(req: ConvertCurrencyRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if req.conversion_type == "wp_to_sp":
+        if campaign.wp_balance < req.amount:
+            raise HTTPException(status_code=400, detail="Insufficient WP balance")
+        campaign.wp_balance -= req.amount
+        campaign.sp_balance += req.amount * 10
+        msg = f"Converted {req.amount} WP into {req.amount * 10} Support Points (SP)."
+    elif req.conversion_type == "sp_to_wp":
+        sp_needed = req.amount * 10
+        if campaign.sp_balance < sp_needed:
+            raise HTTPException(status_code=400, detail=f"Insufficient SP balance (Requires {sp_needed} SP)")
+        campaign.sp_balance -= sp_needed
+        campaign.wp_balance += req.amount
+        msg = f"Converted {sp_needed} SP into {req.amount} Warchest Points (WP)."
+    else:
+        raise HTTPException(status_code=400, detail="Invalid conversion type")
+    
+    db.commit()
+    return {"status": "success", "message": msg, "wp_balance": campaign.wp_balance, "sp_balance": campaign.sp_balance}
+
+
 
 
 @app.post("/api/v1/market/buy-mech")

@@ -411,10 +411,22 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         adjusted_payout = int(round(base_payout * bv_ratio))
         self.assertEqual(adjusted_payout, 440)
 
+    # ==================== 15. CHAOS CAMPAIGN WP <-> SP CONVERSION TESTS ====================
+    def test_18_wp_sp_currency_conversion(self):
+        """Verify 1 WP <-> 10 SP conversion math for Chaos Campaign economy."""
+        initial_wp = self.campaign.wp_balance
+        initial_sp = self.campaign.sp_balance
+
+        # Convert 50 WP into 500 SP
+        self.campaign.wp_balance -= 50
+        self.campaign.sp_balance += 500
+        self.db.commit()
+        self.db.refresh(self.campaign)
+
+        self.assertEqual(self.campaign.wp_balance, initial_wp - 50)
+        self.assertEqual(self.campaign.sp_balance, initial_sp + 500)
+
 
 if __name__ == "__main__":
     unittest.main()
 
-
-if __name__ == "__main__":
-    unittest.main()
