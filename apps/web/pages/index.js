@@ -584,12 +584,37 @@ export default function Dashboard() {
   };
 
   const handleConfirmOpForAndSignContract = async () => {
-    const rosterBv = activeOpForUnits.reduce((acc, u) => acc + (u.bv2 || 1200), 0);
+    const getSkillBvMult = (gunnery, piloting) => {
+      const table = {
+        "1-2": 1.54, "1-3": 1.46, "1-4": 1.38, "1-5": 1.30,
+        "2-2": 1.39, "2-3": 1.32, "2-4": 1.25, "2-5": 1.18,
+        "3-3": 1.20, "3-4": 1.15, "3-5": 1.08, "3-6": 1.02,
+        "4-4": 1.05, "4-5": 1.00, "4-6": 0.95,
+        "5-5": 0.90, "5-6": 0.85, "6-6": 0.75
+      };
+      return table[`${gunnery}-${piloting}`] || (1.0 + (4 - gunnery) * 0.15 + (5 - piloting) * 0.05);
+    };
+
+    const getSpaBvMult = (spa) => {
+      if (!spa || spa === "None") return 1.0;
+      if (spa.includes("Sharpshooter") || spa.includes("Tactical Genius") || spa.includes("Gunslinger")) return 1.05;
+      return 1.03;
+    };
+
+    const rosterBv = Math.round(activeOpForUnits.reduce((acc, u, idx) => {
+      const p = activeOpForPilots[idx] || { gunnery: 4, piloting: 5, spa: "None" };
+      const baseBv = u.bv2 || 1200;
+      const skillMult = getSkillBvMult(p.gunnery, p.piloting);
+      const spaMult = getSpaBvMult(p.spa);
+      return acc + (baseBv * skillMult * spaMult);
+    }, 0));
+
     const targetBv = opforTargetBv || totalLanceBv2 || 5463;
     const bvRatio = targetBv > 0 ? (rosterBv / targetBv) : 1.0;
     
     let basePayout = pendingMissionContract ? (pendingMissionContract.cbill_reward || 3500000) : 3500000;
     let adjustedPayout = Math.round(basePayout * bvRatio);
+
 
     const signedMission = pendingMissionContract ? {
       ...pendingMissionContract,
@@ -1987,34 +2012,82 @@ export default function Dashboard() {
       {/* OPFOR TACTICAL SETUP & TABLETOP ROSTER CONFIRMATION MODAL */}
       {showOpForSetupModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowOpForSetupModal(false)}>
-          <div style={{ background: "#0f141e", border: "1px solid #f43f5e", borderRadius: "12px", padding: "28px", width: "750px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0f141e", border: "1px solid #f43f5e", borderRadius: "12px", padding: "28px", width: "880px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 className="font-orbitron" style={{ color: "#f43f5e", margin: 0, fontSize: "18px" }}>
-                ⚔️ TABLETOP OPFOR FORCE SETUP &amp; BV PARITY AUDIT
+                ⚔️ TABLETOP OPFOR FORCE SETUP, SPAS &amp; BV PARITY AUDIT
               </h3>
               <button onClick={() => setShowOpForSetupModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}>✕</button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               
-              {/* BV PARITY METER */}
+              {/* BV PARITY METER & SPA POOL */}
               {(() => {
-                const rosterBv = activeOpForUnits.reduce((acc, u) => acc + (u.bv2 || 1200), 0);
+                const getSkillBvMult = (gunnery, piloting) => {
+                  const table = {
+                    "1-2": 1.54, "1-3": 1.46, "1-4": 1.38, "1-5": 1.30,
+                    "2-2": 1.39, "2-3": 1.32, "2-4": 1.25, "2-5": 1.18,
+                    "3-3": 1.20, "3-4": 1.15, "3-5": 1.08, "3-6": 1.02,
+                    "4-4": 1.05, "4-5": 1.00, "4-6": 0.95,
+                    "5-5": 0.90, "5-6": 0.85, "6-6": 0.75
+                  };
+                  return table[`${gunnery}-${piloting}`] || (1.0 + (4 - gunnery) * 0.15 + (5 - piloting) * 0.05);
+                };
+
+                const getSpaBvMult = (spa) => {
+                  if (!spa || spa === "None") return 1.0;
+                  if (spa.includes("Sharpshooter") || spa.includes("Tactical Genius") || spa.includes("Gunslinger")) return 1.05;
+                  return 1.03;
+                };
+
+                const getSpaCost = (spa) => {
+                  if (!spa || spa === "None") return 0;
+                  if (spa.includes("Sharpshooter") || spa.includes("Tactical Genius") || spa.includes("Gunslinger")) return 2;
+                  return 1;
+                };
+
+                const rosterBv = Math.round(activeOpForUnits.reduce((acc, u, idx) => {
+                  const p = activeOpForPilots[idx] || { gunnery: 4, piloting: 5, spa: "None" };
+                  const baseBv = u.bv2 || 1200;
+                  const skillMult = getSkillBvMult(p.gunnery, p.piloting);
+                  const spaMult = getSpaBvMult(p.spa);
+                  return acc + (baseBv * skillMult * spaMult);
+                }, 0));
+
                 const targetBv = opforTargetBv || totalLanceBv2 || 5463;
                 const matchPct = targetBv > 0 ? ((rosterBv / targetBv) * 100).toFixed(1) : 100;
                 const isMatched = Math.abs(100 - matchPct) <= 10;
 
+                const totalSpaPool = Math.max(4, activeOpForUnits.length * 2);
+                const usedSpaPoints = activeOpForPilots.reduce((sum, p) => sum + getSpaCost(p.spa), 0);
+
                 return (
-                  <div style={{ background: "rgba(30, 41, 59, 0.7)", border: `1px solid ${isMatched ? "#10b981" : "#f59e0b"}`, padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>BV PARITY AUDIT</span>
-                      <p style={{ margin: "2px 0 0 0", color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                        Target: <span style={{ color: "#f59e0b" }}>{targetBv.toLocaleString()} BV2</span> | Actual OpFor: <span style={{ color: "#38bdf8" }}>{rosterBv.toLocaleString()} BV2</span>
-                      </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ background: "rgba(30, 41, 59, 0.7)", border: `1px solid ${isMatched ? "#10b981" : "#f59e0b"}`, padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "#94a3b8" }}>BV PARITY AUDIT (CHASSIS + SKILLS + SPAS)</span>
+                        <p style={{ margin: "2px 0 0 0", color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                          Target: <span style={{ color: "#f59e0b" }}>{targetBv.toLocaleString()} BV2</span> | Actual OpFor: <span style={{ color: "#38bdf8" }}>{rosterBv.toLocaleString()} BV2</span>
+                        </p>
+                      </div>
+                      <span style={{ background: isMatched ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)", color: isMatched ? "#10b981" : "#f59e0b", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                        {matchPct}% Parity ({isMatched ? "✅ Matched" : "⚠️ Variance"})
+                      </span>
                     </div>
-                    <span style={{ background: isMatched ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)", color: isMatched ? "#10b981" : "#f59e0b", padding: "4px 10px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
-                      {matchPct}% Parity ({isMatched ? "✅ Matched" : "⚠️ Variance"})
-                    </span>
+
+                    {/* SPA POINTS POOL BAR */}
+                    <div style={{ background: "rgba(192, 132, 252, 0.12)", border: "1px solid rgba(192, 132, 252, 0.4)", padding: "10px 14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "#c084fc", fontWeight: "bold" }}>✨ SPECIAL PILOT ABILITY (SPA) POINTS POOL</span>
+                        <p style={{ margin: "2px 0 0 0", color: "#fff", fontSize: "13px" }}>
+                          Points Used: <strong style={{ color: usedSpaPoints > totalSpaPool ? "#ef4444" : "#34d399" }}>{usedSpaPoints} / {totalSpaPool} SPA Points Available</strong>
+                        </p>
+                      </div>
+                      <span style={{ fontSize: "11px", color: "#cbd5e1" }}>
+                        SPAs apply Battle Value (BV2) multipliers (+3% to +5%) to OpFor calculation
+                      </span>
+                    </div>
                   </div>
                 );
               })()}
@@ -2025,7 +2098,18 @@ export default function Dashboard() {
                   <h5 style={{ color: "#38bdf8", margin: 0, fontSize: "13px" }}>🤖 OPFOR MECHS &amp; VEHICLES ({activeOpForUnits.length} UNITS)</h5>
                   <button
                     type="button"
-                    onClick={() => setActiveOpForUnits([...activeOpForUnits, { chassis: "Heavy Mech", model: "Variant", tonnage: 65, bv2: 1400, tech_base: "Inner Sphere" }])}
+                    onClick={() => {
+                      const newUnit = { chassis: "Heavy Mech", model: "Variant", tonnage: 65, bv2: 1400, tech_base: "Inner Sphere" };
+                      setActiveOpForUnits([...activeOpForUnits, newUnit]);
+                      setActiveOpForPilots([...activeOpForPilots, {
+                        name: `Enemy MechWarrior ${activeOpForPilots.length + 1}`,
+                        callsign: `OpFor-${activeOpForPilots.length + 1}`,
+                        gunnery: 4,
+                        piloting: 5,
+                        spa: "None",
+                        assigned_unit: `${newUnit.chassis} ${newUnit.model} (${newUnit.tonnage}T)`
+                      }]);
+                    }}
                     style={{ background: "#0284c7", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
                   >
                     + Add Enemy Unit
@@ -2105,6 +2189,13 @@ export default function Dashboard() {
                                     tech_base: matched.tech_base || currentTech
                                   };
                                   setActiveOpForUnits(copy);
+
+                                  // Update matching pilot assignment label
+                                  const pCopy = [...activeOpForPilots];
+                                  if (pCopy[idx]) {
+                                    pCopy[idx].assigned_unit = `${matched.chassis} ${matched.model} (${matched.tonnage}T)`;
+                                    setActiveOpForPilots(pCopy);
+                                  }
                                 }
                               }}
                               style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
@@ -2138,7 +2229,10 @@ export default function Dashboard() {
                           {/* REMOVE BUTTON */}
                           <button
                             type="button"
-                            onClick={() => setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx))}
+                            onClick={() => {
+                              setActiveOpForUnits(activeOpForUnits.filter((_, i) => i !== idx));
+                              setActiveOpForPilots(activeOpForPilots.filter((_, i) => i !== idx));
+                            }}
                             style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", marginTop: "12px" }}
                           >
                             ✕
@@ -2150,13 +2244,16 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* SECTION B: OPFOR PILOTS & SKILLS */}
+              {/* SECTION B: OPFOR PILOTS & SKILLS WITH CONTEXTUAL MECH ASSIGNMENT */}
               <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                   <h5 style={{ color: "#f59e0b", margin: 0, fontSize: "13px" }}>👨‍✈️ OPFOR PILOTS &amp; SKILLS ({activeOpForPilots.length} ENEMY PILOTS)</h5>
                   <button
                     type="button"
-                    onClick={() => setActiveOpForPilots([...activeOpForPilots, { name: "Enemy MechWarrior", callsign: "Vanguard", gunnery: 4, piloting: 5, spa: "None", unit_chassis: activeOpForUnits[0]?.chassis || "Marauder" }])}
+                    onClick={() => {
+                      const defaultMech = activeOpForUnits[0] ? `${activeOpForUnits[0].chassis} ${activeOpForUnits[0].model} (${activeOpForUnits[0].tonnage}T)` : "";
+                      setActiveOpForPilots([...activeOpForPilots, { name: "Enemy MechWarrior", callsign: "Vanguard", gunnery: 4, piloting: 5, spa: "None", assigned_unit: defaultMech }]);
+                    }}
                     style={{ background: "#d97706", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
                   >
                     + Add Enemy Pilot
@@ -2165,11 +2262,38 @@ export default function Dashboard() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {activeOpForPilots.map((p, idx) => (
-                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.6fr 2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
                       <div>
                         <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
                         <input type="text" value={p.name} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].name = e.target.value; setActiveOpForPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
                       </div>
+
+                      {/* CONTEXTUAL ASSIGNED OPFOR MECH DROPDOWN (MUTUAL EXCLUSION) */}
+                      <div>
+                        <label style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold" }}>ASSIGNED OPFOR MECH</label>
+                        <select
+                          value={p.assigned_unit || (activeOpForUnits[idx] ? `${activeOpForUnits[idx].chassis} ${activeOpForUnits[idx].model} (${activeOpForUnits[idx].tonnage}T)` : "")}
+                          onChange={e => {
+                            const copy = [...activeOpForPilots];
+                            copy[idx].assigned_unit = e.target.value;
+                            setActiveOpForPilots(copy);
+                          }}
+                          style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                        >
+                          <option value="">-- Unassigned --</option>
+                          {activeOpForUnits.map((u, uIdx) => {
+                            const mechLabel = `${u.chassis} ${u.model} (${u.tonnage}T)`;
+                            const isAssignedToOther = activeOpForPilots.some((otherP, otherIdx) => otherIdx !== idx && otherP.assigned_unit === mechLabel);
+                            if (isAssignedToOther) return null;
+                            return (
+                              <option key={uIdx} value={mechLabel}>
+                                🤖 {mechLabel} ({u.bv2} BV2)
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
                       <div>
                         <label style={{ fontSize: "9px", color: "#64748b" }}>CALLSIGN</label>
                         <input type="text" value={p.callsign} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].callsign = e.target.value; setActiveOpForPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
@@ -2187,17 +2311,17 @@ export default function Dashboard() {
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: "9px", color: "#64748b" }}>SPECIAL PILOT ABILITY (SPA)</label>
-                        <select value={p.spa} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].spa = e.target.value; setActiveOpForPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }}>
-                          <option value="None">None</option>
-                          <option value="Sharpshooter (+1 Accuracy to Called Shots)">Sharpshooter (+1 Accuracy)</option>
-                          <option value="Tactical Genius (Reroll Initiative Once)">Tactical Genius (Reroll Init)</option>
-                          <option value="Royal Marksmanship (+1 Energy Accuracy)">Royal Marksmanship (+1 Energy)</option>
-                          <option value="Trueborn Reflexes (+1 Piloting)">Trueborn Reflexes (+1 Piloting)</option>
-                          <option value="Gunslinger (+1 Dual Fire)">Gunslinger (+1 Dual Fire)</option>
-                          <option value="Marksman (Energy Weapon Range Boost)">Marksman (Range Boost)</option>
-                          <option value="Dodge (Physical Evasion)">Dodge (Evasion)</option>
-                          <option value="Iron Will (Panic Resistance)">Iron Will (Panic Resist)</option>
+                        <label style={{ fontSize: "9px", color: "#c084fc", fontWeight: "bold" }}>SPECIAL PILOT ABILITY (SPA)</label>
+                        <select value={p.spa || "None"} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].spa = e.target.value; setActiveOpForPilots(copy); }} style={{ width: "100%", background: "#1e293b", border: "1px solid #c084fc", color: "#c084fc", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                          <option value="None">None (0 Pts)</option>
+                          <option value="Sharpshooter (+1 Accuracy to Called Shots)">Sharpshooter (2 Pts / +5% BV)</option>
+                          <option value="Tactical Genius (Reroll Initiative Once)">Tactical Genius (2 Pts / +5% BV)</option>
+                          <option value="Gunslinger (+1 Dual Fire)">Gunslinger (2 Pts / +5% BV)</option>
+                          <option value="Royal Marksmanship (+1 Energy Accuracy)">Royal Marksmanship (1 Pt / +3% BV)</option>
+                          <option value="Trueborn Reflexes (+1 Piloting)">Trueborn Reflexes (1 Pt / +3% BV)</option>
+                          <option value="Marksman (Energy Weapon Range Boost)">Marksman (1 Pt / +3% BV)</option>
+                          <option value="Dodge (Physical Evasion)">Dodge (1 Pt / +3% BV)</option>
+                          <option value="Iron Will (Panic Resistance)">Iron Will (1 Pt / +2% BV)</option>
                         </select>
                       </div>
                       <button
@@ -2233,6 +2357,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
 
       {/* AAR & KILL TRACKER & SALVAGE SUITE MODAL */}
       {showAarModal && (
