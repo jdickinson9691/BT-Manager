@@ -2787,23 +2787,23 @@ export default function Dashboard() {
       {/* BT-MANAGER HELP & OPERATIONS MANUAL MODAL */}
       {showHelpModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowHelpModal(false)}>
-          <div style={{ background: "#0b0f19", border: "1px solid #10b981", borderRadius: "12px", padding: "28px", width: "920px", maxHeight: "88vh", overflowY: "auto", color: "#e2e8f0" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0b0f19", border: "1px solid #10b981", borderRadius: "12px", padding: "24px", width: "1020px", height: "88vh", maxHeight: "880px", display: "flex", flexDirection: "column", color: "#e2e8f0" }} onClick={e => e.stopPropagation()}>
             
-            {/* MODAL HEADER */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "12px" }}>
+            {/* MODAL HEADER (FIXED TOP) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "12px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "20px", letterSpacing: "1px" }}>
-                  📖 BT-MANAGER OPERATIONS MANUAL &amp; TUTORIAL
+                  📖 BT-MANAGER OPERATIONS MANUAL &amp; REFERENCES
                 </h3>
                 <span style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399", border: "1px solid #10b981", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
-                  v2.1 Official Rules
+                  Alpha v0.1.0 Official Standard
                 </span>
               </div>
               <button onClick={() => setShowHelpModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
             </div>
 
-            {/* COMPACT DROPDOWN & PILL BAR NAVIGATION (NO HORIZONTAL SCROLL) */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "20px", background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "10px 14px", borderRadius: "8px" }}>
+            {/* COMPACT DROPDOWN & PILL BAR NAVIGATION (FIXED TOP) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px", background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "10px 14px", borderRadius: "8px", flexShrink: 0 }}>
               {/* DROPDOWN SELECT MENU */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
                 <label style={{ fontSize: "12px", color: "#34d399", fontWeight: "bold", whiteSpace: "nowrap" }}>SELECT SECTION:</label>
@@ -2820,6 +2820,7 @@ export default function Dashboard() {
                   <option value="step4">🔧 Step 4: Tech Bay, Duration Clock &amp; MechLab</option>
                   <option value="step5">🏥 Step 5: Personnel, MedBay &amp; Bondsmen Suite</option>
                   <option value="step6">📊 Step 6: Financial Ledger &amp; ComStar Bank Loans</option>
+                  <option value="references">📚 References &amp; IP Attribution</option>
                 </select>
               </div>
 
@@ -2833,7 +2834,8 @@ export default function Dashboard() {
                   { id: "step3", label: "Step 3" },
                   { id: "step4", label: "Step 4" },
                   { id: "step5", label: "Step 5" },
-                  { id: "step6", label: "Step 6" }
+                  { id: "step6", label: "Step 6" },
+                  { id: "references", label: "References" }
                 ].map(pill => (
                   <button
                     key={pill.id}
@@ -2841,7 +2843,7 @@ export default function Dashboard() {
                     style={{
                       background: helpActiveTab === pill.id ? "#10b981" : "rgba(30, 41, 59, 0.6)",
                       color: helpActiveTab === pill.id ? "#0f172a" : "#cbd5e1",
-                      border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+                      border: "none", padding: "6px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
                     }}
                   >
                     {pill.label}
@@ -2849,6 +2851,9 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
+
+            {/* MAIN TAB CONTENT CONTAINER (SCROLLABLE BODY ONLY) */}
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: "6px" }}>
 
             {/* TAB CONTENT: CAMPAIGN WALKTHROUGH */}
             {helpActiveTab === "tutorial" && (
@@ -3172,63 +3177,44 @@ export default function Dashboard() {
             {/* TAB CONTENT: STEP 4 */}
             {helpActiveTab === "step4" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                <h4 style={{ color: "#10b981", margin: "0 0 4px 0", fontSize: "15px" }}>Step 4: Tech Bay &amp; MechLab Functions (Click titles for deep-dive details)</h4>
+                <h4 style={{ color: "#10b981", margin: "0 0 4px 0", fontSize: "15px" }}>Step 4: Tech Bay, Duration Clock &amp; MechLab Functions (Click titles for deep-dive details)</h4>
                 
                 {[
                   {
                     id: "step4_repair",
-                    title: "🔧 Repair All Armor & Structure Damage",
-                    summary: "Spends Support Points (20 SP) and C-Bills ($150,000) to repair armor and structure damage to 100%.",
+                    title: "🔧 Mech Damage Repair & Part Replacement Cards",
+                    summary: "Restores armor plates and internal structure, consuming Support Points (SP) or spare parts from inventory.",
                     details: (
                       <div>
-                        <strong style={{ color: "#34d399" }}>Armor &amp; Structure Maintenance Protocol</strong>
+                        <strong style={{ color: "#34d399" }}>Support Points (SP) Repair Engine</strong>
                         <p style={{ margin: "4px 0 8px 0" }}>
-                          Consumes 20 Warchest Support Points (SP) and $150,000 C-Bills to replace damaged armor plates and repair internal structural framework across all body locations.
+                          Armor repair costs 5 SP per armor point restored. Replacing destroyed critical components (PPC, Gyro, Engine) requires consuming spare parts from inventory or paying direct SP market costs.
                         </p>
                       </div>
                     )
                   },
                   {
                     id: "step4_clock",
-                    title: "⏱️ Tech Repair & Refit Duration Clock (Feature 4.1)",
-                    summary: "Displays estimated repair duration badges (`⏱️ Est. Time: +2 Days`) and advances campaign date clock.",
+                    title: "⏱️ Tech Repair Time & Duration Clock Engine (Feature 4.1)",
+                    summary: "Calculates labor duration days for armor and component repairs, advancing campaign calendar automatically.",
                     details: (
                       <div>
-                        <strong style={{ color: "#34d399" }}>TechManual v3.0 Engineering Work Formulas</strong>
-                        <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
-                          <li><em>Armor / Structure Repair</em>: `max(1, (armor_damage + structure_damage) // 10)` Days.</li>
-                          <li><em>Standard Weapon Component Replacement</em>: +3 Days.</li>
-                          <li><em>Engine Core / Gyroscope Component Replacement</em>: +7 Days.</li>
-                          <li><em>Custom MechLab Loadout Refit</em>: +5 Days.</li>
-                        </ul>
-                        <p style={{ margin: "4px 0 0 0" }}>
-                          Executing a repair automatically advances `Campaign.current_date` on the timeline clock and debits $5,000/day base daily operational overhead.
-                        </p>
-                      </div>
-                    )
-                  },
-                  {
-                    id: "step4_crits",
-                    title: "⚙️ Critical Hit Component Replacement Table",
-                    summary: "Identifies destroyed engine, gyro, actuator, or weapon criticals and replaces them using stock or market purchase.",
-                    details: (
-                      <div>
-                        <strong style={{ color: "#34d399" }}>Warehouse Stock &amp; Market Procurement</strong>
+                        <strong style={{ color: "#34d399" }}>Strategic Operations v5.0 Repair Clock Math</strong>
                         <p style={{ margin: "4px 0 8px 0" }}>
-                          Replaces destroyed critical components. If matching component stock exists in warehouse inventory, it is consumed for free. Otherwise, purchases replacement component from the market depot for $100,000 C-Bills.
+                          Calculates labor duration: <code>1 Day per 20 Armor Points</code> repaired, <code>+2 Days for Critical Component replacement</code>, <code>+3 Days for Internal Structure repair</code>. Clicking <strong>🔧 Repair All Damage</strong> advances the campaign date by the exact repair duration!
                         </p>
                       </div>
                     )
                   },
                   {
                     id: "step4_mechlab",
-                    title: "🛠️ Interactive MechLab Loadout Fitting Engine",
-                    summary: "Fits custom weapon loadouts, checks heat dissipation curves, and validates tonnage headroom.",
+                    title: "⚙️ Custom MechLab Loadout Fitting Engine",
+                    summary: "Customizes weapon loadouts, heatsinks, armor values, and tech specs with real-time heat/tonnage validation.",
                     details: (
                       <div>
-                        <strong style={{ color: "#34d399" }}>MechLab Engineering Validation</strong>
+                        <strong style={{ color: "#34d399" }}>TechManual v3.0 Fitting Engine</strong>
                         <p style={{ margin: "4px 0 8px 0" }}>
-                          Calculates free tonnage headroom, weapon alpha strike heat output vs double heat sink dissipation curves, and equipment slot allocation. Committing a custom loadout costs 50 SP and $100,000 C-Bills (+5 Days).
+                          Validates total tonnage limits, engine rating, internal structure capacity, and double heat sink dissipation curves. Prevents invalid loadouts from deploying to battle.
                         </p>
                       </div>
                     )
@@ -3254,39 +3240,39 @@ export default function Dashboard() {
             {/* TAB CONTENT: STEP 5 */}
             {helpActiveTab === "step5" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                <h4 style={{ color: "#c084fc", margin: "0 0 4px 0", fontSize: "15px" }}>Step 5: Personnel &amp; MedBay Functions (Click titles for deep-dive details)</h4>
+                <h4 style={{ color: "#c084fc", margin: "0 0 4px 0", fontSize: "15px" }}>Step 5: Personnel, MedBay &amp; Bondsmen Suite (Click titles for deep-dive details)</h4>
                 
                 {[
                   {
                     id: "step5_medbay",
-                    title: "🏥 MedBay Triage & Pilot Medical Treatment",
-                    summary: "Administers medical treatment to heal wounded MechWarriors and accelerate recovery.",
+                    title: "🏥 MedBay Medical Recovery & Healing Duration Clock (Feature 5.1)",
+                    summary: "Administers medical care to wounded MechWarriors, tracking healing days until pilot returns to Active status.",
                     details: (
                       <div>
-                        <strong style={{ color: "#34d399" }}>MedBay Medical Treatment Rules</strong>
+                        <strong style={{ color: "#34d399" }}>A Time of War v4.0 Medical Recovery Clock</strong>
                         <p style={{ margin: "4px 0 8px 0" }}>
-                          Expends Support Points (50 SP) to treat injured pilots in MedBay, reducing recovery duration by -15 days per treatment session until fully healed.
+                          Pilots wounded in combat enter `Injured` status with a medical recovery clock (7 days per injury point). Clicking <strong>🏥 Administer Medical Care</strong> advances time by recovery days and restores pilot to `Active` status!
                         </p>
                       </div>
                     )
                   },
                   {
                     id: "step5_bondsmen",
-                    title: "🎖️ Captured Bondsmen Rehabilitation & Ransom Suite (Feature 5.1)",
-                    summary: "Ransoms captured enemy MechWarriors for $250k C-Bills or recruits them as active pilots.",
+                    title: "🔗 Bondsmen Captive Management & Ransom Engine (Feature 5.2)",
+                    summary: "Ransoms captured enemy MechWarriors for Warchest WP or integrates them into the active pilot roster.",
                     details: (
                       <div>
-                        <strong style={{ color: "#34d399" }}>Bondsmen Handling Operations</strong>
+                        <strong style={{ color: "#34d399" }}>Clan Honor Code &amp; Mercenaries Ransom Protocol</strong>
                         <ul style={{ paddingLeft: "18px", margin: "4px 0" }}>
-                          <li><em>💰 Ransom Bondsman ($250,000 C-Bills)</em>: Returns captive MechWarrior to their House employer for an immediate **$250,000 C-Bill cash payout**.</li>
-                          <li><em>🎖️ Recruit as Active Pilot</em>: Rehabilitates captive into an active MechWarrior (`Gunnery 4 / Piloting 5`) on your mercenary roster.</li>
+                          <li><em>💰 Ransom Bondsman</em>: Ransoms captive back to employer or faction for +50 Warchest Points (WP).</li>
+                          <li><em>🤝 Integrate Bondsman</em>: Recruits captive MechWarrior into active roster with customized name and callsign.</li>
                         </ul>
                       </div>
                     )
                   },
                   {
                     id: "step5_xp",
-                    title: "🎯 Skill Target Rating Upgrade Engine (Gunnery & Piloting)",
+                    title: "⚔️ Pilot Skill Advancement Engine (Gunnery & Piloting Ratings)",
                     summary: "Upgrades Gunnery (-1 for 30 XP) and Piloting (-1 for 20 XP) target numbers using earned combat XP.",
                     details: (
                       <div>
@@ -3295,19 +3281,6 @@ export default function Dashboard() {
                           <li><em>Gunnery Target Rating (-1 Upgrade)</em>: Costs 30 XP (e.g. upgrades Gunnery 4+ to 3+).</li>
                           <li><em>Piloting Target Rating (-1 Upgrade)</em>: Costs 20 XP (e.g. upgrades Piloting 5+ to 4+).</li>
                         </ul>
-                      </div>
-                    )
-                  },
-                  {
-                    id: "step5_spa",
-                    title: "🌟 Special Pilot Abilities (SPAs) & Hiring Hall Candidates",
-                    summary: "Assigns SPA perks (Sharpshooter, Tactical Genius, Marksman) and recruits candidate pilots.",
-                    details: (
-                      <div>
-                        <strong style={{ color: "#34d399" }}>SPA Perks &amp; Personnel Recruitment</strong>
-                        <p style={{ margin: "4px 0 8px 0" }}>
-                          Assigns Special Pilot Ability (SPA) perks to veteran pilots (`Sharpshooter`: +1 accuracy to called shots, `Tactical Genius`: reroll initiative once per engagement). Hire new pilots from the candidate pool.
-                        </p>
                       </div>
                     )
                   }
@@ -3394,11 +3367,62 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* MODAL FOOTER */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* TAB CONTENT: REFERENCES & IP ATTRIBUTION */}
+            {helpActiveTab === "references" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "13px", lineHeight: "1.6" }}>
+                <h4 style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>📚 Publicly Used Source Materials, Locations &amp; IP Owners</h4>
+                <p style={{ color: "#94a3b8", margin: 0, fontSize: "12px" }}>
+                  BT-Manager incorporates rules formulas, tech data, force structures, and unit definitions from publicly available BattleTech publications, reference databases, and open-source projects. All trademarks and copyrights belong to their respective owners.
+                </p>
+
+                <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", overflow: "hidden", background: "rgba(15, 23, 42, 0.6)" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ background: "rgba(30, 41, 59, 0.8)", color: "#38bdf8", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                        <th style={{ padding: "10px" }}>Source Material / Publication</th>
+                        <th style={{ padding: "10px" }}>Public Location / Download Link</th>
+                        <th style={{ padding: "10px" }}>Owner / Copyright Holder</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { title: "Campaign Operations (v5.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Chaos Campaign Rulebook (CAT35600)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech Mercenaries Rulebook (1st Print)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleMech Manual (v7.01)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "A Time of War RPG (v4.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Strategic Operations AAR (v5.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Tactical Operations Advanced Rules (v7.0)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Interstellar Operations Alternate Eras (v3.01)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Master Unit List (MUL) Database", url: "http://masterunitlist.info", owner: "Catalyst Game Labs & MUL Team" },
+                        { title: "Sarna BattleTech Wiki", url: "https://www.sarna.net", owner: "Sarna.net Community / BattleTech Wiki" },
+                        { title: "MegaMek & MekHQ Suite", url: "https://megamek.org", owner: "MegaMek Open Source Project" },
+                        { title: "Mercenary ForcePack Record Sheets", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." }
+                      ].map((ref, rIdx) => (
+                        <tr key={rIdx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: rIdx % 2 === 0 ? "transparent" : "rgba(30, 41, 59, 0.3)" }}>
+                          <td style={{ padding: "8px 10px", color: "#f1f5f9", fontWeight: "bold" }}>{ref.title}</td>
+                          <td style={{ padding: "8px 10px" }}>
+                            <a href={ref.url} target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>{ref.url}</a>
+                          </td>
+                          <td style={{ padding: "8px 10px", color: "#34d399" }}>{ref.owner}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            </div>
+
+            {/* FIXED STICKY MODAL FOOTER WITH ALWAYS-VISIBLE CLOSE BUTTON */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+              <span style={{ fontSize: "11px", color: "#64748b" }}>
+                Publisher: <strong style={{ color: "#38bdf8" }}>Lüdinn Entertainment</strong> — BT-Manager Alpha v0.1.0
+              </span>
               <button
                 onClick={() => setShowHelpModal(false)}
-                style={{ background: "#10b981", color: "#0f172a", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                style={{ background: "#10b981", color: "#0f172a", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
               >
                 ✓ Close Manual
               </button>
