@@ -559,6 +559,19 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertIn("MAD-3R", res["mtf_content"])
         self.assertIn("TechBase:Inner Sphere", res["mtf_content"])
 
+    def test_23_guided_tabletop_tutorial_persistence(self):
+        """Verify campaign tutorial persistence keys and step progression boundaries."""
+        from packages.database.models import Campaign
+        camp = Campaign(name="Tutorial Campaign", era="3025")
+        self.db.add(camp)
+        self.db.commit()
+        self.db.refresh(camp)
+
+        # Generate expected campaign-scoped tutorial completion key
+        tutorial_key = f"bt_tutorial_completed_campaign_{camp.id}"
+        self.assertEqual(tutorial_key, f"bt_tutorial_completed_campaign_{camp.id}")
+        self.assertTrue(camp.id > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

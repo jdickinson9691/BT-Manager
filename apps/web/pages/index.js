@@ -458,6 +458,27 @@ export default function Dashboard() {
     }
   };
 
+  // Guided Tabletop Tutorial State
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(1);
+
+  const activeCampaignId = selectedExistingCampId || 1;
+
+  useEffect(() => {
+    if (activeCampaignId) {
+      const isCompleted = localStorage.getItem(`bt_tutorial_completed_campaign_${activeCampaignId}`);
+      if (!isCompleted) {
+        setTutorialActive(true);
+        setTutorialStep(1);
+      }
+    }
+  }, [activeCampaignId]);
+
+  const handleCompleteTutorial = () => {
+    localStorage.setItem(`bt_tutorial_completed_campaign_${activeCampaignId}`, "true");
+    setTutorialActive(false);
+  };
+
   // Modals & Form States
   const [selectedIntelMission, setSelectedIntelMission] = useState(null);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
@@ -3475,7 +3496,22 @@ export default function Dashboard() {
                   Alpha v0.1.0 Official Standard
                 </span>
               </div>
-              <button onClick={() => setShowHelpModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem(`bt_tutorial_completed_campaign_${activeCampaignId}`);
+                    setTutorialStep(1);
+                    setTutorialActive(true);
+                    setShowHelpModal(false);
+                    setShowLauncherModal(true);
+                    setLauncherMode("CHOICE");
+                  }}
+                  style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                >
+                  🔄 Reset &amp; Launch Tabletop Tutorial
+                </button>
+                <button onClick={() => setShowHelpModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+              </div>
             </div>
 
             {/* COMPACT DROPDOWN & PILL BAR NAVIGATION (FIXED TOP) */}
@@ -4152,6 +4188,173 @@ export default function Dashboard() {
           BattleTech, MechWarrior, and associated logos, faction emblems, and unit names are registered trademarks of Topps Company, Inc. and Catalyst Game Labs. BT-Manager is an open-source, non-commercial tabletop companion tool created by Lüdinn Entertainment for fan utility and campaign management.
         </p>
       </footer>
+
+      {/* GUIDED TABLETOP CAMPAIGN TUTORIAL OVERLAY */}
+      {tutorialActive && (
+        <div style={{ position: "fixed", bottom: "24px", right: "24px", width: "480px", maxWidth: "92vw", background: "#0b0f19", border: "2px solid #ea580c", borderRadius: "12px", padding: "20px", boxShadow: "0 12px 40px rgba(0,0,0,0.85), 0 0 20px rgba(234, 88, 12, 0.3)", zIndex: 100000, color: "#fff" }}>
+          
+          {/* HEADER */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ background: "#ea580c", color: "#fff", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                STEP {tutorialStep} OF 10
+              </span>
+              <h4 className="font-orbitron" style={{ margin: 0, color: "#ea580c", fontSize: "15px" }}>
+                🗺️ Tabletop Campaign Tutorial
+              </h4>
+            </div>
+            <button
+              onClick={handleCompleteTutorial}
+              style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer" }}
+              title="Skip Tutorial"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* TUTORIAL STEP CONTENT */}
+          {tutorialStep === 1 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>1. Launch a New Campaign</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Welcome to <strong>BT-Manager</strong>! To manage an in-person tabletop campaign, first choose <strong>"Launch A New Campaign"</strong> or <strong>"Load Saved Campaign"</strong>. Click <em>"Launch A New Campaign"</em> to begin!
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 2 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>2. Campaign Setup (Name, Era &amp; Faction)</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Enter your Campaign Name, Company Name, and Commander Name. Select your historical <strong>BattleTech Era</strong> (2750–3151). Notice how faction choices dynamically update based on historical era presence! Click <em>"Next: Configure Roster &amp; Pilots"</em>.
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 3 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>3. Configure Roster &amp; Random Force Generator</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Here you set up starting Mechs &amp; MechWarriors. Click <strong>"🎲 Generate Random Era/Faction Force"</strong> to auto-generate era-accurate units with full data validation! Notice the Total Force BV2 and Warchest WP headers at the top. Click <em>"🚀 Finish &amp; Launch Custom Campaign"</em>.
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 4 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>4. Step 1: MRB Contract Hall &amp; JumpNet Transit</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Browse available mercenary contracts. Notice the real-time <strong>Threat Parity Badges</strong> (🟢 Balanced, 🟡 Challenging, 🔴 Extreme Threat) comparing Player Force BV2 vs OpFor BV2! Chart JumpShip transit on the Galactic JumpNet starmap.
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 5 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>5. Step 2: Command Lance &amp; Insertion Vectors</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                In Step 2, assign active Mechs &amp; MechWarriors to your Command Lance, review force readiness alerts, and select DropZone (LZ) insertion vectors (Plains, Forest, Ridge, Hot Drop).
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 6 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>6. Step 3: Combat AAR, Damage &amp; Salvage</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                After playing out your battle on the hex grid tabletop, log battle metrics, sustained armor/structure damage, and destroyed critical hit components. Earn pilot XP and claim salvage.
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 7 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>7. Step 4: Tech Bay, Repairs &amp; Flechs Sheets</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Use Support Points (SP) to repair Mech armor (5 SP/pt) and replace destroyed components. Click <strong>"🖨️ Record Sheets &amp; Flechs"</strong> to download MegaMek .MTF unit files or launch live digital tracking on Flechs Sheets (sheets.flechs.net)!
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 8 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>8. Step 5: Personnel, MedBay &amp; Pilot Upgrades</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Track MedBay healing days for injured MechWarriors (7 days/injury), spend earned combat XP to upgrade Gunnery/Piloting skills (A Time of War v4.0), assign Special Pilot Abilities (SPAs), and ransom or recruit captured bondsmen.
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 9 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>9. Step 6: Financial Ledger &amp; Bank Credit</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Audit liquid Warchest WP treasury funds, take out ComStar/MRB bank credit lines, and stardate advance calendar dates (+1 Day / +7 Days) to pay daily operational overhead ($5,000/day).
+              </p>
+            </div>
+          )}
+
+          {tutorialStep === 10 && (
+            <div>
+              <h5 style={{ color: "#fbbf24", margin: "0 0 6px 0", fontSize: "14px" }}>10. Company Overview &amp; Tutorial Complete!</h5>
+              <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "0 0 14px 0", lineHeight: "1.5" }}>
+                Congratulations! You've mastered the tabletop campaign workflow. Click <strong>"🏢 View Company"</strong> anytime in the top header bar to inspect all company Mechs, vehicles, pilots, and salvaged warehouse stock. You can reset this tutorial anytime from the Help screen.
+              </p>
+            </div>
+          )}
+
+          {/* ACTIONS & NAVIGATION FOOTER */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "10px" }}>
+            <button
+              disabled={tutorialStep <= 1}
+              onClick={() => {
+                const prev = tutorialStep - 1;
+                setTutorialStep(prev);
+                if (prev === 1 || prev === 2 || prev === 3) {
+                  setShowLauncherModal(true);
+                  if (prev === 1) setLauncherMode("CHOICE");
+                  if (prev === 2) { setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(1); }
+                  if (prev === 3) { setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(2); }
+                } else {
+                  setShowLauncherModal(false);
+                  setActiveStep(prev - 3);
+                }
+              }}
+              style={{ background: tutorialStep > 1 ? "#334155" : "#1e293b", color: tutorialStep > 1 ? "#fff" : "#64748b", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: tutorialStep > 1 ? "pointer" : "default" }}
+            >
+              ← Back
+            </button>
+
+            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+              Step {tutorialStep} / 10
+            </span>
+
+            {tutorialStep < 10 ? (
+              <button
+                onClick={() => {
+                  const next = tutorialStep + 1;
+                  setTutorialStep(next);
+                  if (next === 2) { setShowLauncherModal(true); setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(1); }
+                  else if (next === 3) { setShowLauncherModal(true); setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(2); }
+                  else if (next >= 4 && next <= 9) { setShowLauncherModal(false); setActiveStep(next - 3); }
+                  else if (next === 10) { setShowLauncherModal(false); setShowCompanyModal(true); }
+                }}
+                style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                Next Step ➔
+              </button>
+            ) : (
+              <button
+                onClick={handleCompleteTutorial}
+                style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                Finish &amp; Complete Tutorial ✓
+              </button>
+            )}
+          </div>
+
+        </div>
+      )}
 
     </div>
   );
