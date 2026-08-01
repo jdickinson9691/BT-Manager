@@ -295,14 +295,17 @@ class EraFactionAgent:
         era_code: str = "3025",
         faction: str = "Mercenary"
     ) -> List[Dict[str, Any]]:
-        """Filters available market mechs according to Master Unit List (MUL) era availability and faction tech base rules."""
-        era_info = cls.get_era_details(era_code)
-        market_mechs = era_info.get("market_units", [])
+        """Filters available market mechs & combat vehicles according to Master Unit List (MUL) era availability and faction rules."""
+        from packages.data_importer.master_unit_database import MasterUnitDatabase
         
+        mul_units = MasterUnitDatabase.filter_units(era_code=era_code, faction=faction)
         filtered = []
-        for m in market_mechs:
+        for m in mul_units:
             m_copy = dict(m)
             m_copy["mul_verified"] = True
+            if "wp_cost" not in m_copy:
+                m_copy["wp_cost"] = max(100, int(m_copy.get("bv2", 1000) * 0.4))
             filtered.append(m_copy)
 
         return filtered
+

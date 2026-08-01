@@ -188,30 +188,24 @@ class ContractGenerator:
 
     @classmethod
     def generate_opfor_roster(cls, target_bv: int = 5000, era_code: str = "3025", enemy_faction: str = "OpFor Force") -> Dict[str, Any]:
-        """Generates structured enemy units and MechWarriors targeting specified BV2, era, and faction rules."""
-        from packages.agents.era_faction_agent import EraFactionAgent
-        era_info = EraFactionAgent.get_era_details(era_code)
-
-        # Pool of potential enemy mechs and vehicles for the era
-        preset_units = era_info.get("market_units", []) + era_info.get("starting_units", [])
+        """Generates structured enemy units (Mechs & Combat Vehicles) and MechWarriors targeting specified BV2, era, and faction rules."""
+        from packages.data_importer.master_unit_database import MasterUnitDatabase
+        
+        # Source from Master Unit Database filtered by Era and Opposing Faction
+        preset_units = MasterUnitDatabase.filter_units(era_code=era_code, faction=enemy_faction)
         if not preset_units:
-            preset_units = [
-                {"chassis": "Marauder", "model": "MAD-3R", "tonnage": 75, "bv2": 1363, "tech_base": "Inner Sphere"},
-                {"chassis": "Warhammer", "model": "WHM-6R", "tonnage": 70, "bv2": 1299, "tech_base": "Inner Sphere"},
-                {"chassis": "Hunchback", "model": "HBK-4G", "tonnage": 50, "bv2": 1041, "tech_base": "Inner Sphere"},
-                {"chassis": "Centurion", "model": "CN9-A", "tonnage": 50, "bv2": 945, "tech_base": "Inner Sphere"},
-                {"chassis": "Awesome", "model": "AWS-8Q", "tonnage": 80, "bv2": 1605, "tech_base": "Inner Sphere"},
-                {"chassis": "Locust", "model": "LCT-1V", "tonnage": 20, "bv2": 556, "tech_base": "Inner Sphere"}
-            ]
+            preset_units = MasterUnitDatabase.filter_units(era_code=era_code)
 
-        # Select 4 enemy units aiming for target BV
+        # Select 4 enemy units (mix of mechs & tanks) aiming for target BV
+        sorted_units = sorted(preset_units, key=lambda x: x.get("bv2", 1000), reverse=(target_bv >= 4000))
         opfor_units = []
         accumulated_bv = 0
         for i in range(4):
-            u_choice = preset_units[i % len(preset_units)]
+            u_choice = sorted_units[i % len(sorted_units)]
             u_copy = dict(u_choice)
             opfor_units.append(u_copy)
             accumulated_bv += u_copy.get("bv2", 1200)
+
 
         # Enemy pilots
         first_names = ["Marcus", "Elena", "Viktor", "Kendra", "Hans", "Sergei", "Sven", "Tariq"]
@@ -220,7 +214,7 @@ class ContractGenerator:
 
         opfor_pilots = []
         for i in range(len(opfor_units)):
-            name = f"MechWarrior {first_names[i % len(first_names)]} {last_names[(i+2) % len(last_names)]}"
+            name = f"Commander {first_names[i % len(first_names)]} {last_names[(i+2) % len(last_names)]}"
             cs = callsigns[i % len(callsigns)]
             gunnery = 3 if target_bv > 6000 else 4
             piloting = 4 if target_bv > 6000 else 5
@@ -243,3 +237,4 @@ class ContractGenerator:
             "opfor_pilots": opfor_pilots,
             "available_faction_units": preset_units
         }
+

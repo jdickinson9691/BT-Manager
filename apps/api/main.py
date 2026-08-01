@@ -434,6 +434,12 @@ def sell_unit(unit_id: int, db: Session = Depends(get_db)):
 def get_procurement_mechs(era_code: str = "3025", faction: str = "Mercenary"):
     return EraFactionAgent.filter_market_units_by_era_and_faction(era_code, faction)
 
+@app.get("/api/v1/units/master")
+def get_master_unit_database(era_code: str = "3025", faction: Optional[str] = None, unit_type: Optional[str] = None, tech_base: Optional[str] = None):
+    from packages.data_importer.master_unit_database import MasterUnitDatabase
+    return MasterUnitDatabase.filter_units(era_code=era_code, faction=faction, unit_type=unit_type, tech_base=tech_base)
+
+
 @app.post("/api/v1/market/buy-mech")
 def buy_procurement_mech(req: BuyMechRequest, db: Session = Depends(get_db)):
     try:
