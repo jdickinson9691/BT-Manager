@@ -329,6 +329,11 @@ class EraFactionAgent:
     }
 
     @classmethod
+    def get_factions_for_era(cls, era_code: str = "3025") -> List[str]:
+        """Returns historical list of active factions for a given BattleTech Era."""
+        return cls.FACTIONS_BY_ERA.get(era_code, cls.FACTIONS_BY_ERA["3025"])
+
+    @classmethod
     def generate_random_force(cls, era_code: str = "3025", faction: str = "Mercenaries") -> Dict[str, Any]:
         """Generates a randomized, era-accurate, faction-appropriate force of 4 Mechs + support vehicle and pilots."""
         import random

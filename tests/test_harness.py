@@ -523,6 +523,42 @@ class TestBattleTechAgentHarness(unittest.TestCase):
             self.assertTrue(1 <= p["piloting"] <= 6)
             self.assertIsNotNone(p["assigned_mech"])
 
+    def test_22_flechs_sheets_mtf_export_and_era_faction_filtering(self):
+        """Verify MTF file generation for Flechs Sheets compatibility and era faction filtering."""
+        from packages.agents.era_faction_agent import EraFactionAgent
+        from packages.database.models import Campaign, Unit
+        
+        # 1. Test Era Faction Filtering
+        factions_3050 = EraFactionAgent.get_factions_for_era("3050")
+        self.assertIn("Clan Wolf", factions_3050)
+        self.assertIn("Clan Jade Falcon", factions_3050)
+
+        factions_3025 = EraFactionAgent.get_factions_for_era("3025")
+        self.assertIn("House Davion (Federated Suns)", factions_3025)
+        self.assertIn("Mercenaries", factions_3025)
+
+        # 2. Test Unit MTF Export formatting
+        camp = Campaign(name="Test MTF Campaign", era="3025")
+        self.db.add(camp)
+        self.db.commit()
+        self.db.refresh(camp)
+
+        unit = Unit(campaign_id=camp.id, chassis="Marauder", model="MAD-3R", tonnage=75, bv2=1363, tech_base="Inner Sphere")
+        self.db.add(unit)
+        self.db.commit()
+        self.db.refresh(unit)
+
+        from apps.api.main import export_unit_mtf
+        res = export_unit_mtf(unit_id=unit.id, db=self.db)
+        self.assertEqual(res["unit_id"], unit.id)
+        self.assertEqual(res["chassis"], "Marauder")
+        self.assertEqual(res["model"], "MAD-3R")
+        self.assertTrue(res["filename"].endswith(".mtf"))
+        self.assertIn("Version:1.0", res["mtf_content"])
+        self.assertIn("Marauder", res["mtf_content"])
+        self.assertIn("MAD-3R", res["mtf_content"])
+        self.assertIn("TechBase:Inner Sphere", res["mtf_content"])
+
 
 if __name__ == "__main__":
     unittest.main()

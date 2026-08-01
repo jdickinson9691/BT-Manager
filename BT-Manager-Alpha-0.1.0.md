@@ -111,6 +111,18 @@ The Campaign Launcher enforces a strict, thematic 2-step setup workflow:
    - Contextual `ASSIGNED MECH (ROSTER)` dropdown per pilot with mutual exclusion logic.
    - Default pilot skill ratings initialized to **Gunnery 4 / Piloting 5**.
 
+### 🏢 Company Overview Dashboard & Asset Suite
+- **Company Overview Dashboard (`🏢 View Company`)**: Header action button launching a modal overview of all mercenary assets categorized into 4 distinct sections:
+  1. **🤖 BattleMechs**: Roster status, assigned pilots, and armor condition (with quick-link to Tech Bay & MechLab).
+  2. **🚜 Combat Vehicles & Support Craft**: Active support armor inventory (with quick-link to Tech Bay & MechLab).
+  3. **👨‍✈️ Personnel & MechWarriors**: Roster status, Gunnery/Piloting skills, and SPAs (with quick-link to Personnel & MedBay).
+  4. **📦 Salvaged Components & Warehouse Inventory**: Warehouse parts stock and market valuation (with quick-link to Tech Bay & MechLab).
+
+### 🌐 Flechs Sheets & MegaMek MTF Export Integration
+- **Flechs Sheets PWA Launcher**: Direct web integration launching [https://sheets.flechs.net/](https://sheets.flechs.net/) for live digital record tracking, heat scale automation, and line-of-sight attack resolution.
+- **MegaMek `.MTF` Exporter (`GET /api/v1/units/{unit_id}/export-mtf`)**: Generates standard MegaMek MTF unit files for all company Mechs for seamless drag-and-drop import into Flechs Sheets and MegaMekLab.
+- **In-App Printable Record Sheets**: Formatted print layout allowing instant PDF export or physical printing of unit record sheets with armor diagrams, critical hit tables, heat scales, and pilot skills.
+
 ---
 
 ## 📜 5. Intellectual Property (IP) & Publisher Compliance
@@ -122,7 +134,7 @@ The Campaign Launcher enforces a strict, thematic 2-step setup workflow:
 
 ---
 
-## 🧪 6. Test Suite & Verification (18/18 Pass Rate)
+## 🧪 6. Test Suite & Verification (22/22 Pass Rate)
 
 Automated test harness `tests/test_harness.py`:
 - `test_01_core_agent_ledger_summary`
@@ -143,6 +155,10 @@ Automated test harness `tests/test_harness.py`:
 - `test_16_opfor_roster_generation_and_aar_salvage_bondsmen_link`
 - `test_17_opfor_bv_reward_adjustment_and_faction_units`
 - `test_18_wp_sp_currency_conversion`
+- `test_19_master_unit_list_hybrid_cache_and_sarna_client`
+- `test_20_company_overview_roster_and_asset_audit`
+- `test_21_random_force_generator_and_parity_audit`
+- `test_22_flechs_sheets_mtf_export_and_era_faction_filtering`
 
 ---
 
