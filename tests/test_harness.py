@@ -559,6 +559,12 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertIn("MAD-3R", res["mtf_content"])
         self.assertIn("TechBase:Inner Sphere", res["mtf_content"])
 
+        # 3. Test Flechs Network Config Toggle
+        from apps.api.main import update_network_config, NetworkConfigRequest
+        cfg = update_network_config(NetworkConfigRequest(mul_online=True, sarna_online=False, megamek_online=True, flechs_online=True))
+        self.assertTrue(cfg["config"]["flechs_online"])
+        self.assertIn("Flechs=Online", cfg["message"])
+
     def test_23_guided_tabletop_tutorial_persistence(self):
         """Verify campaign tutorial persistence keys and step progression boundaries."""
         from packages.database.models import Campaign

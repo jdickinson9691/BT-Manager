@@ -85,11 +85,13 @@ class NetworkConfigRequest(BaseModel):
     mul_online: bool = False
     sarna_online: bool = False
     megamek_online: bool = False
+    flechs_online: bool = False
 
 GLOBAL_NETWORK_CONFIG = {
     "mul_online": False,
     "sarna_online": False,
-    "megamek_online": False
+    "megamek_online": False,
+    "flechs_online": False
 }
 
 class NetworkSyncRequest(BaseModel):
@@ -244,6 +246,7 @@ def update_network_config(config: NetworkConfigRequest):
     GLOBAL_NETWORK_CONFIG["mul_online"] = config.mul_online
     GLOBAL_NETWORK_CONFIG["sarna_online"] = config.sarna_online
     GLOBAL_NETWORK_CONFIG["megamek_online"] = config.megamek_online
+    GLOBAL_NETWORK_CONFIG["flechs_online"] = config.flechs_online
     
     DataSyncAgent.set_mode(
         mul_online=config.mul_online,
@@ -254,7 +257,7 @@ def update_network_config(config: NetworkConfigRequest):
     return {
         "status": "updated",
         "config": GLOBAL_NETWORK_CONFIG,
-        "message": f"Network toggles updated: MUL={'Online' if config.mul_online else 'Cached'}, Sarna={'Online' if config.sarna_online else 'Cached'}, MegaMek={'Online' if config.megamek_online else 'Cached'}"
+        "message": f"Network toggles updated: MUL={'Online' if config.mul_online else 'Cached'}, Sarna={'Online' if config.sarna_online else 'Cached'}, MegaMek={'Online' if config.megamek_online else 'Cached'}, Flechs={'Online' if config.flechs_online else 'Cached'}"
     }
 
 @app.post("/api/v1/network/sync")

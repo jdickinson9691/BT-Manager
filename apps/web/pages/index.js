@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [onlineMulMode, setOnlineMulMode] = useState(false);
   const [onlineSarnaMode, setOnlineSarnaMode] = useState(false);
   const [onlineMegamekMode, setOnlineMegamekMode] = useState(false);
+  const [onlineFlechsMode, setOnlineFlechsMode] = useState(false);
   
   // STEP-BY-STEP CAMPAIGN WORKFLOW NAVIGATION
   const [activeStep, setActiveStep] = useState(1); // 1: Contract & Transit, 2: Deployment & Lances, 3: Combat AAR & Salvage, 4: Tech Bay & MechLab, 5: Personnel & MedBay, 6: Financial Ledger
@@ -989,15 +990,17 @@ export default function Dashboard() {
     let mul = onlineMulMode;
     let sarna = onlineSarnaMode;
     let megamek = onlineMegamekMode;
+    let flechs = onlineFlechsMode;
 
     if (service === "mul") { mul = newVal; setOnlineMulMode(newVal); }
     if (service === "sarna") { sarna = newVal; setOnlineSarnaMode(newVal); }
     if (service === "megamek") { megamek = newVal; setOnlineMegamekMode(newVal); }
+    if (service === "flechs") { flechs = newVal; setOnlineFlechsMode(newVal); }
 
     try {
       const res = await fetch("http://localhost:8000/api/v1/network/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mul_online: mul, sarna_online: sarna, megamek_online: megamek })
+        body: JSON.stringify({ mul_online: mul, sarna_online: sarna, megamek_online: megamek, flechs_online: flechs })
       });
       if (res.ok) {
         if (newVal) {
@@ -1015,6 +1018,7 @@ export default function Dashboard() {
             if (service === "mul") setOnlineMulMode(false);
             if (service === "sarna") setOnlineSarnaMode(false);
             if (service === "megamek") setOnlineMegamekMode(false);
+            if (service === "flechs") setOnlineFlechsMode(false);
           });
         } else {
           alert(`🔒 ${service.toUpperCase()} set to Offline Cached Mode.`);
@@ -1094,6 +1098,18 @@ export default function Dashboard() {
               }}
             >
               ⚙️ MegaMek: {onlineMegamekMode ? "Online" : "Cached"}
+            </button>
+
+            {/* FLECHS TOGGLE */}
+            <button
+              onClick={() => handleToggleNetworkConfig("flechs", onlineFlechsMode)}
+              style={{
+                background: onlineFlechsMode ? "#9333ea" : "rgba(255,255,255,0.1)",
+                color: onlineFlechsMode ? "#fff" : "#cbd5e1",
+                border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+              }}
+            >
+              📊 Flechs: {onlineFlechsMode ? "Online" : "Cached"}
             </button>
           </div>
 
@@ -1564,19 +1580,12 @@ export default function Dashboard() {
               <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "18px" }}>
                 Step 4: Tech Bay Maintenance &amp; Parts Warehouse
               </h3>
-              <button
-                onClick={() => setShowRecordSheetModal(true)}
-                style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-              >
-                🖨️ Record Sheets &amp; Flechs ➔
-              </button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
               {units.map(u => {
                 const totalDam = (u.armor_damage || 0) + (u.structure_damage || 0);
                 const estDays = totalDam > 0 ? Math.max(1, Math.floor(totalDam / 10)) : 0;
-                const pilotObj = pilots.find(p => p.assigned_unit === u.chassis || p.assigned_unit === `${u.chassis} ${u.model}` || (u.assigned_pilot && p.name === u.assigned_pilot));
 
                 return (
                   <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px", borderRadius: "8px", display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
@@ -1602,16 +1611,6 @@ export default function Dashboard() {
                         style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         Repair ({totalDam > 0 ? `+${estDays} Days / 20 SP` : "100% OK"})
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPreviewUnit({ ...u, assigned_pilot: pilotObj ? `${pilotObj.name} "${pilotObj.callsign}"` : (u.assigned_pilot || "Unassigned") });
-                          setRecordSheetViewMode("preloaded");
-                          setShowPrintPreviewModal(true);
-                        }}
-                        style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
-                      >
-                        🌐 Flechs Sheet
                       </button>
                     </div>
                   </div>
@@ -2998,360 +2997,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* FLECHS SHEETS & PRINTABLE RECORD SHEETS MODAL */}
-      {showRecordSheetModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowRecordSheetModal(false)}>
-          <div style={{ background: "#0f141e", border: "1px solid #10b981", borderRadius: "12px", padding: "28px", width: "960px", maxWidth: "96vw", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            
-            {/* HEADER BAR */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>
-              <div>
-                <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "20px" }}>
-                  🖨️ BATTLEMECH RECORD SHEETS &amp; FLECHS SHEETS INTEGRATION
-                </h3>
-                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
-                  Export MTF unit files, launch interactive Flechs Sheets digital record tracking, or print native BattleTech Mech sheets.
-                </p>
-              </div>
-              <button onClick={() => setShowRecordSheetModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
-            </div>
 
-            {/* INTEGRATION BANNER */}
-            <div style={{ background: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.4)", borderRadius: "8px", padding: "14px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <span style={{ fontSize: "12px", color: "#34d399", fontWeight: "bold" }}>🌐 FLECHS SHEETS (sheets.flechs.net)</span>
-                <p style={{ margin: "2px 0 0 0", color: "#cbd5e1", fontSize: "12px" }}>
-                  Flechs Sheets is an automated digital record sheet PWA for tabletop BattleTech. Supports automated damage tracking, heat scales, and line-of-sight attack resolution.
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={() => window.open("https://sheets.flechs.net/", "_blank")}
-                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                >
-                  🌐 Open Flechs Sheets ➔
-                </button>
-              </div>
-            </div>
-
-            {/* COMPANY MECH ROSTER SHEETS LIST */}
-            <h4 style={{ color: "#38bdf8", margin: "0 0 12px 0", fontSize: "15px" }}>🤖 Company Mech Roster Sheets &amp; MTF Exports</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
-              {units.map((u, i) => {
-                const pilotObj = pilots.find(p => p.assigned_unit === u.chassis || p.assigned_unit === `${u.chassis} ${u.model}` || (u.assigned_pilot && p.name === u.assigned_pilot));
-                
-                return (
-                  <div key={u.id || i} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <strong style={{ color: "#fff", fontSize: "15px" }}>{u.chassis} {u.model} ({u.tonnage} Tons)</strong>
-                      <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
-                        BV2: <span style={{ color: "#fbbf24", fontWeight: "bold" }}>{u.bv2} BV</span> | Tech: {u.tech_base || "Inner Sphere"} | Assigned MechWarrior: <strong style={{ color: "#c084fc" }}>{pilotObj ? `${pilotObj.name} "${pilotObj.callsign}" (G${pilotObj.gunnery}/P${pilotObj.piloting})` : (u.assigned_pilot || "Unassigned")}</strong>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const r = await fetch(`http://localhost:8000/api/v1/units/${u.id || 1}/export-mtf`);
-                            if (r.ok) {
-                              const data = await r.json();
-                              const blob = new Blob([data.mtf_content], { type: "text/plain" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = data.filename || `${u.chassis}_${u.model}.mtf`;
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            }
-                          } catch (err) {
-                            alert("⚠️ Error generating MTF file.");
-                          }
-                        }}
-                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        📄 Download .MTF
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPreviewUnit({ ...u, assigned_pilot: pilotObj ? `${pilotObj.name} "${pilotObj.callsign}"` : (u.assigned_pilot || "Unassigned") });
-                          setShowPrintPreviewModal(true);
-                        }}
-                        style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        🖨️ Print Preview Sheet
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* INTERACTIVE BATTLETECH RECORD SHEET PRINT PREVIEW MODAL */}
-      {showPrintPreviewModal && previewUnit && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100001 }} onClick={() => setShowPrintPreviewModal(false)}>
-          <div style={{ background: "#0b0f19", border: "2px solid #38bdf8", borderRadius: "12px", padding: "24px", width: "1120px", maxWidth: "98vw", height: "94vh", maxHeight: "940px", display: "flex", flexDirection: "column", color: "#fff" }} onClick={e => e.stopPropagation()}>
-            
-            {/* PREVIEW TOOLBAR */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
-                  🖨️ 1:1 RECORD SHEET — {previewUnit.chassis} {previewUnit.model} ({previewUnit.tonnage}T)
-                </h3>
-                <div style={{ display: "flex", background: "rgba(255,255,255,0.08)", padding: "2px", borderRadius: "6px" }}>
-                  <button
-                    onClick={() => setRecordSheetViewMode("preloaded")}
-                    style={{ background: recordSheetViewMode === "preloaded" ? "#0284c7" : "transparent", color: "#fff", border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                  >
-                    📄 Pre-Loaded 1:1 Sheet
-                  </button>
-                  <button
-                    onClick={() => setRecordSheetViewMode("flechs")}
-                    style={{ background: recordSheetViewMode === "flechs" ? "#10b981" : "transparent", color: "#fff", border: "none", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                  >
-                    🌐 Flechs Sheets App
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                {recordSheetViewMode === "flechs" && (
-                  <button
-                    onClick={() => {
-                      const mechName = `${previewUnit.chassis} ${previewUnit.model}`;
-                      if (navigator.clipboard) {
-                        navigator.clipboard.writeText(mechName);
-                        alert(`📋 Copied "${mechName}" to clipboard! Press Ctrl+V in Flechs Sheets search or import.`);
-                      }
-                    }}
-                    style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                  >
-                    📋 Copy Mech Name
-                  </button>
-                )}
-
-                <button
-                  onClick={async () => {
-                    try {
-                      const r = await fetch(`http://localhost:8000/api/v1/units/${previewUnit.id || 1}/export-mtf`);
-                      if (r.ok) {
-                        const data = await r.json();
-                        const blob = new Blob([data.mtf_content], { type: "text/plain" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = data.filename || `${previewUnit.chassis}_${previewUnit.model}.mtf`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }
-                    } catch (err) {
-                      alert("⚠️ Error generating MTF file.");
-                    }
-                  }}
-                  style={{ background: "#d97706", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                >
-                  📄 Download .MTF
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (recordSheetViewMode === "flechs" && flechsIframeRef.current && flechsIframeRef.current.contentWindow) {
-                      try {
-                        flechsIframeRef.current.contentWindow.print();
-                      } catch (err) {
-                        window.print();
-                      }
-                    } else {
-                      window.print();
-                    }
-                  }}
-                  style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                >
-                  🖨️ Print Sheet (System / PDF)
-                </button>
-
-                <button
-                  onClick={() => window.open("https://sheets.flechs.net/", "_blank")}
-                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                >
-                  🌐 External Flechs ➔
-                </button>
-                
-                <button onClick={() => setShowPrintPreviewModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
-              </div>
-            </div>
-
-            {/* VIEW CONTENT CONTAINER */}
-            {recordSheetViewMode === "preloaded" ? (
-              /* 📄 PRE-LOADED 1:1 OFFICIAL BATTLETECH RECORD SHEET (PREVIEW & PRINT READY) */
-              <div className="printable-record-sheet-container" style={{ flex: 1, background: "#ffffff", color: "#000000", borderRadius: "8px", padding: "24px", overflowY: "auto", fontFamily: "'Courier New', Courier, monospace", boxShadow: "0 0 20px rgba(0,0,0,0.5)" }}>
-                
-                {/* SHEET HEADER */}
-                <div style={{ borderBottom: "3px double #000", paddingBottom: "8px", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: "22px", fontFamily: "Impact, sans-serif", letterSpacing: "1px", textTransform: "uppercase" }}>
-                      BATTLEMECH RECORD SHEET
-                    </h2>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "4px" }}>
-                      MECH: <span style={{ textDecoration: "underline" }}>{previewUnit.chassis}</span> | MODEL: <span style={{ textDecoration: "underline" }}>{previewUnit.model}</span>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", fontSize: "12px" }}>
-                    <div>MASS: <strong>{previewUnit.tonnage} TONS</strong></div>
-                    <div>BV2: <strong>{(previewUnit.bv2 || 1200).toLocaleString()} BV</strong></div>
-                    <div>TECH BASE: <strong>{previewUnit.tech_base || "Inner Sphere"}</strong></div>
-                  </div>
-                </div>
-
-                {/* MECHWARRIOR & COMBAT SPECS BAR */}
-                <div style={{ border: "1px solid #000", padding: "8px 12px", marginBottom: "16px", background: "#f8fafc", display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "12px", fontSize: "12px" }}>
-                  <div>
-                    <strong>MECHWARRIOR:</strong> {previewUnit.assigned_pilot || "Unassigned"}
-                  </div>
-                  <div>
-                    <strong>GUNNERY SKILL:</strong> 4
-                  </div>
-                  <div>
-                    <strong>PILOTING SKILL:</strong> 5
-                  </div>
-                </div>
-
-                {/* MAIN CONTENT GRID */}
-                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px" }}>
-                  
-                  {/* LEFT: ARMOR & INTERNAL DIAGRAMS */}
-                  <div style={{ border: "1px solid #000", padding: "12px", background: "#fafafa" }}>
-                    <h4 style={{ margin: "0 0 10px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "13px" }}>
-                      🛡️ ARMOR &amp; INTERNAL STRUCTURE ALLOCATION
-                    </h4>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "11px" }}>
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>HEAD (HD):</strong> 9 Armor / 3 Struct
-                        <div style={{ display: "flex", gap: "3px", marginTop: "4px" }}>
-                          {"○○○○○○○○○".split("").map((c, idx) => <span key={idx} style={{ fontSize: "14px", color: idx < (previewUnit.armor_damage || 0) ? "#ef4444" : "#000" }}>{idx < (previewUnit.armor_damage || 0) ? "●" : "○"}</span>)}
-                        </div>
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>CENTER TORSO (CT):</strong> 35 Armor / 23 Struct
-                        <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 10 Armor</div>
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>RIGHT TORSO (RT):</strong> 24 Armor / 16 Struct
-                        <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 8 Armor</div>
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>LEFT TORSO (LT):</strong> 24 Armor / 16 Struct
-                        <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 8 Armor</div>
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>RIGHT ARM (RA):</strong> 16 Armor / 12 Struct
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>LEFT ARM (LA):</strong> 16 Armor / 12 Struct
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>RIGHT LEG (RL):</strong> 24 Armor / 16 Struct
-                      </div>
-
-                      <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                        <strong>LEFT LEG (LL):</strong> 24 Armor / 16 Struct
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT: WEAPONS & CRITICAL HIT LOCATIONS */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    
-                    {/* WEAPONS TABLE */}
-                    <div style={{ border: "1px solid #000", padding: "10px", background: "#fafafa" }}>
-                      <h4 style={{ margin: "0 0 8px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "13px" }}>
-                        ⚔️ WEAPONS &amp; EQUIPMENT
-                      </h4>
-                      <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ background: "#e2e8f0" }}>
-                            <th style={{ border: "1px solid #000", padding: "4px" }}>TYPE</th>
-                            <th style={{ border: "1px solid #000", padding: "4px" }}>LOC</th>
-                            <th style={{ border: "1px solid #000", padding: "4px" }}>HEAT</th>
-                            <th style={{ border: "1px solid #000", padding: "4px" }}>DMG</th>
-                            <th style={{ border: "1px solid #000", padding: "4px" }}>RNG</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>PPC / Autocannon</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>RA</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>10</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>10</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>6/12/18</td>
-                          </tr>
-                          <tr>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>Medium Laser</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>CT</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>3</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>5</td>
-                            <td style={{ border: "1px solid #000", padding: "4px" }}>3/6/9</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* HEAT SCALE */}
-                    <div style={{ border: "1px solid #000", padding: "10px", background: "#fafafa" }}>
-                      <h4 style={{ margin: "0 0 6px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "12px" }}>
-                        🔥 HEAT DISSIPATION SCALE (1 to 30)
-                      </h4>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "2px", fontSize: "9px" }}>
-                        {[...Array(30).keys()].map(i => (
-                          <div key={i+1} style={{ border: "1px solid #94a3b8", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", background: i >= 14 ? "#fee2e2" : "#f1f5f9" }}>
-                            {i+1}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-            ) : (
-              /* 🌐 1:1 FLECHS SHEETS LIVE EMBEDDED WEB APP */
-              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "6px", padding: "8px 12px", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", flexShrink: 0 }}>
-                  <div>
-                    Mech: <strong style={{ color: "#38bdf8" }}>{previewUnit.chassis} {previewUnit.model}</strong> | BV2: <strong style={{ color: "#fbbf24" }}>{(previewUnit.bv2 || 1200).toLocaleString()} BV</strong> | Pilot: <strong style={{ color: "#c084fc" }}>{previewUnit.assigned_pilot || "Unassigned"}</strong>
-                  </div>
-                  <span style={{ color: "#94a3b8", fontSize: "11px" }}>
-                    💡 Click search or import below and press <strong style={{ color: "#fff" }}>Ctrl+V</strong> to load unit specs instantly.
-                  </span>
-                </div>
-
-                <div style={{ flex: 1, borderRadius: "8px", overflow: "hidden", background: "#333", border: "1px solid #334155" }}>
-                  <iframe
-                    ref={flechsIframeRef}
-                    src="https://sheets.flechs.net/"
-                    style={{ width: "100%", height: "100%", border: "none", background: "#333" }}
-                    title={`Flechs Sheet - ${previewUnit.chassis} ${previewUnit.model}`}
-                  />
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
 
       {/* CAMPAIGN SETUP & LAUNCHER MODAL */}
       {showLauncherModal && (
