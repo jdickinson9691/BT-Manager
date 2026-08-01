@@ -20,9 +20,9 @@ export default function Dashboard() {
     y: 0.0
   });
 
-  const [onlineMulMode, setOnlineMulMode] = useState(true);
-  const [onlineSarnaMode, setOnlineSarnaMode] = useState(true);
-  const [onlineMegamekMode, setOnlineMegamekMode] = useState(true);
+  const [onlineMulMode, setOnlineMulMode] = useState(false);
+  const [onlineSarnaMode, setOnlineSarnaMode] = useState(false);
+  const [onlineMegamekMode, setOnlineMegamekMode] = useState(false);
   
   // STEP-BY-STEP CAMPAIGN WORKFLOW NAVIGATION
   const [activeStep, setActiveStep] = useState(1); // 1: Contract & Transit, 2: Deployment & Lances, 3: Combat AAR & Salvage, 4: Tech Bay & MechLab, 5: Personnel & MedBay, 6: Financial Ledger
@@ -901,11 +901,36 @@ export default function Dashboard() {
         body: JSON.stringify({ mul_online: mul, sarna_online: sarna, megamek_online: megamek })
       });
       if (res.ok) {
-        const data = await res.json();
-        alert(data.message || `${service.toUpperCase()} mode updated!`);
+        if (newVal) {
+          // Trigger background sync when turning ON
+          fetch("http://localhost:8000/api/v1/network/sync", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source: service })
+          })
+          .then(r => r.json())
+          .then(syncData => {
+            alert(`🌐 ${service.toUpperCase()} Live Mode Activated: ${syncData.message || "Cache updated!"}`);
+          })
+          .catch(() => {
+            alert(`⚠️ Connection timeout for ${service.toUpperCase()}. Falling back to Offline Cache Mode.`);
+            if (service === "mul") setOnlineMulMode(false);
+            if (service === "sarna") setOnlineSarnaMode(false);
+            if (service === "megamek") setOnlineMegamekMode(false);
+          });
+        } else {
+          alert(`🔒 ${service.toUpperCase()} set to Offline Cached Mode.`);
+        }
         return;
       }
-    } catch (err) {}
+    } catch (err) {
+      if (newVal) {
+        alert(`⚠️ Could not reach ${service.toUpperCase()} server. Reverting to Offline Cache Mode.`);
+        if (service === "mul") setOnlineMulMode(false);
+        if (service === "sarna") setOnlineSarnaMode(false);
+        if (service === "megamek") setOnlineMegamekMode(false);
+        return;
+      }
+    }
 
     alert(`${service.toUpperCase()} network mode toggled to ${newVal ? "ONLINE" : "OFFLINE CACHE"}.`);
   };

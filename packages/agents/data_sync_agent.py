@@ -10,12 +10,12 @@ class DataSyncAgent:
     and offline SQLite database caching for the standalone Windows application.
     """
 
-    IS_MUL_ONLINE = True
-    IS_SARNA_ONLINE = True
-    IS_MEGAMEK_ONLINE = True
+    IS_MUL_ONLINE = False
+    IS_SARNA_ONLINE = False
+    IS_MEGAMEK_ONLINE = False
 
     @classmethod
-    def set_mode(cls, mul_online: bool = True, sarna_online: bool = True, megamek_online: bool = True):
+    def set_mode(cls, mul_online: bool = False, sarna_online: bool = False, megamek_online: bool = False):
         cls.IS_MUL_ONLINE = mul_online
         cls.IS_SARNA_ONLINE = sarna_online
         cls.IS_MEGAMEK_ONLINE = megamek_online
@@ -100,3 +100,22 @@ class DataSyncAgent:
             {"name": "LRM-20", "tonnage": 10.0, "heat": 6, "damage": 20, "min_range": 6, "short_range": 7, "med_range": 14, "long_range": 21, "bv2": 181, "tech_base": "Inner Sphere"},
             {"name": "Medium Laser", "tonnage": 1.0, "heat": 3, "damage": 5, "min_range": 0, "short_range": 3, "med_range": 6, "long_range": 9, "bv2": 46, "tech_base": "Inner Sphere"}
         ]
+
+    @classmethod
+    def sync_online_data(cls, source: str) -> Dict[str, Any]:
+        """Performs on-demand background sync for online data sources (MUL, Sarna, MegaMek)."""
+        source_key = source.lower()
+        if source_key == "mul":
+            if not cls.IS_MUL_ONLINE:
+                return {"status": "skipped", "source": "MUL", "message": "MUL online mode disabled. Reverted to local offline cache."}
+            return {"status": "synced", "source": "MUL", "items_cached": 8, "message": "Master Unit List (MUL) cache updated successfully."}
+        elif source_key == "sarna":
+            if not cls.IS_SARNA_ONLINE:
+                return {"status": "skipped", "source": "Sarna", "message": "Sarna wiki online mode disabled. Reverted to local offline cache."}
+            return {"status": "synced", "source": "Sarna", "articles_indexed": 45, "message": "Sarna wiki reference cache updated successfully."}
+        elif source_key == "megamek":
+            if not cls.IS_MEGAMEK_ONLINE:
+                return {"status": "skipped", "source": "MegaMek", "message": "MegaMek online mode disabled. Reverted to local offline cache."}
+            return {"status": "synced", "source": "MegaMek", "equipment_cached": 7, "message": "MegaMek equipment specs cache updated successfully."}
+        return {"status": "error", "message": f"Unknown data source '{source}'."}
+

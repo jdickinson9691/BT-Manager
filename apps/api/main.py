@@ -72,15 +72,18 @@ class DeployForceRequest(BaseModel):
     deployed_unit_ids: Optional[List[int]] = []
 
 class NetworkConfigRequest(BaseModel):
-    mul_online: bool = True
-    sarna_online: bool = True
-    megamek_online: bool = True
+    mul_online: bool = False
+    sarna_online: bool = False
+    megamek_online: bool = False
 
 GLOBAL_NETWORK_CONFIG = {
-    "mul_online": True,
-    "sarna_online": True,
-    "megamek_online": True
+    "mul_online": False,
+    "sarna_online": False,
+    "megamek_online": False
 }
+
+class NetworkSyncRequest(BaseModel):
+    source: str
 
 class CustomLogCreate(BaseModel):
     event_type: str = "Journal"
@@ -243,6 +246,10 @@ def update_network_config(config: NetworkConfigRequest):
         "config": GLOBAL_NETWORK_CONFIG,
         "message": f"Network toggles updated: MUL={'Online' if config.mul_online else 'Cached'}, Sarna={'Online' if config.sarna_online else 'Cached'}, MegaMek={'Online' if config.megamek_online else 'Cached'}"
     }
+
+@app.post("/api/v1/network/sync")
+def sync_network_data(req: NetworkSyncRequest):
+    return DataSyncAgent.sync_online_data(req.source)
 
 @app.get("/api/v1/ledger/balance")
 def get_balance(db: Session = Depends(get_db)):
