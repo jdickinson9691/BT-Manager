@@ -97,7 +97,9 @@ export default function Dashboard() {
   const [useDoubleHeatSinks, setUseDoubleHeatSinks] = useState(false);
   const [buildMetrics, setBuildMetrics] = useState(null);
 
-  const [showLauncherModal, setShowLauncherModal] = useState(false);
+  const [showLauncherModal, setShowLauncherModal] = useState(true);
+  const [launcherMode, setLauncherMode] = useState("CHOICE"); // "CHOICE" | "NEW_CAMPAIGN_SETUP" | "LOAD_EXISTING_CAMPAIGN"
+  const [setupValidationError, setSetupValidationError] = useState("");
   const [existingCampaignsList, setExistingCampaignsList] = useState([
     { id: 1, name: "Succession Wars 3025 (Wolf's Irregulars)", current_date: "3025-01-15", cbill_balance: 15000000.0, era: "3025" }
   ]);
@@ -112,6 +114,10 @@ export default function Dashboard() {
 
   const [wizardUnits, setWizardUnits] = useState([]);
   const [wizardPilots, setWizardPilots] = useState([]);
+
+  const wizardTotalBv2 = useMemo(() => {
+    return wizardUnits.reduce((acc, u) => acc + (Number(u.bv2) || 0), 0);
+  }, [wizardUnits]);
 
   // Data Fetching Optimization (Unified Batch Summary)
   const fetchBalance = () => {
@@ -305,6 +311,12 @@ export default function Dashboard() {
 
   const handleAdvanceToWizardStep2 = async (e) => {
     e.preventDefault();
+    if (!newCampName || !newCampName.trim() || !newCompanyName || !newCompanyName.trim() || !newCommanderName || !newCommanderName.trim()) {
+      setSetupValidationError("⚠️ Campaign Name, Company Name, and Commander Name are required and cannot be blank!");
+      return;
+    }
+    setSetupValidationError("");
+
     try {
       const res = await fetch(`http://localhost:8000/api/v1/units/master?era_code=${newEra}&faction=${encodeURIComponent(newFaction)}`);
       if (res.ok) {
@@ -1016,7 +1028,7 @@ export default function Dashboard() {
           </button>
 
           <button
-            onClick={() => { fetchCampaignsList(); setShowLauncherModal(true); }}
+            onClick={() => { fetchCampaignsList(); setLauncherMode("CHOICE"); setSetupValidationError(""); setShowLauncherModal(true); }}
             style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
           >
             ⚙️ Switch / Setup Campaign
@@ -2674,7 +2686,7 @@ export default function Dashboard() {
       {/* CAMPAIGN SETUP & LAUNCHER MODAL */}
       {showLauncherModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100 }} onClick={() => setShowLauncherModal(false)}>
-          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "620px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "640px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "20px" }}>
                 BT-MANAGER CAMPAIGN LAUNCHER
@@ -2695,10 +2707,61 @@ export default function Dashboard() {
               </span>
             </div>
 
-            {/* SECTION 1: LOAD EXISTING CAMPAIGN (Step 1 Only) */}
-            {launcherWizardStep === 1 && existingCampaignsList.length > 0 && (
-              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
-                <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "14px" }}>Load Saved Campaign</h4>
+            {/* INITIAL LAUNCH CHOICE POPUP SCREEN */}
+            {launcherMode === "CHOICE" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 4px 0" }}>
+                  Welcome to BattleTech Campaign Manager. Please select how you would like to start:
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  {/* CARD 1: LAUNCH A NEW CAMPAIGN */}
+                  <div
+                    onClick={() => { setSetupValidationError(""); setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(1); }}
+                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "2px solid #38bdf8", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "all 0.2s ease", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "28px", marginBottom: "8px" }}>🚀</div>
+                      <h4 style={{ color: "#38bdf8", margin: "0 0 8px 0", fontSize: "16px" }}>Launch A New Campaign</h4>
+                      <p style={{ color: "#94a3b8", fontSize: "12px", margin: 0, lineHeight: "1.4" }}>
+                        Configure campaign logistics, BattleTech era, player faction, starting Mech roster, and pilot skills.
+                      </p>
+                    </div>
+                    <button style={{ background: "#38bdf8", color: "#0f172a", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", marginTop: "16px", cursor: "pointer" }}>
+                      Start New Campaign ➔
+                    </button>
+                  </div>
+
+                  {/* CARD 2: LOAD AN EXISTING CAMPAIGN */}
+                  <div
+                    onClick={() => { fetchCampaignsList(); setLauncherMode("LOAD_EXISTING_CAMPAIGN"); }}
+                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "2px solid #10b981", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "all 0.2s ease", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "28px", marginBottom: "8px" }}>📂</div>
+                      <h4 style={{ color: "#10b981", margin: "0 0 8px 0", fontSize: "16px" }}>Load An Existing Campaign</h4>
+                      <p style={{ color: "#94a3b8", fontSize: "12px", margin: 0, lineHeight: "1.4" }}>
+                        Resume an existing active mercenary campaign save file from local SQLite database storage.
+                      </p>
+                    </div>
+                    <button style={{ background: "#10b981", color: "#0f172a", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", marginTop: "16px", cursor: "pointer" }}>
+                      Load Saved Campaign ➔
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SCREEN: LOAD EXISTING CAMPAIGN */}
+            {launcherMode === "LOAD_EXISTING_CAMPAIGN" && (
+              <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                  <h4 style={{ color: "#10b981", margin: 0, fontSize: "14px" }}>Load Saved Campaign</h4>
+                  <button onClick={() => setLauncherMode("CHOICE")} style={{ background: "transparent", border: "1px solid #475569", color: "#94a3b8", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>
+                    ← Back to Choice
+                  </button>
+                </div>
+
                 <select
                   value={selectedExistingCampId}
                   onChange={e => setSelectedExistingCampId(Number(e.target.value))}
@@ -2712,26 +2775,48 @@ export default function Dashboard() {
                 </select>
                 <button
                   onClick={() => { setShowLauncherModal(false); refreshAll(); }}
-                  style={{ width: "100%", background: "#10b981", color: "#fff", border: "none", padding: "10px", borderRadius: "6px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+                  style={{ width: "100%", background: "#10b981", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}
                 >
                   Load Selected Campaign
                 </button>
               </div>
             )}
 
-            {/* SECTION 2: CREATE NEW CAMPAIGN (2-STEP WIZARD) */}
-            {launcherWizardStep === 1 ? (
+            {/* SCREEN: NEW CAMPAIGN SETUP (STEP 1 OF 2) */}
+            {launcherMode === "NEW_CAMPAIGN_SETUP" && launcherWizardStep === 1 && (
               <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <h4 style={{ color: "#ea580c", margin: 0, fontSize: "14px" }}>Step 1 of 2: Campaign Logistics &amp; Era</h4>
-                  <span style={{ fontSize: "11px", background: "rgba(234, 88, 12, 0.2)", color: "#ea580c", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>LOGISTICS SETUP</span>
+                  <div>
+                    <h4 style={{ color: "#ea580c", margin: 0, fontSize: "14px" }}>Campaign Setup (Step 1 of 2)</h4>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#94a3b8" }}>Select campaign name, BattleTech era, player faction, and company credentials.</p>
+                  </div>
+                  <button onClick={() => setLauncherMode("CHOICE")} style={{ background: "transparent", border: "1px solid #475569", color: "#94a3b8", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>
+                    ← Back to Choice
+                  </button>
                 </div>
+
+                {/* ERROR BANNER FOR BLANK FIELDS */}
+                {setupValidationError && (
+                  <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#fca5a5", padding: "10px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", marginBottom: "12px" }}>
+                    {setupValidationError}
+                  </div>
+                )}
 
                 <form onSubmit={handleAdvanceToWizardStep2} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   
                   <div>
-                    <label style={{ fontSize: "12px", color: "#94a3b8" }}>CAMPAIGN NAME</label>
-                    <input type="text" value={newCampName} onChange={e => setNewCampName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                    <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>CAMPAIGN NAME <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input
+                      type="text"
+                      value={newCampName}
+                      onChange={e => { setNewCampName(e.target.value); if (setupValidationError) setSetupValidationError(""); }}
+                      placeholder="e.g. Succession Wars 3025"
+                      style={{
+                        width: "100%", background: "#0f172a",
+                        border: setupValidationError && !newCampName.trim() ? "1px solid #ef4444" : "1px solid #334155",
+                        color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px"
+                      }}
+                    />
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -2758,16 +2843,35 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
-                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>MERCENARY COMPANY NAME</label>
-                      <input type="text" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                      <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>MERCENARY COMPANY NAME <span style={{ color: "#ef4444" }}>*</span></label>
+                      <input
+                        type="text"
+                        value={newCompanyName}
+                        onChange={e => { setNewCompanyName(e.target.value); if (setupValidationError) setSetupValidationError(""); }}
+                        placeholder="e.g. Wolf's Irregulars"
+                        style={{
+                          width: "100%", background: "#0f172a",
+                          border: setupValidationError && !newCompanyName.trim() ? "1px solid #ef4444" : "1px solid #334155",
+                          color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px"
+                        }}
+                      />
                     </div>
 
                     <div>
-                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>COMMANDER NAME</label>
-                      <input type="text" value={newCommanderName} onChange={e => setNewCommanderName(e.target.value)} required style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }} />
+                      <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>COMMANDER NAME <span style={{ color: "#ef4444" }}>*</span></label>
+                      <input
+                        type="text"
+                        value={newCommanderName}
+                        onChange={e => { setNewCommanderName(e.target.value); if (setupValidationError) setSetupValidationError(""); }}
+                        placeholder="e.g. Major Jaime Wolf"
+                        style={{
+                          width: "100%", background: "#0f172a",
+                          border: setupValidationError && !newCommanderName.trim() ? "1px solid #ef4444" : "1px solid #334155",
+                          color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px"
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -2776,15 +2880,39 @@ export default function Dashboard() {
                   </button>
                 </form>
               </div>
-            ) : (
-              /* STEP 2: CUSTOM MECH ROSTER & PILOT SETUP */
+            )}
+
+            {/* SCREEN: CONFIGURE ROSTER & PILOTS (STEP 2 OF 2) */}
+            {launcherMode === "NEW_CAMPAIGN_SETUP" && launcherWizardStep === 2 && (
               <div style={{ background: "rgba(30, 41, 59, 0.6)", padding: "18px", borderRadius: "8px", maxHeight: "65vh", overflowY: "auto" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                   <div>
                     <h4 style={{ color: "#10b981", margin: 0, fontSize: "14px" }}>Step 2 of 2: Configure Company Mechs &amp; Pilots</h4>
                     <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#94a3b8" }}>Era {newEra} pre-populated defaults. Edit specs, add, or remove units &amp; MechWarriors before launching.</p>
                   </div>
-                  <span style={{ fontSize: "11px", background: "rgba(16, 185, 129, 0.2)", color: "#10b981", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>ROSTER SETUP</span>
+                  <button onClick={() => setLauncherWizardStep(1)} style={{ background: "transparent", border: "1px solid #475569", color: "#94a3b8", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>
+                    ← Back to Setup
+                  </button>
+                </div>
+
+                {/* TOP HEADER DISPLAYING TOTAL BV2 VALUE AND WARCHEST / WP */}
+                <div style={{ display: "flex", gap: "12px", background: "rgba(15, 23, 42, 0.8)", border: "1px solid #334155", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+                    <span className="font-mono" style={{ color: "#38bdf8", fontSize: "14px", fontWeight: "bold" }}>
+                      ⚡ TOTAL FORCE BV2: <strong style={{ color: "#fff" }}>{wizardTotalBv2.toLocaleString()} BV2</strong>
+                    </span>
+                    <span className="font-mono" style={{ color: "#10b981", fontSize: "14px", fontWeight: "bold" }}>
+                      🛡️ WARCHEST: <strong style={{ color: "#fff" }}>1,250 WP</strong>
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", fontSize: "11px" }}>
+                    <span style={{ background: "rgba(56, 189, 248, 0.15)", border: "1px solid #38bdf8", color: "#38bdf8", padding: "3px 8px", borderRadius: "4px", fontWeight: "bold" }}>
+                      🤖 {wizardUnits.length} MECHS
+                    </span>
+                    <span style={{ background: "rgba(245, 158, 11, 0.15)", border: "1px solid #f59e0b", color: "#f59e0b", padding: "3px 8px", borderRadius: "4px", fontWeight: "bold" }}>
+                      👨‍✈️ {wizardPilots.length} PILOTS
+                    </span>
+                  </div>
                 </div>
 
                 <form onSubmit={handleCreateNewCampaignSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>

@@ -426,6 +426,47 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(self.campaign.wp_balance, initial_wp - 50)
         self.assertEqual(self.campaign.sp_balance, initial_sp + 500)
 
+    # ==================== 16. CAMPAIGN LAUNCHER VALIDATION & BV2 AUDIT TESTS ====================
+    def test_19_campaign_launcher_validation_and_bv2_audit(self):
+        """Verify Campaign Launcher validation rules for non-blank fields and total BV2 calculation."""
+        from apps.api.main import create_new_campaign, CampaignCreateRequest
+        from fastapi import HTTPException
+
+        # Test blank Campaign Name validation error (HTTP 400)
+        invalid_req = CampaignCreateRequest(
+            campaign_name="   ",
+            company_name="Wolf's Irregulars",
+            commander_name="Major Jaime Wolf",
+            era="3025"
+        )
+        with self.assertRaises(HTTPException) as cm:
+            create_new_campaign(invalid_req, self.db)
+        self.assertEqual(cm.exception.status_code, 400)
+        self.assertIn("cannot be blank", cm.exception.detail)
+
+        # Test valid campaign setup & total starting force BV2 calculation
+        valid_req = CampaignCreateRequest(
+            campaign_name="Highland Campaign",
+            company_name="Highland Regiment",
+            commander_name="Colonel Campbell",
+            era="3025",
+            custom_units=[
+                {"chassis": "Marauder", "model": "MAD-3R", "tonnage": 75, "bv2": 1363, "tech_base": "Inner Sphere"},
+                {"chassis": "Warhammer", "model": "WHM-6R", "tonnage": 70, "bv2": 1299, "tech_base": "Inner Sphere"}
+            ]
+        )
+        res = create_new_campaign(valid_req, self.db)
+        self.assertIsNotNone(res)
+        
+        # Query created units from DB for BV2 calculation audit
+        from packages.database.models import Campaign, Unit
+        created_camp = self.db.query(Campaign).filter(Campaign.name.like("%Highland Campaign%")).first()
+        self.assertIsNotNone(created_camp)
+        self.assertIn("Highland Campaign", created_camp.name)
+        units = self.db.query(Unit).filter(Unit.campaign_id == created_camp.id).all()
+        total_bv2 = sum(u.bv2 for u in units)
+        self.assertEqual(total_bv2, 2662)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -271,6 +271,9 @@ def list_campaigns(db: Session = Depends(get_db)):
 
 @app.post("/api/v1/campaigns/create")
 def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
+    if not req.campaign_name or not req.campaign_name.strip() or not req.company_name or not req.company_name.strip() or not req.commander_name or not req.commander_name.strip():
+        raise HTTPException(status_code=400, detail="Campaign Name, Company Name, and Commander Name are required and cannot be blank.")
+
     era_details = EraFactionAgent.get_era_details(req.era)
     
     campaign = Campaign(
