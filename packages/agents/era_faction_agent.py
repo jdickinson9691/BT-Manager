@@ -289,6 +289,50 @@ class EraFactionAgent:
         """Gets full era configuration including starting units, equipment, pilots, and SPAs."""
         return cls.ERAS.get(era_code, cls.ERAS["3025"])
 
+    FACTIONS_BY_ERA = {
+        "2750": [
+            "Star League Defense Force (SLDF)", "House Davion (Federated Suns)", "House Kurita (Draconis Combine)",
+            "House Steiner (Lyran Commonwealth)", "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)",
+            "Terran Hegemony", "Mercenaries", "Periphery Realms"
+        ],
+        "2821": [
+            "House Davion (Federated Suns)", "House Kurita (Draconis Combine)", "House Steiner (Lyran Commonwealth)",
+            "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)", "ComStar", "Mercenaries", "Pirates"
+        ],
+        "3025": [
+            "House Davion (Federated Suns)", "House Kurita (Draconis Combine)", "House Steiner (Lyran Commonwealth)",
+            "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)", "ComStar", "Mercenaries", "Pirates", "Taurian Concordat", "Magistracy of Canopus"
+        ],
+        "3050": [
+            "House Davion (Federated Suns)", "House Kurita (Draconis Combine)", "House Steiner (Lyran Commonwealth)",
+            "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)", "ComStar", "Word of Blake",
+            "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Smoke Jaguar", "Clan Nova Cat", "Clan Steel Viper", "Clan Diamond Shark", "Clan Snow Raven", "Clan Ice Hellion",
+            "Mercenaries", "Pirates"
+        ],
+        "3062": [
+            "House Davion (Federated Suns)", "House Kurita (Draconis Combine)", "House Steiner (Lyran Alliance)",
+            "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)", "ComStar", "Word of Blake",
+            "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Smoke Jaguar", "Clan Nova Cat", "Clan Steel Viper", "Clan Diamond Shark", "Clan Wolf-in-Exile",
+            "Mercenaries", "Pirates"
+        ],
+        "3068": [
+            "Word of Blake", "ComStar", "House Davion (Federated Suns)", "House Kurita (Draconis Combine)",
+            "House Steiner (Lyran Alliance)", "House Marik (Free Worlds League)", "House Liao (Capellan Confederation)",
+            "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Nova Cat", "Clan Diamond Shark", "Clan Wolf-in-Exile",
+            "Mercenaries", "Pirates"
+        ],
+        "3151": [
+            "ilClan (Clan Wolf)", "Clan Jade Falcon", "Clan Ghost Bear (Rasalhague Dominion)", "Clan Sea Fox",
+            "House Davion (Federated Suns)", "House Kurita (Draconis Combine)", "House Steiner (Lyran Commonwealth)",
+            "Free Worlds League", "Capellan Confederation", "Mercenaries", "Pirates"
+        ]
+    }
+
+    @classmethod
+    def get_factions_for_era(cls, era_code: str = "3025") -> List[str]:
+        """Returns list of era-accurate selectable factions including distinct Clan factions starting in 3050."""
+        return cls.FACTIONS_BY_ERA.get(era_code, cls.FACTIONS_BY_ERA["3025"])
+
     @classmethod
     def filter_market_units_by_era_and_faction(
         cls,
@@ -308,4 +352,5 @@ class EraFactionAgent:
             filtered.append(m_copy)
 
         return filtered
+
 

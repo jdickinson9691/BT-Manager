@@ -439,6 +439,11 @@ def get_master_unit_database(era_code: str = "3025", faction: Optional[str] = No
     from packages.data_importer.master_unit_database import MasterUnitDatabase
     return MasterUnitDatabase.filter_units(era_code=era_code, faction=faction, unit_type=unit_type, tech_base=tech_base)
 
+@app.get("/api/v1/factions")
+def get_factions_by_era(era_code: str = "3025"):
+    return {"era_code": era_code, "factions": EraFactionAgent.get_factions_for_era(era_code)}
+
+
 
 @app.post("/api/v1/market/buy-mech")
 def buy_procurement_mech(req: BuyMechRequest, db: Session = Depends(get_db)):

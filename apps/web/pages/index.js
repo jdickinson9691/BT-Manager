@@ -1814,15 +1814,25 @@ export default function Dashboard() {
 
                 <div>
                   <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>TARGET ENEMY OPFOR</label>
-                  <select defaultValue="Draconis Combine" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                    <option value="Draconis Combine">Draconis Combine (Kurita)</option>
-                    <option value="Federated Suns">Federated Suns (House Davion)</option>
-                    <option value="Capellan Confederation">Capellan Confederation (Liao)</option>
-                    <option value="Free Worlds League">Free Worlds League (Marik)</option>
-                    <option value="Lyran Commonwealth">Lyran Commonwealth (Steiner)</option>
+                  <select defaultValue="House Kurita" style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                    <option value="House Kurita">House Kurita (Draconis Combine)</option>
+                    <option value="House Davion">House Davion (Federated Suns)</option>
+                    <option value="House Liao">House Liao (Capellan Confederation)</option>
+                    <option value="House Marik">House Marik (Free Worlds League)</option>
+                    <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
+                    <option value="ComStar">ComStar</option>
+                    <option value="Word of Blake">Word of Blake</option>
+                    <option value="Clan Wolf">Clan Wolf</option>
+                    <option value="Clan Jade Falcon">Clan Jade Falcon</option>
+                    <option value="Clan Ghost Bear">Clan Ghost Bear</option>
+                    <option value="Clan Smoke Jaguar">Clan Smoke Jaguar</option>
+                    <option value="Clan Nova Cat">Clan Nova Cat</option>
+                    <option value="Clan Steel Viper">Clan Steel Viper</option>
+                    <option value="Clan Diamond Shark">Clan Diamond Shark / Sea Fox</option>
+                    <option value="Clan Wolf-in-Exile">Clan Wolf-in-Exile</option>
                     <option value="Pirate Outlaws">Pirate Outlaws &amp; Banditti</option>
-                    <option value="Clan Wolf">Clan Wolf (Clans)</option>
                   </select>
+
                 </div>
               </div>
 
@@ -2487,14 +2497,23 @@ export default function Dashboard() {
                       <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT PLAYER FACTION</label>
                       <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
                         <option value="House Davion">House Davion (Federated Suns)</option>
-                        <option value="House Draconis Combine">House Draconis Combine (Kurita)</option>
+                        <option value="House Kurita">House Kurita (Draconis Combine)</option>
                         <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
                         <option value="House Marik">House Marik (Free Worlds League)</option>
                         <option value="House Liao">House Liao (Capellan Confederation)</option>
-                        <option value="ComStar">ComStar / Word of Blake</option>
-                        <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenary</option>
-                        <option value="Clan Wolf">Clan Wolf / Clan Jade Falcon</option>
+                        <option value="ComStar">ComStar</option>
+                        <option value="Word of Blake">Word of Blake</option>
+                        <option value="Clan Wolf">Clan Wolf</option>
+                        <option value="Clan Jade Falcon">Clan Jade Falcon</option>
+                        <option value="Clan Ghost Bear">Clan Ghost Bear</option>
+                        <option value="Clan Smoke Jaguar">Clan Smoke Jaguar</option>
+                        <option value="Clan Nova Cat">Clan Nova Cat</option>
+                        <option value="Clan Steel Viper">Clan Steel Viper</option>
+                        <option value="Clan Diamond Shark">Clan Diamond Shark / Sea Fox</option>
+                        <option value="Clan Wolf-in-Exile">Clan Wolf-in-Exile</option>
+                        <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenaries</option>
                       </select>
+
                     </div>
                   </div>
 
