@@ -1,9 +1,11 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
 const kill = require('tree-kill');
+
+app.commandLine.appendSwitch('enable-print-preview');
 
 let mainWindow;
 let pythonProcess = null;
