@@ -25,15 +25,10 @@
 - **Interactive Asset Roster**: Overview of all active BattleMechs, Combat Vehicles, Personnel & MechWarriors, and Salvaged Warehouse Components.
 - **Cross-Section Navigation**: Direct quick-links to Step 4 (Tech Bay & MechLab) and Step 5 (Personnel & MedBay).
 
-### 🌐 3. Flechs Sheets & MegaMek MTF Integration (`sheets.flechs.net`)
-- **Flechs Sheets PWA Integration**: Direct web launcher to [https://sheets.flechs.net/](https://sheets.flechs.net/) for live digital damage tracking and line-of-sight attack resolution.
-- **📄 Download MegaMek `.MTF` Files**: One-click MTF unit file exporter (`GET /api/v1/units/{unit_id}/export-mtf`) compatible with Flechs Sheets and MegaMekLab.
-- **🖨️ Native Printable Record Sheets**: Formatted printable Mech record sheets with armor circle diagrams, critical hit tables, heat scales, and pilot skills.
-
-### 💰 4. Chaos Campaign Rules Compliance
-- **Warchest Points (WP) & Support Points (SP)**: Enforces official Catalyst Game Labs Chaos Campaign rulebooks (*Total Chaos*, *BattleTech Mercenaries*).
-- **Currency Conversion**: Convert 1 WP $\leftrightarrow$ 10 SP seamlessly.
-- **Timeline Stardate Engine**: Advance stardate with daily operational overhead ($5,000/day) and stardate repair/healing duration clocks.
+### 🌐 3. Data Integration Network (MUL, Sarna, MegaMek & Flechs)
+- **📊 Flechs Sheets Data Agent**: Controlled via top header toggle `📊 Flechs: Online / Cached` (`POST /api/v1/network/config`) for background unit specs & MTF catalog data caching. Zero UI display or print clutter.
+- **📄 MegaMek `.MTF` Export**: One-click MTF unit file exporter (`GET /api/v1/units/{unit_id}/export-mtf`) compatible with MegaMekLab and Flechs Sheets.
+- **🌐 Network Toggles**: Four independent data source toggles (`MUL`, `Sarna`, `MegaMek`, `Flechs`) switching seamlessly between live background data sync and local offline SQLite caching.
 
 ---
 
@@ -43,11 +38,11 @@
 - **Frontend**: Next.js 14 + React 18 single-page dashboard with dark-mode cyberpunk glassmorphism layout.
 - **Backend API**: Python 3.14 + FastAPI REST API exposing 22+ endpoints.
 - **Database**: SQLAlchemy + SQLite (`bt_manager.db`) tracking campaigns, units, pilots, inventory, and logs.
-- **Unit Cache**: Master Unit List (MUL) local SQLite database with Sarna.net wiki scraping fallback.
+- **Unit Cache**: Master Unit List (MUL) local SQLite database with Sarna.net wiki scraping fallback and Flechs data agent.
 
 ---
 
-## 🧪 Verification & Testing (22/22 Tests Passing)
+## 🧪 Verification & Testing (23/23 Tests Passing)
 
 To run the automated test suite:
 
@@ -55,7 +50,7 @@ To run the automated test suite:
 python tests/test_harness.py
 ```
 
-All **22 unit tests** pass clean in `<1.0s`.
+All **23 unit tests** pass clean in `<1.0s`.
 
 ---
 
