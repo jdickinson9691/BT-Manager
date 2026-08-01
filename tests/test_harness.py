@@ -467,6 +467,38 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         total_bv2 = sum(u.bv2 for u in units)
         self.assertEqual(total_bv2, 2662)
 
+    def test_20_company_overview_roster_and_asset_audit(self):
+        """Verify Company Overview roster queries units, pilots, and inventory components accurately."""
+        from packages.database.models import Campaign, Unit, Pilot, Inventory
+        camp = Campaign(name="Alpha Mercs - 3025 Campaign", era="3025")
+        self.db.add(camp)
+        self.db.commit()
+        self.db.refresh(camp)
+
+        u1 = Unit(campaign_id=camp.id, chassis="Stalker", model="STK-3F", tonnage=85, bv2=1550)
+        u2 = Unit(campaign_id=camp.id, chassis="Griffin", model="GRF-1N", tonnage=55, bv2=1270)
+        self.db.add_all([u1, u2])
+        self.db.commit()
+
+        p1 = Pilot(campaign_id=camp.id, name="Capt. Miller", callsign="Overlord", gunnery=3, piloting=4, unit_id=u1.id, spa="Tactical Genius")
+        p2 = Pilot(campaign_id=camp.id, name="Scout Ace", callsign="Ghost", gunnery=4, piloting=4, unit_id=u2.id, spa="Dodge")
+        self.db.add_all([p1, p2])
+        self.db.commit()
+
+        inv = Inventory(campaign_id=camp.id, component_name="PPC Barrel", category="Weapon", quantity=3)
+        self.db.add(inv)
+        self.db.commit()
+
+        db_units = self.db.query(Unit).filter(Unit.campaign_id == camp.id).all()
+        db_pilots = self.db.query(Pilot).filter(Pilot.campaign_id == camp.id).all()
+        db_inv = self.db.query(Inventory).filter(Inventory.campaign_id == camp.id).all()
+
+        self.assertEqual(len(db_units), 2)
+        self.assertEqual(len(db_pilots), 2)
+        self.assertEqual(len(db_inv), 1)
+        self.assertEqual(db_pilots[0].unit_id, u1.id)
+        self.assertEqual(db_inv[0].quantity, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

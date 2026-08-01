@@ -415,6 +415,7 @@ export default function Dashboard() {
   const [showCustomContractModal, setShowCustomContractModal] = useState(false);
   const [showAarModal, setShowAarModal] = useState(false);
   const [showOpForSetupModal, setShowOpForSetupModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
 
   const [activeOpForUnits, setActiveOpForUnits] = useState([
     { chassis: "Catapult", model: "CPLT-A1", tonnage: 65, bv2: 1285, tech_base: "Inner Sphere" },
@@ -1036,6 +1037,23 @@ export default function Dashboard() {
             }}
           >
             ❓ Help &amp; Manual
+          </button>
+
+          {/* VIEW COMPANY OVERVIEW BUTTON */}
+          <button
+            onClick={() => setShowCompanyModal(true)}
+            style={{
+              background: "rgba(2, 132, 199, 0.2)",
+              color: "#38bdf8",
+              border: "1px solid #0284c7",
+              padding: "6px 14px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: "bold",
+              cursor: "pointer"
+            }}
+          >
+            🏢 View Company
           </button>
 
           <button
@@ -2690,6 +2708,161 @@ export default function Dashboard() {
                 <button type="submit" style={{ background: "#ea580c", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>🏆 Submit AAR, Award XP &amp; Claim Salvage ➔</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* COMPANY ASSETS & ROSTER OVERVIEW MODAL */}
+      {showCompanyModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowCompanyModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #0284c7", borderRadius: "12px", padding: "28px", width: "960px", maxWidth: "96vw", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            
+            {/* HEADER BAR */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>
+              <div>
+                <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "20px" }}>
+                  🏢 {balance.company_name || "WOLF'S IRREGULARS"} — COMPANY ASSET OVERVIEW
+                </h3>
+                <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  COMMANDER: <strong style={{ color: "#fbbf24" }}>{balance.commander_name || "Major Jaime Wolf"}</strong> | ERA: <strong style={{ color: "#fff" }}>{balance.era || "3025"}</strong> | FACTION: <strong style={{ color: "#38bdf8" }}>{balance.faction || "House Davion"}</strong>
+                </span>
+              </div>
+              <button onClick={() => setShowCompanyModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            {/* QUICK STATS STRIP */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+              <div style={{ background: "rgba(2, 132, 199, 0.15)", border: "1px solid #0284c7", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>BATTLEMECHS</span>
+                <h4 style={{ margin: "4px 0 0 0", color: "#fff", fontSize: "18px" }}>{units.filter(u => !u.unit_type || u.unit_type === "Mech").length} Active</h4>
+              </div>
+              <div style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid #10b981", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#34d399", fontWeight: "bold" }}>COMBAT VEHICLES</span>
+                <h4 style={{ margin: "4px 0 0 0", color: "#fff", fontSize: "18px" }}>3 Support Units</h4>
+              </div>
+              <div style={{ background: "rgba(147, 51, 234, 0.15)", border: "1px solid #9333ea", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#c084fc", fontWeight: "bold" }}>MECHWARRIORS</span>
+                <h4 style={{ margin: "4px 0 0 0", color: "#fff", fontSize: "18px" }}>{pilots.length} Pilots</h4>
+              </div>
+              <div style={{ background: "rgba(245, 158, 11, 0.15)", border: "1px solid #f59e0b", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#fbbf24", fontWeight: "bold" }}>SALVAGE &amp; INVENTORY</span>
+                <h4 style={{ margin: "4px 0 0 0", color: "#fff", fontSize: "18px" }}>{inventory.length} Stocked Items</h4>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              
+              {/* SECTION 1: BATTLEMECHS ROSTER */}
+              <div style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(2, 132, 199, 0.3)", borderRadius: "8px", padding: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h4 style={{ color: "#38bdf8", margin: 0, fontSize: "15px" }}>🤖 BATTLEMECH ROSTER</h4>
+                  <button
+                    onClick={() => { setShowCompanyModal(false); setActiveStep(4); }}
+                    style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    🔧 Go to Tech Bay &amp; MechLab ➔
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+                  {units.filter(u => !u.unit_type || u.unit_type === "Mech").map((u, i) => (
+                    <div key={i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{u.chassis} {u.model}</strong>
+                        <span style={{ color: "#38bdf8", fontSize: "11px", fontWeight: "bold" }}>{u.tonnage}T | {u.bv2} BV2</span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                        Pilot: <strong style={{ color: "#c084fc" }}>{u.assigned_pilot || "Unassigned"}</strong> | Status: <span style={{ color: (u.armor_damage || 0) > 0 ? "#f59e0b" : "#10b981" }}>{(u.armor_damage || 0) > 0 ? `Damaged (-${u.armor_damage} Armor)` : "Operational"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 2: COMBAT VEHICLES & SUPPORT CRAFT */}
+              <div style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "8px", padding: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h4 style={{ color: "#34d399", margin: 0, fontSize: "15px" }}>🚜 COMBAT VEHICLES &amp; SUPPORT CRAFT</h4>
+                  <button
+                    onClick={() => { setShowCompanyModal(false); setActiveStep(4); }}
+                    style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    🔧 Go to Tech Bay &amp; MechLab ➔
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+                  {[
+                    { name: "Leopard-class DropShip", type: "Dropship", tonnage: 1900, status: "Flight Ready (Outreach Port)" },
+                    { name: "Pegasus Scout Hovertank", type: "Hovercraft", tonnage: 35, status: "Operational (Scout Recon)" },
+                    { name: "Manticore Heavy Tank", type: "Tracked Tank", tonnage: 60, status: "Operational (Fire Support)" }
+                  ].map((v, i) => (
+                    <div key={i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{v.name}</strong>
+                        <span style={{ color: "#34d399", fontSize: "11px", fontWeight: "bold" }}>{v.tonnage}T ({v.type})</span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                        Status: <span style={{ color: "#10b981" }}>{v.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 3: PERSONNEL & MECHWARRIORS */}
+              <div style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(147, 51, 234, 0.3)", borderRadius: "8px", padding: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h4 style={{ color: "#c084fc", margin: 0, fontSize: "15px" }}>👨‍✈️ PERSONNEL &amp; MECHWARRIOR ROSTER</h4>
+                  <button
+                    onClick={() => { setShowCompanyModal(false); setActiveStep(5); }}
+                    style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    🏥 Go to Personnel &amp; MedBay ➔
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+                  {pilots.map((p, i) => (
+                    <div key={i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{p.name} "{p.callsign}"</strong>
+                        <span style={{ color: "#fbbf24", fontSize: "11px", fontWeight: "bold" }}>G{p.gunnery}/P{p.piloting}</span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                        Assigned: <strong style={{ color: "#38bdf8" }}>{p.assigned_unit || "Unassigned"}</strong> | Status: <span style={{ color: p.status === "Injured" ? "#ef4444" : "#10b981" }}>{p.status}</span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "2px" }}>
+                        SPA: {p.spa || "None"} | XP: {p.xp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 4: SALVAGED COMPONENTS & WAREHOUSE INVENTORY */}
+              <div style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "8px", padding: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h4 style={{ color: "#fbbf24", margin: 0, fontSize: "15px" }}>📦 SALVAGED COMPONENTS &amp; WAREHOUSE INVENTORY</h4>
+                  <button
+                    onClick={() => { setShowCompanyModal(false); setActiveStep(4); }}
+                    style={{ background: "#d97706", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  >
+                    🔧 Go to Tech Bay &amp; MechLab ➔
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+                  {inventory.map((inv, i) => (
+                    <div key={i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ color: "#fff", fontSize: "13px" }}>{inv.name}</strong>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>Type: {inv.type} | Stock Qty: <strong style={{ color: "#fbbf24" }}>{inv.qty}</strong></div>
+                      </div>
+                      <span style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold" }}>{(inv.value || 0).toLocaleString()} C-Bills</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
