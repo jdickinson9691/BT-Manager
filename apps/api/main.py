@@ -822,3 +822,28 @@ def treat_pilot_medical(pilot_id: int, db: Session = Depends(get_db)):
         return PersonnelAgent.treat_medbay(db, pilot_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/v1/dashboard/summary")
+def get_dashboard_summary(db: Session = Depends(get_db)):
+    campaign = CoreAgent.get_campaign(db)
+    balance_data = CoreAgent.get_ledger_summary(db) if campaign else {}
+    units = db.query(Unit).all()
+    missions = db.query(Mission).all()
+    pilots = db.query(Pilot).all()
+    inventory = db.query(Inventory).all()
+    logs = db.query(CampaignLog).order_by(CampaignLog.timestamp.desc()).limit(20).all()
+    starmap = MapAgent.get_starmap()
+    spas = PersonnelAgent.AVAILABLE_SPAS
+    procurement = MaintenanceAgent.get_market_mechs()
+
+    return {
+        "balance": balance_data,
+        "units": units,
+        "missions": missions,
+        "pilots": pilots,
+        "inventory": inventory,
+        "logs": logs,
+        "starmap": starmap,
+        "spas": spas,
+        "procurement": procurement
+    }

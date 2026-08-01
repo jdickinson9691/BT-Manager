@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 export default function Dashboard() {
   // Campaign & Balance State
@@ -112,6 +112,70 @@ export default function Dashboard() {
 
   const [wizardUnits, setWizardUnits] = useState([]);
   const [wizardPilots, setWizardPilots] = useState([]);
+
+  // Data Fetching Optimization (Unified Batch Summary)
+  const fetchBalance = () => {
+    fetch("http://localhost:8000/api/v1/ledger/balance")
+      .then(r => r.json())
+      .then(data => { if (data && data.CBills) setBalance(data); })
+      .catch(() => {});
+  };
+
+  const fetchUnits = () => {
+    fetch("http://localhost:8000/api/v1/units")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setUnits(data); })
+      .catch(() => {});
+  };
+  
+  const fetchMissions = () => {
+    fetch("http://localhost:8000/api/v1/missions")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMissions(data);
+          const deployed = data.find(m => m.status === "Active" || m.status === "Deployed");
+          if (deployed) setActiveDeployedMission(deployed);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const fetchPilots = () => { fetch("http://localhost:8000/api/v1/pilots").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setPilots(data); }).catch(() => {}); };
+  const fetchInventory = () => { fetch("http://localhost:8000/api/v1/inventory").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setInventory(data); }).catch(() => {}); };
+  const fetchLogs = () => { fetch("http://localhost:8000/api/v1/logs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setLogs(data); }).catch(() => {}); };
+  const fetchStarmap = () => { fetch("http://localhost:8000/api/v1/starmap").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setStarmapSystems(data); }).catch(() => {}); };
+  const fetchSpas = () => { fetch("http://localhost:8000/api/v1/pilots/spas").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setAvailableSpas(data); }).catch(() => {}); };
+  const fetchProcurement = () => { fetch("http://localhost:8000/api/v1/market/mechs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setProcurementMechs(data); }).catch(() => {}); };
+
+  const refreshAll = () => {
+    fetch("http://localhost:8000/api/v1/dashboard/summary")
+      .then(r => r.json())
+      .then(data => {
+        if (data) {
+          if (data.balance && data.balance.CBills !== undefined) setBalance(data.balance);
+          if (Array.isArray(data.units) && data.units.length > 0) setUnits(data.units);
+          if (Array.isArray(data.missions) && data.missions.length > 0) {
+            setMissions(data.missions);
+            const deployed = data.missions.find(m => m.status === "Active" || m.status === "Deployed");
+            if (deployed) setActiveDeployedMission(deployed);
+          }
+          if (Array.isArray(data.pilots) && data.pilots.length > 0) setPilots(data.pilots);
+          if (Array.isArray(data.inventory) && data.inventory.length > 0) setInventory(data.inventory);
+          if (Array.isArray(data.logs) && data.logs.length > 0) setLogs(data.logs);
+          if (Array.isArray(data.starmap) && data.starmap.length > 0) setStarmapSystems(data.starmap);
+          if (Array.isArray(data.spas) && data.spas.length > 0) setAvailableSpas(data.spas);
+          if (Array.isArray(data.procurement) && data.procurement.length > 0) setProcurementMechs(data.procurement);
+        }
+      })
+      .catch(() => {
+        fetchBalance(); fetchUnits(); fetchMissions(); fetchPilots(); fetchInventory(); fetchLogs(); fetchStarmap(); fetchSpas(); fetchProcurement();
+      });
+  };
+
+  useEffect(() => {
+    refreshAll();
+  }, []);
 
   const ERA_PRESETS = {
     "2750": {
@@ -385,48 +449,6 @@ export default function Dashboard() {
   const [negSalvagePct, setNegSalvagePct] = useState(50);
   const [negBlcPct, setNegBlcPct] = useState(50);
 
-  // Data Fetching
-  const fetchBalance = () => {
-    fetch("http://localhost:8000/api/v1/ledger/balance")
-      .then(r => r.json())
-      .then(data => { if (data && data.CBills) setBalance(data); })
-      .catch(() => {});
-  };
-
-  const fetchUnits = () => {
-    fetch("http://localhost:8000/api/v1/units")
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data) && data.length > 0) setUnits(data); })
-      .catch(() => {});
-  };
-  
-  const fetchMissions = () => {
-    fetch("http://localhost:8000/api/v1/missions")
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMissions(data);
-          const deployed = data.find(m => m.status === "Active" || m.status === "Deployed");
-          if (deployed) setActiveDeployedMission(deployed);
-        }
-      })
-      .catch(() => {});
-  };
-
-  const fetchPilots = () => { fetch("http://localhost:8000/api/v1/pilots").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setPilots(data); }).catch(() => {}); };
-  const fetchInventory = () => { fetch("http://localhost:8000/api/v1/inventory").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setInventory(data); }).catch(() => {}); };
-  const fetchLogs = () => { fetch("http://localhost:8000/api/v1/logs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setLogs(data); }).catch(() => {}); };
-  const fetchStarmap = () => { fetch("http://localhost:8000/api/v1/starmap").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setStarmapSystems(data); }).catch(() => {}); };
-  const fetchSpas = () => { fetch("http://localhost:8000/api/v1/pilots/spas").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setAvailableSpas(data); }).catch(() => {}); };
-  const fetchProcurement = () => { fetch("http://localhost:8000/api/v1/market/mechs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setProcurementMechs(data); }).catch(() => {}); };
-
-  const refreshAll = () => {
-    fetchBalance(); fetchUnits(); fetchMissions(); fetchPilots(); fetchInventory(); fetchLogs(); fetchStarmap(); fetchSpas(); fetchProcurement();
-  };
-
-  useEffect(() => {
-    refreshAll();
-  }, []);
 
   // Calculate MechLab Build Metrics
   const validateBuild = async () => {
@@ -850,9 +872,10 @@ export default function Dashboard() {
     setActiveStep(3);
   };
 
-  // Lance Stats
-  const totalLanceTonnage = units.reduce((acc, u) => acc + (u.tonnage || 0), 0);
-  const totalLanceBv2 = units.reduce((acc, u) => acc + (u.bv2 || 0), 0);
+  // Lance Stats (Memoized for Rendering Efficiency)
+  const totalLanceTonnage = useMemo(() => units.reduce((acc, u) => acc + (u.tonnage || 0), 0), [units]);
+  const totalLanceBv2 = useMemo(() => units.reduce((acc, u) => acc + (u.bv2 || 0), 0), [units]);
+
 
   // JumpNet Filter
   const filteredDestinations = starmapSystems.filter(sys => sys.name !== currentSystem.name);
