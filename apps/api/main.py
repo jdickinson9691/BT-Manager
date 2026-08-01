@@ -438,6 +438,108 @@ def get_factions_for_era_endpoint(era: str = "3025"):
 def generate_random_force_endpoint(req: RandomForceRequest):
     return EraFactionAgent.generate_random_force(era_code=req.era, faction=req.faction)
 
+@app.get("/api/v1/units/{unit_id}/export-mtf")
+def export_unit_mtf(unit_id: int, db: Session = Depends(get_db)):
+    unit = db.query(Unit).filter(Unit.id == unit_id).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    mtf_content = f"""Version:1.0
+{unit.chassis}
+{unit.model}
+
+Config:Biped
+TechBase:{unit.tech_base}
+Era:3025
+Rules Level:2
+
+Mass:{unit.tonnage}
+Engine:225 Fusion Engine
+Structure:Standard
+Myomer:Standard
+
+Heat Sinks:10 Single
+Walk MP:4
+Jump MP:0
+
+Armor:Standard
+LA Armor:16
+RA Armor:16
+LT Armor:24
+RT Armor:24
+CT Armor:35
+HD Armor:9
+LL Armor:24
+RL Armor:24
+RTR Armor:8
+RTL Armor:8
+RTC Armor:10
+
+Weapons:3
+PPC, Right Arm
+PPC, Left Arm
+Medium Laser, Center Torso
+
+Left Arm:
+Shoulder
+Upper Arm Actuator
+Lower Arm Actuator
+PPC
+
+Right Arm:
+Shoulder
+Upper Arm Actuator
+Lower Arm Actuator
+PPC
+
+Left Torso:
+Heat Sink
+Heat Sink
+
+Right Torso:
+Heat Sink
+Heat Sink
+
+Center Torso:
+Engine
+Engine
+Engine
+Gyro
+Gyro
+Gyro
+Gyro
+Engine
+Engine
+Engine
+Medium Laser
+
+Head:
+Life Support
+Sensors
+Cockpit
+Sensors
+Life Support
+
+Left Leg:
+Hip
+Upper Leg Actuator
+Lower Leg Actuator
+Foot Actuator
+
+Right Leg:
+Hip
+Upper Leg Actuator
+Lower Leg Actuator
+Foot Actuator
+"""
+    return {
+        "unit_id": unit.id,
+        "chassis": unit.chassis,
+        "model": unit.model,
+        "filename": f"{unit.chassis}_{unit.model}.mtf".replace(" ", "_"),
+        "mtf_content": mtf_content
+    }
+
 @app.get("/api/v1/units")
 def get_units(db: Session = Depends(get_db)):
     units = db.query(Unit).all()

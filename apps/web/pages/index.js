@@ -465,6 +465,7 @@ export default function Dashboard() {
   const [showAarModal, setShowAarModal] = useState(false);
   const [showOpForSetupModal, setShowOpForSetupModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showRecordSheetModal, setShowRecordSheetModal] = useState(false);
 
   const [activeOpForUnits, setActiveOpForUnits] = useState([
     { chassis: "Catapult", model: "CPLT-A1", tonnage: 65, bv2: 1285, tech_base: "Inner Sphere" },
@@ -1534,9 +1535,17 @@ export default function Dashboard() {
           
           {/* LEFT: ROSTER & REPAIR QUEUE */}
           <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", padding: "24px" }}>
-            <h3 className="font-orbitron" style={{ color: "#10b981", margin: "0 0 18px 0", fontSize: "18px" }}>
-              Step 4: Tech Bay Maintenance &amp; Parts Warehouse
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+              <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "18px" }}>
+                Step 4: Tech Bay Maintenance &amp; Parts Warehouse
+              </h3>
+              <button
+                onClick={() => setShowRecordSheetModal(true)}
+                style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                🖨️ Record Sheets &amp; Flechs ➔
+              </button>
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
               {units.map(u => {
@@ -2943,6 +2952,96 @@ export default function Dashboard() {
                 </div>
               </div>
 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* FLECHS SHEETS & PRINTABLE RECORD SHEETS MODAL */}
+      {showRecordSheetModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 99999 }} onClick={() => setShowRecordSheetModal(false)}>
+          <div style={{ background: "#0f141e", border: "1px solid #10b981", borderRadius: "12px", padding: "28px", width: "960px", maxWidth: "96vw", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            
+            {/* HEADER BAR */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>
+              <div>
+                <h3 className="font-orbitron" style={{ color: "#10b981", margin: 0, fontSize: "20px" }}>
+                  🖨️ BATTLEMECH RECORD SHEETS &amp; FLECHS SHEETS INTEGRATION
+                </h3>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
+                  Export MTF unit files, launch interactive Flechs Sheets digital record tracking, or print native BattleTech Mech sheets.
+                </p>
+              </div>
+              <button onClick={() => setShowRecordSheetModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            {/* INTEGRATION BANNER */}
+            <div style={{ background: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.4)", borderRadius: "8px", padding: "14px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: "12px", color: "#34d399", fontWeight: "bold" }}>🌐 FLECHS SHEETS (sheets.flechs.net)</span>
+                <p style={{ margin: "2px 0 0 0", color: "#cbd5e1", fontSize: "12px" }}>
+                  Flechs Sheets is an automated digital record sheet PWA for tabletop BattleTech. Supports automated damage tracking, heat scales, and line-of-sight attack resolution.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={() => window.open("https://sheets.flechs.net/", "_blank")}
+                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                >
+                  🌐 Open Flechs Sheets ➔
+                </button>
+              </div>
+            </div>
+
+            {/* COMPANY MECH ROSTER SHEETS LIST */}
+            <h4 style={{ color: "#38bdf8", margin: "0 0 12px 0", fontSize: "15px" }}>🤖 Company Mech Roster Sheets &amp; MTF Exports</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+              {units.map((u, i) => {
+                const pilotObj = pilots.find(p => p.assigned_unit === u.chassis || p.assigned_unit === `${u.chassis} ${u.model}` || (u.assigned_pilot && p.name === u.assigned_pilot));
+                
+                return (
+                  <div key={u.id || i} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "15px" }}>{u.chassis} {u.model} ({u.tonnage} Tons)</strong>
+                      <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+                        BV2: <span style={{ color: "#fbbf24", fontWeight: "bold" }}>{u.bv2} BV</span> | Tech: {u.tech_base || "Inner Sphere"} | Assigned MechWarrior: <strong style={{ color: "#c084fc" }}>{pilotObj ? `${pilotObj.name} "${pilotObj.callsign}" (G${pilotObj.gunnery}/P${pilotObj.piloting})` : (u.assigned_pilot || "Unassigned")}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const r = await fetch(`http://localhost:8000/api/v1/units/${u.id || 1}/export-mtf`);
+                            if (r.ok) {
+                              const data = await r.json();
+                              const blob = new Blob([data.mtf_content], { type: "text/plain" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = data.filename || `${u.chassis}_${u.model}.mtf`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }
+                          } catch (err) {
+                            alert("⚠️ Error generating MTF file.");
+                          }
+                        }}
+                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        📄 Download .MTF
+                      </button>
+                      <button
+                        onClick={() => window.print()}
+                        style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        🖨️ Print Sheet
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
           </div>
