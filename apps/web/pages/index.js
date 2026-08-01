@@ -3443,6 +3443,17 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* GLOBAL FOOTER & IP DISCLAIMER */}
+      <footer style={{ marginTop: "40px", paddingTop: "20px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "center", color: "#64748b", fontSize: "11px", marginBottom: "20px" }}>
+        <p style={{ margin: "0 0 4px 0", fontWeight: "bold", color: "#94a3b8" }}>
+          BT-Manager Alpha v0.1.0 — Publisher: <span style={{ color: "#38bdf8" }}>Lüdinn Entertainment</span>
+        </p>
+        <p style={{ margin: 0, fontSize: "10px", color: "#475569", maxWidth: "800px", marginLeft: "auto", marginRight: "auto" }}>
+          BattleTech, MechWarrior, and associated logos, faction emblems, and unit names are registered trademarks of Topps Company, Inc. and Catalyst Game Labs. BT-Manager is an open-source, non-commercial tabletop companion tool created by Lüdinn Entertainment for fan utility and campaign management.
+        </p>
+      </footer>
+
     </div>
   );
 }
+
