@@ -200,13 +200,92 @@ export default function Dashboard() {
     }
   };
 
-  const handleAdvanceToWizardStep2 = (e) => {
+  const FACTIONS_BY_ERA = {
+    "2750": [
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "Star League Defense Force (SLDF)", "Mercenaries", "Periphery Realms"
+    ],
+    "2821": [
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "ComStar", "Mercenaries", "Pirates"
+    ],
+    "3025": [
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "ComStar", "Mercenaries", "Pirates", "Taurian Concordat", "Magistracy of Canopus"
+    ],
+    "3050": [
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "ComStar", "Word of Blake",
+      "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Smoke Jaguar", "Clan Nova Cat", "Clan Steel Viper", "Clan Diamond Shark", "Clan Snow Raven", "Clan Ice Hellion",
+      "Mercenaries", "Pirates"
+    ],
+    "3062": [
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "ComStar", "Word of Blake",
+      "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Smoke Jaguar", "Clan Nova Cat", "Clan Steel Viper", "Clan Diamond Shark", "Clan Wolf-in-Exile",
+      "Mercenaries", "Pirates"
+    ],
+    "3068": [
+      "Word of Blake", "ComStar", "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao",
+      "Clan Wolf", "Clan Jade Falcon", "Clan Ghost Bear", "Clan Nova Cat", "Clan Diamond Shark", "Clan Wolf-in-Exile",
+      "Mercenaries", "Pirates"
+    ],
+    "3151": [
+      "ilClan (Clan Wolf)", "Clan Jade Falcon", "Clan Ghost Bear (Rasalhague Dominion)", "Clan Sea Fox",
+      "House Davion", "House Kurita", "House Steiner", "House Marik", "House Liao", "Mercenaries", "Pirates"
+    ]
+  };
+
+  const handleEraChange = (era) => {
+    setNewEra(era);
+    const availableFactions = FACTIONS_BY_ERA[era] || FACTIONS_BY_ERA["3025"];
+    if (!availableFactions.includes(newFaction)) {
+      setNewFaction(availableFactions[0]);
+    }
+  };
+
+  const handleAdvanceToWizardStep2 = async (e) => {
     e.preventDefault();
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/units/master?era_code=${newEra}&faction=${encodeURIComponent(newFaction)}`);
+      if (res.ok) {
+        const unitsData = await res.json();
+        if (Array.isArray(unitsData) && unitsData.length > 0) {
+          const startingMechs = unitsData.slice(0, 4).map(u => ({
+            chassis: u.chassis,
+            model: u.model,
+            tonnage: u.tonnage,
+            bv2: u.bv2,
+            tech_base: u.tech_base
+          }));
+          setWizardUnits(startingMechs);
+
+          const defaultPilots = startingMechs.map((m, idx) => ({
+            name: idx === 0 ? newCommanderName : `MechWarrior Pilot ${idx + 1}`,
+            callsign: idx === 0 ? "Commander" : `Alpha-${idx + 1}`,
+            gunnery: 4,
+            piloting: 5,
+            spa: idx === 0 ? "Tactical Genius (Reroll Initiative Once)" : "None",
+            xp: 50
+          }));
+          setWizardPilots(defaultPilots);
+          setLauncherWizardStep(2);
+          return;
+        }
+      }
+    } catch (err) {}
+
     const preset = ERA_PRESETS[newEra] || ERA_PRESETS["3025"];
-    setWizardUnits(JSON.parse(JSON.stringify(preset.units)));
-    setWizardPilots(JSON.parse(JSON.stringify(preset.pilots)));
+    const unitsCopy = JSON.parse(JSON.stringify(preset.units));
+    setWizardUnits(unitsCopy);
+
+    const fallbackPilots = unitsCopy.map((u, idx) => ({
+      name: idx === 0 ? newCommanderName : `MechWarrior Pilot ${idx + 1}`,
+      callsign: idx === 0 ? "Commander" : `Alpha-${idx + 1}`,
+      gunnery: 4,
+      piloting: 5,
+      spa: idx === 0 ? "Tactical Genius (Reroll Initiative Once)" : "None",
+      xp: 50
+    }));
+    setWizardPilots(fallbackPilots);
     setLauncherWizardStep(2);
   };
+
 
   const fetchCampaignsList = () => {
     fetch("http://localhost:8000/api/v1/campaigns")
@@ -2481,8 +2560,8 @@ export default function Dashboard() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
-                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT BATTLETECH ERA</label>
-                      <select value={newEra} onChange={e => setNewEra(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
+                      <label style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>SELECT BATTLETECH ERA</label>
+                      <select value={newEra} onChange={e => handleEraChange(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
                         <option value="2750">Star League Era (2571–2780)</option>
                         <option value="2821">Early Succession Wars (2781–2900)</option>
                         <option value="3025">Late Succession Wars / Renaissance (2901–3049)</option>
@@ -2494,28 +2573,15 @@ export default function Dashboard() {
                     </div>
 
                     <div>
-                      <label style={{ fontSize: "12px", color: "#94a3b8" }}>SELECT PLAYER FACTION</label>
-                      <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "10px", borderRadius: "6px", marginTop: "4px" }}>
-                        <option value="House Davion">House Davion (Federated Suns)</option>
-                        <option value="House Kurita">House Kurita (Draconis Combine)</option>
-                        <option value="House Steiner">House Steiner (Lyran Commonwealth)</option>
-                        <option value="House Marik">House Marik (Free Worlds League)</option>
-                        <option value="House Liao">House Liao (Capellan Confederation)</option>
-                        <option value="ComStar">ComStar</option>
-                        <option value="Word of Blake">Word of Blake</option>
-                        <option value="Clan Wolf">Clan Wolf</option>
-                        <option value="Clan Jade Falcon">Clan Jade Falcon</option>
-                        <option value="Clan Ghost Bear">Clan Ghost Bear</option>
-                        <option value="Clan Smoke Jaguar">Clan Smoke Jaguar</option>
-                        <option value="Clan Nova Cat">Clan Nova Cat</option>
-                        <option value="Clan Steel Viper">Clan Steel Viper</option>
-                        <option value="Clan Diamond Shark">Clan Diamond Shark / Sea Fox</option>
-                        <option value="Clan Wolf-in-Exile">Clan Wolf-in-Exile</option>
-                        <option value="Wolf's Dragoons">Wolf's Dragoons / Independent Mercenaries</option>
+                      <label style={{ fontSize: "12px", color: "#38bdf8", fontWeight: "bold" }}>SELECT PLAYER FACTION ({newEra} ERA)</label>
+                      <select value={newFaction} onChange={e => setNewFaction(e.target.value)} style={{ width: "100%", background: "#0f172a", border: "1px solid #38bdf8", color: "#38bdf8", padding: "10px", borderRadius: "6px", marginTop: "4px", fontWeight: "bold" }}>
+                        {(FACTIONS_BY_ERA[newEra] || FACTIONS_BY_ERA["3025"]).map(f => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
                       </select>
-
                     </div>
                   </div>
+
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
@@ -2553,11 +2619,15 @@ export default function Dashboard() {
                       <h5 style={{ color: "#38bdf8", margin: 0, fontSize: "13px" }}>🤖 STARTING MECH ROSTER ({wizardUnits.length} UNITS)</h5>
                       <button
                         type="button"
-                        onClick={() => setWizardUnits([...wizardUnits, { chassis: "Medium Mech", model: "Variant", tonnage: 55, bv2: 1200, tech_base: "Inner Sphere" }])}
+                        onClick={() => {
+                          setWizardUnits([...wizardUnits, { chassis: "Medium Mech", model: "Variant", tonnage: 55, bv2: 1200, tech_base: "Inner Sphere" }]);
+                          setWizardPilots([...wizardPilots, { name: `MechWarrior Pilot ${wizardPilots.length + 1}`, callsign: `Alpha-${wizardPilots.length + 1}`, gunnery: 4, piloting: 5, spa: "None", xp: 50 }]);
+                        }}
                         style={{ background: "#0284c7", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
                       >
-                        + Add Mech
+                        + Add Mech &amp; Pilot
                       </button>
+
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
