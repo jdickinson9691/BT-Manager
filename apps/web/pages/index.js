@@ -1606,6 +1606,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => {
                           setPreviewUnit({ ...u, assigned_pilot: pilotObj ? `${pilotObj.name} "${pilotObj.callsign}"` : (u.assigned_pilot || "Unassigned") });
+                          setRecordSheetViewMode("preloaded");
                           setShowPrintPreviewModal(true);
                         }}
                         style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
