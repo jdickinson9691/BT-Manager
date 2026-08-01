@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
 export default function Dashboard() {
   // Campaign & Balance State
@@ -461,6 +461,7 @@ export default function Dashboard() {
   // Guided Tabletop Tutorial State
   const [tutorialActive, setTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(1);
+  const flechsIframeRef = useRef(null);
 
   const activeCampaignId = selectedExistingCampId || 1;
 
@@ -3091,174 +3092,102 @@ export default function Dashboard() {
       {/* INTERACTIVE BATTLETECH RECORD SHEET PRINT PREVIEW MODAL */}
       {showPrintPreviewModal && previewUnit && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100001 }} onClick={() => setShowPrintPreviewModal(false)}>
-          <div style={{ background: "#0b0f19", border: "2px solid #38bdf8", borderRadius: "12px", padding: "24px", width: "980px", maxWidth: "96vw", height: "92vh", maxHeight: "900px", display: "flex", flexDirection: "column", color: "#fff" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0b0f19", border: "2px solid #38bdf8", borderRadius: "12px", padding: "24px", width: "1120px", maxWidth: "98vw", height: "94vh", maxHeight: "940px", display: "flex", flexDirection: "column", color: "#fff" }} onClick={e => e.stopPropagation()}>
             
             {/* PREVIEW TOOLBAR */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", flexShrink: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <h3 className="font-orbitron" style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
-                  🖨️ RECORD SHEET PRINT PREVIEW — {previewUnit.chassis} {previewUnit.model}
+                  🌐 FLECHS RECORD SHEET — {previewUnit.chassis} {previewUnit.model} ({previewUnit.tonnage}T)
                 </h3>
                 <span style={{ background: "rgba(16, 185, 129, 0.2)", border: "1px solid #10b981", color: "#10b981", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
-                  Print Preview Active
+                  1:1 Flechs Web App
                 </span>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <button
-                  onClick={() => window.print()}
-                  style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  onClick={() => {
+                    const mechName = `${previewUnit.chassis} ${previewUnit.model}`;
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(mechName);
+                      alert(`📋 Copied "${mechName}" to clipboard! Press Ctrl+V in Flechs Sheets search or import.`);
+                    }
+                  }}
+                  style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                >
+                  📋 Copy Mech Name
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const r = await fetch(`http://localhost:8000/api/v1/units/${previewUnit.id || 1}/export-mtf`);
+                      if (r.ok) {
+                        const data = await r.json();
+                        const blob = new Blob([data.mtf_content], { type: "text/plain" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = data.filename || `${previewUnit.chassis}_${previewUnit.model}.mtf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }
+                    } catch (err) {
+                      alert("⚠️ Error generating MTF file.");
+                    }
+                  }}
+                  style={{ background: "#d97706", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                >
+                  📄 Download .MTF
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (flechsIframeRef.current && flechsIframeRef.current.contentWindow) {
+                      try {
+                        flechsIframeRef.current.contentWindow.print();
+                      } catch (err) {
+                        window.print();
+                      }
+                    } else {
+                      window.print();
+                    }
+                  }}
+                  style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
                 >
                   🖨️ Print Sheet (System / PDF)
                 </button>
+
                 <button
                   onClick={() => window.open("https://sheets.flechs.net/", "_blank")}
-                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                  style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
                 >
-                  🌐 Open Flechs Sheets
+                  🌐 External Window ➔
                 </button>
+                
                 <button onClick={() => setShowPrintPreviewModal(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
               </div>
             </div>
 
-            {/* PRINT PREVIEW PAPER CONTAINER */}
-            <div className="printable-record-sheet-container" style={{ flex: 1, background: "#ffffff", color: "#000000", borderRadius: "8px", padding: "24px", overflowY: "auto", fontFamily: "'Courier New', Courier, monospace", boxShadow: "0 0 20px rgba(0,0,0,0.5)" }}>
-              
-              {/* SHEET HEADER */}
-              <div style={{ borderBottom: "3px double #000", paddingBottom: "8px", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: "22px", fontFamily: "Impact, sans-serif", letterSpacing: "1px", textTransform: "uppercase" }}>
-                    BATTLEMECH RECORD SHEET
-                  </h2>
-                  <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "4px" }}>
-                    MECH: <span style={{ textDecoration: "underline" }}>{previewUnit.chassis}</span> | MODEL: <span style={{ textDecoration: "underline" }}>{previewUnit.model}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", fontSize: "12px" }}>
-                  <div>MASS: <strong>{previewUnit.tonnage} TONS</strong></div>
-                  <div>BV2: <strong>{(previewUnit.bv2 || 1200).toLocaleString()} BV</strong></div>
-                  <div>TECH BASE: <strong>{previewUnit.tech_base || "Inner Sphere"}</strong></div>
-                </div>
+            {/* MECH INFO BANNER */}
+            <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "6px", padding: "8px 12px", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", flexShrink: 0 }}>
+              <div>
+                Mech: <strong style={{ color: "#38bdf8" }}>{previewUnit.chassis} {previewUnit.model}</strong> | BV2: <strong style={{ color: "#fbbf24" }}>{(previewUnit.bv2 || 1200).toLocaleString()} BV</strong> | Pilot: <strong style={{ color: "#c084fc" }}>{previewUnit.assigned_pilot || "Unassigned"}</strong>
               </div>
+              <span style={{ color: "#94a3b8", fontSize: "11px" }}>
+                💡 Tip: Click search or import in Flechs Sheets below and press <strong style={{ color: "#fff" }}>Ctrl+V</strong> to load unit specs instantly.
+              </span>
+            </div>
 
-              {/* MECHWARRIOR & COMBAT SPECS BAR */}
-              <div style={{ border: "1px solid #000", padding: "8px 12px", marginBottom: "16px", background: "#f8fafc", display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "12px", fontSize: "12px" }}>
-                <div>
-                  <strong>MECHWARRIOR:</strong> {previewUnit.assigned_pilot || "Unassigned"}
-                </div>
-                <div>
-                  <strong>GUNNERY SKILL:</strong> 4
-                </div>
-                <div>
-                  <strong>PILOTING SKILL:</strong> 5
-                </div>
-              </div>
-
-              {/* MAIN CONTENT GRID */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px" }}>
-                
-                {/* LEFT: ARMOR & INTERNAL DIAGRAMS */}
-                <div style={{ border: "1px solid #000", padding: "12px", background: "#fafafa" }}>
-                  <h4 style={{ margin: "0 0 10px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "13px" }}>
-                    🛡️ ARMOR &amp; INTERNAL STRUCTURE ALLOCATION
-                  </h4>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "11px" }}>
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>HEAD (HD):</strong> 9 Armor / 3 Struct
-                      <div style={{ display: "flex", gap: "3px", marginTop: "4px" }}>
-                        {"○○○○○○○○○".split("").map((c, idx) => <span key={idx} style={{ fontSize: "14px", color: idx < (previewUnit.armor_damage || 0) ? "#ef4444" : "#000" }}>{idx < (previewUnit.armor_damage || 0) ? "●" : "○"}</span>)}
-                      </div>
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>CENTER TORSO (CT):</strong> 35 Armor / 23 Struct
-                      <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 10 Armor</div>
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>RIGHT TORSO (RT):</strong> 24 Armor / 16 Struct
-                      <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 8 Armor</div>
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>LEFT TORSO (LT):</strong> 24 Armor / 16 Struct
-                      <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Rear: 8 Armor</div>
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>RIGHT ARM (RA):</strong> 16 Armor / 12 Struct
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>LEFT ARM (LA):</strong> 16 Armor / 12 Struct
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>RIGHT LEG (RL):</strong> 24 Armor / 16 Struct
-                    </div>
-
-                    <div style={{ border: "1px solid #ccc", padding: "8px", borderRadius: "4px", background: "#fff" }}>
-                      <strong>LEFT LEG (LL):</strong> 24 Armor / 16 Struct
-                    </div>
-                  </div>
-                </div>
-
-                {/* RIGHT: WEAPONS & CRITICAL HIT LOCATIONS */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  
-                  {/* WEAPONS TABLE */}
-                  <div style={{ border: "1px solid #000", padding: "10px", background: "#fafafa" }}>
-                    <h4 style={{ margin: "0 0 8px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "13px" }}>
-                      ⚔️ WEAPONS &amp; EQUIPMENT
-                    </h4>
-                    <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "#e2e8f0" }}>
-                          <th style={{ border: "1px solid #000", padding: "4px" }}>TYPE</th>
-                          <th style={{ border: "1px solid #000", padding: "4px" }}>LOC</th>
-                          <th style={{ border: "1px solid #000", padding: "4px" }}>HEAT</th>
-                          <th style={{ border: "1px solid #000", padding: "4px" }}>DMG</th>
-                          <th style={{ border: "1px solid #000", padding: "4px" }}>RNG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>PPC / Autocannon</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>RA</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>10</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>10</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>6/12/18</td>
-                        </tr>
-                        <tr>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>Medium Laser</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>CT</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>3</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>5</td>
-                          <td style={{ border: "1px solid #000", padding: "4px" }}>3/6/9</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* HEAT SCALE */}
-                  <div style={{ border: "1px solid #000", padding: "10px", background: "#fafafa" }}>
-                    <h4 style={{ margin: "0 0 6px 0", borderBottom: "1px solid #000", paddingBottom: "4px", fontSize: "12px" }}>
-                      🔥 HEAT DISSIPATION SCALE (1 to 30)
-                    </h4>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "2px", fontSize: "9px" }}>
-                      {[...Array(30).keys()].map(i => (
-                        <div key={i+1} style={{ border: "1px solid #94a3b8", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", background: i >= 14 ? "#fee2e2" : "#f1f5f9" }}>
-                          {i+1}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
+            {/* 1:1 FLECHS SHEETS IFRAME CONTAINER */}
+            <div style={{ flex: 1, borderRadius: "8px", overflow: "hidden", background: "#333", border: "1px solid #334155" }}>
+              <iframe
+                ref={flechsIframeRef}
+                src="https://sheets.flechs.net/"
+                style={{ width: "100%", height: "100%", border: "none", background: "#333" }}
+                title={`Flechs Sheet - ${previewUnit.chassis} ${previewUnit.model}`}
+              />
             </div>
 
           </div>
