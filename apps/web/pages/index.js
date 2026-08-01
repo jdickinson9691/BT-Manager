@@ -1554,7 +1554,7 @@ export default function Dashboard() {
 
       {/* STEP 4: TECH BAY & MECHLAB ENGINEERING (MAINTENANCE PHASE) */}
       {activeStep === 4 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "24px" }}>
           
           {/* LEFT: ROSTER & REPAIR QUEUE */}
           <div style={{ background: "rgba(15, 20, 30, 0.8)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", padding: "24px" }}>
@@ -1574,27 +1574,41 @@ export default function Dashboard() {
               {units.map(u => {
                 const totalDam = (u.armor_damage || 0) + (u.structure_damage || 0);
                 const estDays = totalDam > 0 ? Math.max(1, Math.floor(totalDam / 10)) : 0;
+                const pilotObj = pilots.find(p => p.assigned_unit === u.chassis || p.assigned_unit === `${u.chassis} ${u.model}` || (u.assigned_pilot && p.name === u.assigned_pilot));
+
                 return (
-                  <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <h4 style={{ margin: 0, color: "#fff", fontSize: "16px" }}>{u.chassis} {u.model} ({u.tonnage}T)</h4>
-                      <p style={{ margin: "4px 0", color: "#94a3b8", fontSize: "12px" }}>
+                  <div key={u.id} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px", borderRadius: "8px", display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ margin: 0, color: "#fff", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {u.chassis} {u.model} ({u.tonnage}T)
+                      </h4>
+                      <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "12px", lineHeight: "1.4" }}>
                         Armor/Struct Loss: <span style={{ color: totalDam > 0 ? "#f43f5e" : "#10b981", fontWeight: "bold" }}>{u.armor_damage || 0} Armor / {u.structure_damage || 0} Struct</span>
-                        {totalDam > 0 && <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "10px", fontWeight: "bold" }}>⏱️ Est. Time: +{estDays} Day(s)</span>}
+                        {totalDam > 0 && <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "8px", fontWeight: "bold" }}>⏱️ Est. Time: +{estDays} Day(s)</span>}
                       </p>
                     </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
+
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
                       <button
                         onClick={() => { setRefitChassis(`${u.chassis} ${u.model}`); setRefitTonnage(u.tonnage); }}
-                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         Refit in MechLab
                       </button>
                       <button
                         onClick={() => fetch(`http://localhost:8000/api/v1/units/${u.id}/repair`, {method: "POST"}).then(r => r.json()).then(d => { alert(d.message || "Repaired!"); refreshAll(); })}
-                        style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         Repair ({totalDam > 0 ? `+${estDays} Days / 20 SP` : "100% OK"})
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPreviewUnit({ ...u, assigned_pilot: pilotObj ? `${pilotObj.name} "${pilotObj.callsign}"` : (u.assigned_pilot || "Unassigned") });
+                          setShowPrintPreviewModal(true);
+                        }}
+                        style={{ background: "#9333ea", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}
+                      >
+                        🌐 Flechs Sheet
                       </button>
                     </div>
                   </div>
