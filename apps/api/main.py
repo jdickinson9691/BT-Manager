@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Add root directory to sys.path for PyInstaller & standalone execution
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
