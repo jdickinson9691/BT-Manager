@@ -2322,7 +2322,7 @@ export default function Dashboard() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {activeOpForPilots.map((p, idx) => (
-                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.6fr 2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.8fr 3.2fr 1.2fr 0.8fr 0.8fr 2.5fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
                       <div>
                         <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
                         <input type="text" value={p.name} onChange={e => { const copy = [...activeOpForPilots]; copy[idx].name = e.target.value; setActiveOpForPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
@@ -2338,7 +2338,7 @@ export default function Dashboard() {
                             copy[idx].assigned_unit = e.target.value;
                             setActiveOpForPilots(copy);
                           }}
-                          style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                          style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", textOverflow: "ellipsis", overflow: "hidden" }}
                         >
                           <option value="">-- Unassigned --</option>
                           {activeOpForUnits.map((u, uIdx) => {
@@ -2686,7 +2686,7 @@ export default function Dashboard() {
       {/* CAMPAIGN SETUP & LAUNCHER MODAL */}
       {showLauncherModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100 }} onClick={() => setShowLauncherModal(false)}>
-          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "640px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#0f141e", border: "1px solid #ea580c", borderRadius: "12px", padding: "28px", width: "900px", maxWidth: "96vw", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 className="font-orbitron" style={{ color: "#ea580c", margin: 0, fontSize: "20px" }}>
                 BT-MANAGER CAMPAIGN LAUNCHER
@@ -2990,7 +2990,7 @@ export default function Dashboard() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {wizardPilots.map((p, idx) => (
-                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.8fr 2fr 1.2fr 0.8fr 0.8fr 1.8fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.8fr 3.2fr 1.2fr 0.8fr 0.8fr 2.5fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
                           <div>
                             <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
                             <input type="text" value={p.name} onChange={e => { const copy = [...wizardPilots]; copy[idx].name = e.target.value; setWizardPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
@@ -3004,7 +3004,7 @@ export default function Dashboard() {
                                 copy[idx].assigned_mech = e.target.value;
                                 setWizardPilots(copy);
                               }}
-                              style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                              style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", textOverflow: "ellipsis", overflow: "hidden" }}
                             >
                               <option value="">-- Unassigned --</option>
                               {wizardUnits.map((u, uIdx) => {
