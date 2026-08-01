@@ -261,7 +261,8 @@ export default function Dashboard() {
             gunnery: 4,
             piloting: 5,
             spa: idx === 0 ? "Tactical Genius (Reroll Initiative Once)" : "None",
-            xp: 50
+            xp: 50,
+            assigned_mech: `${m.chassis} ${m.model} (${m.tonnage}T)`
           }));
           setWizardPilots(defaultPilots);
           setLauncherWizardStep(2);
@@ -280,10 +281,12 @@ export default function Dashboard() {
       gunnery: 4,
       piloting: 5,
       spa: idx === 0 ? "Tactical Genius (Reroll Initiative Once)" : "None",
-      xp: 50
+      xp: 50,
+      assigned_mech: `${u.chassis} ${u.model} (${u.tonnage}T)`
     }));
     setWizardPilots(fallbackPilots);
     setLauncherWizardStep(2);
+
   };
 
 
@@ -2686,10 +2689,34 @@ export default function Dashboard() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {wizardPilots.map((p, idx) => (
-                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 0.8fr 2fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1.8fr 2fr 1.2fr 0.8fr 0.8fr 1.8fr auto", gap: "8px", alignItems: "center", background: "#0f172a", padding: "8px", borderRadius: "6px", border: "1px solid #334155" }}>
                           <div>
                             <label style={{ fontSize: "9px", color: "#64748b" }}>PILOT NAME</label>
                             <input type="text" value={p.name} onChange={e => { const copy = [...wizardPilots]; copy[idx].name = e.target.value; setWizardPilots(copy); }} required style={{ width: "100%", background: "#1e293b", border: "1px solid #475569", color: "#fff", padding: "4px 6px", borderRadius: "4px", fontSize: "11px" }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold" }}>ASSIGNED MECH (ROSTER)</label>
+                            <select
+                              value={p.assigned_mech || ""}
+                              onChange={e => {
+                                const copy = [...wizardPilots];
+                                copy[idx].assigned_mech = e.target.value;
+                                setWizardPilots(copy);
+                              }}
+                              style={{ width: "100%", background: "#1e293b", border: "1px solid #38bdf8", color: "#38bdf8", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}
+                            >
+                              <option value="">-- Unassigned --</option>
+                              {wizardUnits.map((u, uIdx) => {
+                                const mechLabel = `${u.chassis} ${u.model} (${u.tonnage}T)`;
+                                const isAssignedToOther = wizardPilots.some((otherP, otherIdx) => otherIdx !== idx && otherP.assigned_mech === mechLabel);
+                                if (isAssignedToOther) return null;
+                                return (
+                                  <option key={uIdx} value={mechLabel}>
+                                    🤖 {mechLabel}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
                           <div>
                             <label style={{ fontSize: "9px", color: "#64748b" }}>CALLSIGN</label>
@@ -2730,6 +2757,7 @@ export default function Dashboard() {
                           </button>
                         </div>
                       ))}
+
                     </div>
                   </div>
 
