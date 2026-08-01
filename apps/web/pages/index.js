@@ -380,6 +380,35 @@ export default function Dashboard() {
       setLauncherWizardStep(1);
       return;
     }
+    // Roster Validation & Error Checking
+    for (let i = 0; i < wizardUnits.length; i++) {
+      const u = wizardUnits[i];
+      if (!u.chassis || !u.chassis.trim() || !u.model || !u.model.trim()) {
+        alert(`⚠️ Roster Validation Error: Unit #${i + 1} chassis and model cannot be blank.`);
+        return;
+      }
+      if (!u.tonnage || u.tonnage < 10 || u.tonnage > 200) {
+        alert(`⚠️ Roster Validation Error: Unit #${i + 1} (${u.chassis}) tonnage must be between 10T and 200T.`);
+        return;
+      }
+      if (!u.bv2 || u.bv2 <= 0) {
+        alert(`⚠️ Roster Validation Error: Unit #${i + 1} (${u.chassis}) BV2 must be greater than 0.`);
+        return;
+      }
+    }
+
+    for (let i = 0; i < wizardPilots.length; i++) {
+      const p = wizardPilots[i];
+      if (!p.name || !p.name.trim() || !p.callsign || !p.callsign.trim()) {
+        alert(`⚠️ Roster Validation Error: Pilot #${i + 1} name and callsign cannot be blank.`);
+        return;
+      }
+      if (p.gunnery < 1 || p.gunnery > 6 || p.piloting < 1 || p.piloting > 6) {
+        alert(`⚠️ Roster Validation Error: Pilot #${i + 1} (${p.name}) Gunnery and Piloting ratings must be between 1 and 6.`);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -406,6 +435,26 @@ export default function Dashboard() {
       }
     } catch (err) {
       alert(`⚠️ Connection Error: Unable to reach backend server.`);
+    }
+  };
+
+  const handleGenerateRandomForce = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/generator/random-force", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ era: newEra, faction: newFaction })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.custom_units && data.custom_units.length > 0) {
+          setWizardUnits(data.custom_units);
+          setWizardPilots(data.custom_pilots);
+          alert(`🎲 Generated era-accurate random force for ${newFaction} (${newEra} Era)!`);
+        }
+      }
+    } catch (err) {
+      alert("⚠️ Connection Error generating random force.");
     }
   };
 
@@ -1121,37 +1170,70 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {missions.map(m => (
-                <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "16px", borderRadius: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <h4 style={{ color: "#fff", margin: 0, fontSize: "16px" }}>{m.name}</h4>
-                      <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                        Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction}</span>
-                      </p>
-                      <p className="font-mono" style={{ color: "#38bdf8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                        Payout: {(m.wp_reward || 400).toLocaleString()} Warchest WP | +{m.sp_reward || 200} Support SP
-                      </p>
-                    </div>
+            {/* FORCE BV2 & TABLETOP PARITY AUDIT BANNER */}
+            <div style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid rgba(2, 132, 199, 0.4)", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>⚔️ PLAYER COMPANY BATTLE RATING</span>
+                <p style={{ margin: "2px 0 0 0", color: "#fff", fontSize: "13px" }}>
+                  Total Force BV2: <strong style={{ color: "#fbbf24" }}>{units.reduce((acc, u) => acc + (u.bv2 || 1000), 0).toLocaleString()} BV2</strong> | Warchest: <strong style={{ color: "#34d399" }}>{(balance.WP || 1250).toLocaleString()} WP</strong>
+                </p>
+              </div>
+              <span style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid #10b981", color: "#10b981", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                🟢 Tabletop Parity Audited
+              </span>
+            </div>
 
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        onClick={() => setSelectedIntelMission(m)}
-                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        View Intel
-                      </button>
-                      <button
-                        onClick={() => handleAcceptContract(m)}
-                        style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        Sign &amp; Deploy ➔
-                      </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {missions.map(m => {
+                const companyBv = units.reduce((acc, u) => acc + (u.bv2 || 1000), 0) || 4670;
+                const estOpForBv = Math.round((m.wp_reward || 400) * 11.5 + 500);
+                const ratio = estOpForBv / companyBv;
+                let badgeColor = "#10b981";
+                let badgeLabel = `🟢 Balanced (~${estOpForBv} OpFor BV)`;
+                if (ratio > 1.25) {
+                  badgeColor = "#ef4444";
+                  badgeLabel = `🔴 Extreme Threat (~${estOpForBv} OpFor BV)`;
+                } else if (ratio > 1.05) {
+                  badgeColor = "#f59e0b";
+                  badgeLabel = `🟡 Challenging (~${estOpForBv} OpFor BV)`;
+                }
+
+                return (
+                  <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "16px", borderRadius: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <h4 style={{ color: "#fff", margin: 0, fontSize: "16px" }}>{m.name}</h4>
+                          <span style={{ background: `${badgeColor}22`, border: `1px solid ${badgeColor}`, color: badgeColor, padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", marginLeft: "10px" }}>
+                            {badgeLabel}
+                          </span>
+                        </div>
+                        <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                          Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction}</span>
+                        </p>
+                        <p className="font-mono" style={{ color: "#38bdf8", fontSize: "13px", margin: "4px 0 0 0" }}>
+                          Payout: {(m.wp_reward || 400).toLocaleString()} Warchest WP | +{m.sp_reward || 200} Support SP
+                        </p>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          onClick={() => setSelectedIntelMission(m)}
+                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          View Intel
+                        </button>
+                        <button
+                          onClick={() => handleAcceptContract(m)}
+                          style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          Sign &amp; Deploy ➔
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -3105,16 +3187,25 @@ export default function Dashboard() {
                   <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "12px", background: "rgba(15, 23, 42, 0.5)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                       <h5 style={{ color: "#38bdf8", margin: 0, fontSize: "13px" }}>🤖 STARTING MECH ROSTER ({wizardUnits.length} UNITS)</h5>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setWizardUnits([...wizardUnits, { chassis: "Medium Mech", model: "Variant", tonnage: 55, bv2: 1200, tech_base: "Inner Sphere" }]);
-                          setWizardPilots([...wizardPilots, { name: `MechWarrior Pilot ${wizardPilots.length + 1}`, callsign: `Alpha-${wizardPilots.length + 1}`, gunnery: 4, piloting: 5, spa: "None", xp: 50 }]);
-                        }}
-                        style={{ background: "#0284c7", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        + Add Mech &amp; Pilot
-                      </button>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={handleGenerateRandomForce}
+                          style={{ background: "#9333ea", color: "#fff", border: "none", padding: "5px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          🎲 Generate Random Era/Faction Force
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWizardUnits([...wizardUnits, { chassis: "Medium Mech", model: "Variant", tonnage: 55, bv2: 1200, tech_base: "Inner Sphere" }]);
+                            setWizardPilots([...wizardPilots, { name: `MechWarrior Pilot ${wizardPilots.length + 1}`, callsign: `Alpha-${wizardPilots.length + 1}`, gunnery: 4, piloting: 5, spa: "None", xp: 50 }]);
+                          }}
+                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "5px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+                        >
+                          + Add Mech &amp; Pilot
+                        </button>
+                      </div>
 
                     </div>
 

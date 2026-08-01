@@ -329,28 +329,66 @@ class EraFactionAgent:
     }
 
     @classmethod
-    def get_factions_for_era(cls, era_code: str = "3025") -> List[str]:
-        """Returns list of era-accurate selectable factions including distinct Clan factions starting in 3050."""
-        return cls.FACTIONS_BY_ERA.get(era_code, cls.FACTIONS_BY_ERA["3025"])
-
-    @classmethod
-    def filter_market_units_by_era_and_faction(
-        cls,
-        era_code: str = "3025",
-        faction: str = "Mercenary"
-    ) -> List[Dict[str, Any]]:
-        """Filters available market mechs & combat vehicles according to Master Unit List (MUL) era availability and faction rules."""
-        from packages.data_importer.master_unit_database import MasterUnitDatabase
+    def generate_random_force(cls, era_code: str = "3025", faction: str = "Mercenaries") -> Dict[str, Any]:
+        """Generates a randomized, era-accurate, faction-appropriate force of 4 Mechs + support vehicle and pilots."""
+        import random
+        era_info = cls.get_era_details(era_code)
         
-        mul_units = MasterUnitDatabase.filter_units(era_code=era_code, faction=faction)
-        filtered = []
-        for m in mul_units:
-            m_copy = dict(m)
-            m_copy["mul_verified"] = True
-            if "wp_cost" not in m_copy:
-                m_copy["wp_cost"] = max(100, int(m_copy.get("bv2", 1000) * 0.4))
-            filtered.append(m_copy)
+        # Get pool of available units for this era and faction from MasterUnitDatabase
+        from packages.data_importer.master_unit_database import MasterUnitDatabase
+        mul_pool = MasterUnitDatabase.filter_units(era_code=era_code, faction=faction)
+        
+        if not mul_pool or len(mul_pool) < 4:
+            mul_pool = era_info.get("starting_units", []) + era_info.get("market_units", [])
 
-        return filtered
+        # Sample 4 distinct units
+        sampled_units = random.sample(mul_pool, k=min(4, len(mul_pool))) if len(mul_pool) >= 4 else list(mul_pool)
+        
+        units = []
+        pilots = []
+        callsigns = ["Vanguard", "Reaper", "Spectre", "Overlord", "Widow", "Paladin", "Apex", "Razor"]
+        first_names = ["Marcus", "Helena", "Victor", "Diana", "Gabriel", "Sven", "Kaelen", "Natasha", "Corvin", "Valerie"]
+        last_names = ["Steiner", "Davion", "Kurita", "Kinsky", "Vance", "Cross", "Wolf", "Kerensky", "Blake", "Marik"]
+
+        spas_list = era_info.get("spas", ["Sharpshooter (+1 Accuracy to Called Shots)", "Tactical Genius (Reroll Initiative Once)", "None"])
+
+        for idx, u in enumerate(sampled_units):
+            chassis = u.get("chassis", "BattleMech")
+            model = u.get("model", "Standard")
+            tonnage = int(u.get("tonnage", 55))
+            bv2 = int(u.get("bv2", 1200))
+            tech_base = u.get("tech_base", "Clan" if "Clan" in faction or (era_info.get("has_clans") and "Clan" in chassis) else "Inner Sphere")
+            
+            units.append({
+                "chassis": chassis,
+                "model": model,
+                "tonnage": tonnage,
+                "bv2": bv2,
+                "tech_base": tech_base
+            })
+
+            pilot_name = f"{random.choice(first_names)} {random.choice(last_names)}"
+            callsign = callsigns[idx % len(callsigns)]
+            gunnery = random.choice([3, 4, 4, 4, 3])
+            piloting = random.choice([4, 5, 5, 4, 5])
+            spa = random.choice(spas_list)
+            mech_label = f"{chassis} {model} ({tonnage}T)"
+
+            pilots.append({
+                "name": pilot_name,
+                "callsign": callsign,
+                "gunnery": gunnery,
+                "piloting": piloting,
+                "spa": spa,
+                "xp": 50,
+                "assigned_mech": mech_label
+            })
+
+        return {
+            "era": era_code,
+            "faction": faction,
+            "custom_units": units,
+            "custom_pilots": pilots
+        }
 
 

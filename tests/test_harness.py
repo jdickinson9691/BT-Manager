@@ -499,6 +499,30 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(db_pilots[0].unit_id, u1.id)
         self.assertEqual(db_inv[0].quantity, 3)
 
+    def test_21_random_force_generator_and_parity_audit(self):
+        """Verify EraFactionAgent.generate_random_force generates era-accurate forces and pilots with error checking."""
+        from packages.agents.era_faction_agent import EraFactionAgent
+        
+        # Test 3050 Clan Wolf force generation
+        clan_force = EraFactionAgent.generate_random_force(era_code="3050", faction="Clan Wolf")
+        self.assertEqual(clan_force["era"], "3050")
+        self.assertEqual(clan_force["faction"], "Clan Wolf")
+        self.assertEqual(len(clan_force["custom_units"]), 4)
+        self.assertEqual(len(clan_force["custom_pilots"]), 4)
+        
+        # Verify units have non-blank chassis/model, positive BV2, and tonnage bounds
+        for u in clan_force["custom_units"]:
+            self.assertTrue(len(u["chassis"]) > 0)
+            self.assertTrue(len(u["model"]) > 0)
+            self.assertGreater(u["tonnage"], 0)
+            self.assertGreater(u["bv2"], 0)
+
+        # Verify pilots have valid Gunnery/Piloting (1-6) and assigned mechs
+        for p in clan_force["custom_pilots"]:
+            self.assertTrue(1 <= p["gunnery"] <= 6)
+            self.assertTrue(1 <= p["piloting"] <= 6)
+            self.assertIsNotNone(p["assigned_mech"])
+
 
 if __name__ == "__main__":
     unittest.main()

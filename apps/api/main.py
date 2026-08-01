@@ -425,6 +425,19 @@ def add_custom_log(log_data: CustomLogCreate, db: Session = Depends(get_db)):
     db.refresh(new_log)
     return new_log
 
+class RandomForceRequest(BaseModel):
+    era: str = "3025"
+    faction: str = "Mercenaries"
+
+@app.get("/api/v1/network/factions-for-era")
+def get_factions_for_era_endpoint(era: str = "3025"):
+    factions = EraFactionAgent.get_factions_for_era(era)
+    return {"era": era, "factions": factions}
+
+@app.post("/api/v1/generator/random-force")
+def generate_random_force_endpoint(req: RandomForceRequest):
+    return EraFactionAgent.generate_random_force(era_code=req.era, faction=req.faction)
+
 @app.get("/api/v1/units")
 def get_units(db: Session = Depends(get_db)):
     units = db.query(Unit).all()
