@@ -65,6 +65,7 @@ class CustomStarterPilot(BaseModel):
     piloting: int = 5
     spa: str = "None"
     xp: int = 50
+    assigned_mech: Optional[str] = None
 
 class CampaignCreateRequest(BaseModel):
     campaign_name: str = "Succession Wars 3025"
@@ -313,18 +314,31 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
     pilots_to_seed = [p.dict() if hasattr(p, "dict") else p for p in req.custom_pilots] if req.custom_pilots else era_details["pilots"]
     
     for idx, p_info in enumerate(pilots_to_seed):
-        assigned_u_id = created_units[idx].id if idx < len(created_units) else None
-        db.add(Pilot(
+        assigned_mech_label = p_info.get("assigned_mech")
+        assigned_u = None
+        if assigned_mech_label:
+            assigned_u = next((u for u in created_units if f"{u.chassis} {u.model}" in assigned_mech_label or u.chassis in assigned_mech_label), None)
+        if not assigned_u and idx < len(created_units):
+            assigned_u = created_units[idx]
+
+        pilot = Pilot(
             campaign_id=campaign.id,
             name=p_info.get("name", "MechWarrior"),
             callsign=p_info.get("callsign", "Ace"),
             gunnery=int(p_info.get("gunnery", 4)),
             piloting=int(p_info.get("piloting", 5)),
-            unit_id=assigned_u_id,
+            unit_id=assigned_u.id if assigned_u else None,
             status="Active",
             xp=int(p_info.get("xp", 50)),
             spa=p_info.get("spa", "None")
-        ))
+        )
+        db.add(pilot)
+        db.commit()
+        db.refresh(pilot)
+
+        if assigned_u:
+            assigned_u.assigned_pilot = pilot.name
+            db.commit()
 
     # Add Commander Pilot if provided and not already in custom list
     if req.commander_name and not any(p.get("name") == req.commander_name for p in pilots_to_seed):

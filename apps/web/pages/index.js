@@ -374,7 +374,12 @@ export default function Dashboard() {
   };
 
   const handleCreateNewCampaignSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (!newCampName || !newCampName.trim() || !newCompanyName || !newCompanyName.trim() || !newCommanderName || !newCommanderName.trim()) {
+      alert("⚠️ Campaign Name, Company Name, and Commander Name are required before launching!");
+      setLauncherWizardStep(1);
+      return;
+    }
     try {
       const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -390,12 +395,18 @@ export default function Dashboard() {
         })
       });
       if (res.ok) {
-        alert(`New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
+        alert(`🚀 New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
         setShowLauncherModal(false);
         setLauncherWizardStep(1);
+        setLauncherMode("CHOICE");
         refreshAll();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(`⚠️ Failed to initialize campaign: ${errData.detail || "Server error"}`);
       }
-    } catch (err) {}
+    } catch (err) {
+      alert(`⚠️ Connection Error: Unable to reach backend server.`);
+    }
   };
 
   // Modals & Form States
@@ -3072,6 +3083,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       type="submit"
+                      onClick={handleCreateNewCampaignSubmit}
                       style={{ background: "#ea580c", color: "#fff", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}
                     >
                       🚀 Finish &amp; Launch Custom Campaign
