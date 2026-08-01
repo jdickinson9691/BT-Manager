@@ -481,6 +481,19 @@ export default function Dashboard() {
     setTutorialActive(false);
   };
 
+  const getTutorialHighlightStyle = (targetStep) => {
+    if (tutorialActive && tutorialStep === targetStep) {
+      return {
+        boxShadow: "0 0 0 3px #ea580c, 0 0 20px #ea580c, 0 0 35px rgba(234, 88, 12, 0.8)",
+        border: "2px solid #ea580c",
+        position: "relative",
+        zIndex: 100050,
+        transition: "all 0.3s ease"
+      };
+    }
+    return {};
+  };
+
   // Modals & Form States
   const [selectedIntelMission, setSelectedIntelMission] = useState(null);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
@@ -1141,7 +1154,8 @@ export default function Dashboard() {
               borderRadius: "6px",
               fontSize: "12px",
               fontWeight: "bold",
-              cursor: "pointer"
+              cursor: "pointer",
+              ...getTutorialHighlightStyle(10)
             }}
           >
             🏢 View Company
@@ -1178,7 +1192,8 @@ export default function Dashboard() {
                 borderRadius: "6px",
                 fontSize: "12px",
                 fontWeight: "bold",
-                cursor: "pointer"
+                cursor: "pointer",
+                ...getTutorialHighlightStyle(s.step + 3)
               }}
             >
               {s.title}
@@ -3033,8 +3048,8 @@ export default function Dashboard() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                   {/* CARD 1: LAUNCH A NEW CAMPAIGN */}
                   <div
-                    onClick={() => { setSetupValidationError(""); setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(1); }}
-                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "2px solid #38bdf8", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "all 0.2s ease", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+                    onClick={() => { setSetupValidationError(""); setLauncherMode("NEW_CAMPAIGN_SETUP"); setLauncherWizardStep(1); if (tutorialActive) setTutorialStep(2); }}
+                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "2px solid #38bdf8", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "all 0.2s ease", display: "flex", flexDirection: "column", justifyContent: "space-between", ...getTutorialHighlightStyle(1) }}
                   >
                     <div>
                       <div style={{ fontSize: "28px", marginBottom: "8px" }}>🚀</div>
