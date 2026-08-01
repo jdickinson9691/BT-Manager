@@ -13,12 +13,14 @@ class DataSyncAgent:
     IS_MUL_ONLINE = False
     IS_SARNA_ONLINE = False
     IS_MEGAMEK_ONLINE = False
+    IS_FLECHS_ONLINE = False
 
     @classmethod
-    def set_mode(cls, mul_online: bool = False, sarna_online: bool = False, megamek_online: bool = False):
+    def set_mode(cls, mul_online: bool = False, sarna_online: bool = False, megamek_online: bool = False, flechs_online: bool = False):
         cls.IS_MUL_ONLINE = mul_online
         cls.IS_SARNA_ONLINE = sarna_online
         cls.IS_MEGAMEK_ONLINE = megamek_online
+        cls.IS_FLECHS_ONLINE = flechs_online
 
     MUL_ERA_MAP = {
         "2750": "Star League (2571-2780)",
@@ -117,5 +119,9 @@ class DataSyncAgent:
             if not cls.IS_MEGAMEK_ONLINE:
                 return {"status": "skipped", "source": "MegaMek", "message": "MegaMek online mode disabled. Reverted to local offline cache."}
             return {"status": "synced", "source": "MegaMek", "equipment_cached": 7, "message": "MegaMek equipment specs cache updated successfully."}
+        elif source_key == "flechs":
+            if not cls.IS_FLECHS_ONLINE:
+                return {"status": "skipped", "source": "Flechs", "message": "Flechs Sheets online mode disabled. Reverted to local offline cache."}
+            return {"status": "synced", "source": "Flechs", "units_cached": 12, "message": "Flechs Sheets unit data & MTF catalog cache updated successfully."}
         return {"status": "error", "message": f"Unknown data source '{source}'."}
 

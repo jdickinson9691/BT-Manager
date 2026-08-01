@@ -251,7 +251,8 @@ def update_network_config(config: NetworkConfigRequest):
     DataSyncAgent.set_mode(
         mul_online=config.mul_online,
         sarna_online=config.sarna_online,
-        megamek_online=config.megamek_online
+        megamek_online=config.megamek_online,
+        flechs_online=config.flechs_online
     )
     
     return {
