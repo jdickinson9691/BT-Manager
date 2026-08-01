@@ -410,32 +410,69 @@ export default function Dashboard() {
       }
     }
 
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campaign_name: newCampName,
-          company_name: newCompanyName,
-          commander_name: newCommanderName,
-          era: newEra,
-          faction: newFaction,
-          starting_funds: 15000000.0,
-          custom_units: wizardUnits,
-          custom_pilots: wizardPilots
-        })
-      });
-      if (res.ok) {
-        alert(`🚀 New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
-        setShowLauncherModal(false);
-        setLauncherWizardStep(1);
-        setLauncherMode("CHOICE");
-        refreshAll();
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(`⚠️ Failed to initialize campaign: ${errData.detail || "Server error"}`);
+    const cleanUnits = wizardUnits.map(u => ({
+      chassis: (u.chassis || "Marauder").trim(),
+      model: (u.model || "MAD-3R").trim(),
+      tonnage: parseInt(u.tonnage) || 75,
+      bv2: parseInt(u.bv2) || 1363,
+      tech_base: u.tech_base || "Inner Sphere"
+    }));
+
+    const cleanPilots = wizardPilots.map(p => ({
+      name: (p.name || "MechWarrior").trim(),
+      callsign: (p.callsign || "Ace").trim(),
+      gunnery: parseInt(p.gunnery) || 4,
+      piloting: parseInt(p.piloting) || 5,
+      spa: p.spa || "None",
+      xp: parseInt(p.xp) || 50,
+      assigned_mech: p.assigned_mech || null
+    }));
+
+    const payload = {
+      campaign_name: newCampName,
+      company_name: newCompanyName,
+      commander_name: newCommanderName,
+      era: newEra,
+      faction: newFaction,
+      starting_funds: 15000000.0,
+      custom_units: cleanUnits,
+      custom_pilots: cleanPilots
+    };
+
+    let attempts = 0;
+    let success = false;
+    let lastError = null;
+
+    while (attempts < 3 && !success) {
+      try {
+        attempts++;
+        const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          success = true;
+          alert(`🚀 New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
+          setShowLauncherModal(false);
+          setLauncherWizardStep(1);
+          setLauncherMode("CHOICE");
+          refreshAll();
+          return;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`⚠️ Failed to initialize campaign: ${errData.detail || "Server error"}`);
+          return;
+        }
+      } catch (err) {
+        lastError = err;
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 600));
+        }
       }
-    } catch (err) {
-      alert(`⚠️ Connection Error: Unable to reach backend server.`);
+    }
+
+    if (!success) {
+      alert(`⚠️ Connection Error: Unable to reach backend server (Attempted ${attempts} connection checks). Please ensure Python server is running on http://localhost:8000.`);
     }
   };
 

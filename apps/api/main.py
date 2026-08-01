@@ -345,7 +345,12 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
             db.commit()
 
     # Add Commander Pilot if provided and not already in custom list
-    if req.commander_name and not any(p.get("name") == req.commander_name for p in pilots_to_seed):
+    def get_p_name(p):
+        if isinstance(p, dict):
+            return p.get("name")
+        return getattr(p, "name", None)
+
+    if req.commander_name and not any(get_p_name(p) == req.commander_name for p in pilots_to_seed):
         db.add(Pilot(
             campaign_id=campaign.id,
             name=req.commander_name,
