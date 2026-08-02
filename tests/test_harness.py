@@ -578,6 +578,29 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(tutorial_key, f"bt_tutorial_completed_campaign_{camp.id}")
         self.assertTrue(camp.id > 0)
 
+    def test_24_inventory_buy_and_sell(self):
+        """Verify buying and selling warehouse inventory components."""
+        from packages.database.models import Campaign, Inventory
+        camp = self.db.query(Campaign).first()
+        if not camp:
+            camp = Campaign(name="Warehouse Campaign", cbill_balance=500000.0)
+            self.db.add(camp)
+        else:
+            camp.cbill_balance = 500000.0
+        self.db.commit()
+
+        from apps.api.main import buy_inventory_item, sell_inventory_item, InventoryBuyRequest
+        res_buy = buy_inventory_item(InventoryBuyRequest(item_name="PPC", cost=150000.0, category="Weapon"), db=self.db)
+        self.assertEqual(res_buy["status"], "success")
+        self.assertIn("Purchased PPC", res_buy["message"])
+
+        inv = self.db.query(Inventory).filter(Inventory.component_name == "PPC").first()
+        self.assertIsNotNone(inv)
+
+        res_sell = sell_inventory_item(part_id=inv.id, db=self.db)
+        self.assertEqual(res_sell["status"], "success")
+        self.assertIn("Sold PPC", res_sell["message"])
+
 
 if __name__ == "__main__":
     unittest.main()

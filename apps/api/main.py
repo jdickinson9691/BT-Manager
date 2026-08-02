@@ -752,6 +752,52 @@ def add_inventory_item(item: InventoryAddRequest, db: Session = Depends(get_db))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+class InventoryBuyRequest(BaseModel):
+    item_name: str
+    cost: float = 100000.0
+    category: str = "Weapon"
+    quantity: int = 1
+
+@app.post("/api/v1/inventory/buy")
+def buy_inventory_item(req: InventoryBuyRequest, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).first()
+    if not campaign:
+        raise HTTPException(status_code=400, detail="No active campaign found")
+    if campaign.cbill_balance < req.cost:
+        raise HTTPException(status_code=400, detail=f"Insufficient C-Bills (${campaign.cbill_balance:,.2f}) for purchase (${req.cost:,.2f} required).")
+    
+    campaign.cbill_balance -= req.cost
+    inv = MaintenanceAgent.add_inventory(db, req.item_name, req.quantity, req.category)
+    db.add(CampaignLog(
+        campaign_id=campaign.id,
+        log_date=campaign.current_date,
+        event_type="Procurement",
+        description=f"Purchased {req.item_name} from Parts Depot for ${req.cost:,.2f} C-Bills."
+    ))
+    db.commit()
+    return {"status": "success", "message": f"Purchased {req.item_name} for ${req.cost:,.2f} C-Bills!", "inventory": inv}
+
+@app.post("/api/v1/inventory/{part_id}/sell")
+def sell_inventory_item(part_id: int, db: Session = Depends(get_db)):
+    inv = db.query(Inventory).filter(Inventory.id == part_id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    campaign = db.query(Campaign).filter(Campaign.id == inv.campaign_id).first()
+    
+    payout = 50000.0 * (inv.quantity or 1)
+    if campaign:
+        campaign.cbill_balance += payout
+        db.add(CampaignLog(
+            campaign_id=campaign.id,
+            log_date=campaign.current_date,
+            event_type="Sales",
+            description=f"Sold {inv.component_name} (x{inv.quantity}) from Warehouse stock for ${payout:,.2f} C-Bills."
+        ))
+    item_name = inv.component_name
+    db.delete(inv)
+    db.commit()
+    return {"status": "success", "message": f"Sold {item_name} for ${payout:,.2f} C-Bills!", "payout": payout}
+
 @app.post("/api/v1/aar/submit")
 def submit_after_action_report(aar: AARSubmitRequest, db: Session = Depends(get_db)):
     try:
