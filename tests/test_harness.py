@@ -601,6 +601,29 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertEqual(res_sell["status"], "success")
         self.assertIn("Sold PPC", res_sell["message"])
 
+    def test_25_public_battletech_reference_data_tables(self):
+        """Verify seeding and querying public BattleTech reference tables (Equipment, Units, SPAs, Starmap)."""
+        from packages.database.seed_reference_data import seed_reference_data
+        from packages.database.models import RefEquipment, RefUnit, RefSPA, RefStarmap
+        
+        seed_reference_data(self.db)
+
+        eq_count = self.db.query(RefEquipment).count()
+        unit_count = self.db.query(RefUnit).count()
+        spa_count = self.db.query(RefSPA).count()
+        starmap_count = self.db.query(RefStarmap).count()
+
+        self.assertGreater(eq_count, 10)
+        self.assertGreater(unit_count, 10)
+        self.assertGreater(spa_count, 5)
+        self.assertGreater(starmap_count, 5)
+
+        from apps.api.main import get_ref_equipment, get_ref_units, get_ref_spas, get_ref_starmap
+        self.assertGreaterEqual(len(get_ref_equipment(db=self.db)), 10)
+        self.assertGreaterEqual(len(get_ref_units(unit_type=None, db=self.db)), 10)
+        self.assertGreaterEqual(len(get_ref_spas(db=self.db)), 5)
+        self.assertGreaterEqual(len(get_ref_starmap(db=self.db)), 5)
+
 
 if __name__ == "__main__":
     unittest.main()

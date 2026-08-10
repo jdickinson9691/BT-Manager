@@ -113,3 +113,60 @@ class Pilot(Base):
 
     campaign = relationship("Campaign", back_populates="pilots")
     assigned_unit = relationship("Unit", back_populates="pilots")
+
+class RefEquipment(Base):
+    __tablename__ = "ref_equipment"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    category = Column(String, default="Weapon")
+    tonnage = Column(Float, default=1.0)
+    critical_slots = Column(Integer, default=1)
+    heat = Column(Integer, default=0)
+    damage = Column(Integer, default=0)
+    min_range = Column(Integer, default=0)
+    short_range = Column(Integer, default=3)
+    med_range = Column(Integer, default=6)
+    long_range = Column(Integer, default=9)
+    bv2 = Column(Integer, default=50)
+    tech_base = Column(String, default="Inner Sphere")
+    rules_level = Column(String, default="Standard")
+    cbill_cost = Column(Float, default=100000.0)
+
+class RefUnit(Base):
+    __tablename__ = "ref_units"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chassis = Column(String, index=True)
+    model = Column(String, index=True)
+    unit_type = Column(String, default="Mech")  # Mech, Vehicle, Aerospace, BattleArmor
+    tonnage = Column(Integer, default=50)
+    bv2 = Column(Integer, default=1000)
+    tech_base = Column(String, default="Inner Sphere")
+    rules_level = Column(String, default="Standard")
+    cbill_cost = Column(Float, default=3500000.0)
+    intro_year = Column(Integer, default=3025)
+    supported_eras = Column(String, default="3025,3050,3062")
+
+class RefSPA(Base):
+    __tablename__ = "ref_spas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    xp_cost = Column(Integer, default=30)
+    category = Column(String, default="Gunnery")
+    description = Column(String)
+    effect = Column(String)
+    prerequisites = Column(String, default="None")
+    rulebook_reference = Column(String, default="A Time of War v4.0")
+
+class RefStarmap(Base):
+    __tablename__ = "ref_starmap"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    x_coord = Column(Float, default=0.0)
+    y_coord = Column(Float, default=0.0)
+    spectral_class = Column(String, default="G2V")
+    controlling_faction = Column(String, default="Mercenary")
+    region = Column(String, default="Inner Sphere")

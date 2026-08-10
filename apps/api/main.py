@@ -42,6 +42,11 @@ def on_startup():
     CoreAgent.setup_database()
     db = next(get_db())
     CoreAgent.get_campaign(db)
+    try:
+        from packages.database.seed_reference_data import seed_reference_data
+        seed_reference_data(db)
+    except Exception as e:
+        print("Reference data seed note:", e)
 
 class AdvanceTimeRequest(BaseModel):
     days: int = 1
@@ -236,6 +241,29 @@ class ComponentRepairRequest(BaseModel):
 @app.get("/")
 def read_root():
     return {"status": "online", "system": "BT-Manager Agent-Driven Core Engine v2.1"}
+
+@app.get("/api/v1/ref/equipment")
+def get_ref_equipment(db: Session = Depends(get_db)):
+    from packages.database.models import RefEquipment
+    return db.query(RefEquipment).all()
+
+@app.get("/api/v1/ref/units")
+def get_ref_units(unit_type: Optional[str] = None, db: Session = Depends(get_db)):
+    from packages.database.models import RefUnit
+    q = db.query(RefUnit)
+    if unit_type:
+        q = q.filter(RefUnit.unit_type == unit_type)
+    return q.all()
+
+@app.get("/api/v1/ref/spas")
+def get_ref_spas(db: Session = Depends(get_db)):
+    from packages.database.models import RefSPA
+    return db.query(RefSPA).all()
+
+@app.get("/api/v1/ref/starmap")
+def get_ref_starmap(db: Session = Depends(get_db)):
+    from packages.database.models import RefStarmap
+    return db.query(RefStarmap).all()
 
 @app.get("/api/v1/network/config")
 def get_network_config():
