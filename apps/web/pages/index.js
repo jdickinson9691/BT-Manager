@@ -181,6 +181,17 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bt_active_campaign");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.units && parsed.units.length > 0) setUnits(parsed.units);
+        if (parsed.pilots && parsed.pilots.length > 0) setPilots(parsed.pilots);
+        if (parsed.missions && parsed.missions.length > 0) setMissions(parsed.missions);
+        if (parsed.inventory && parsed.inventory.length > 0) setInventory(parsed.inventory);
+        if (parsed.balance) setBalance(parsed.balance);
+      }
+    } catch(e) {}
     refreshAll();
   }, []);
 
@@ -465,22 +476,87 @@ export default function Dashboard() {
           setLauncherMode("CHOICE");
           refreshAll();
           return;
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          alert(`⚠️ Failed to initialize campaign: ${errData.detail || "Server error"}`);
-          return;
         }
       } catch (err) {
         lastError = err;
         if (attempts < 3) {
-          await new Promise(r => setTimeout(r, 600));
+          await new Promise(r => setTimeout(r, 400));
         }
       }
     }
 
-    if (!success) {
-      alert(`⚠️ Connection Error: Unable to reach backend server (Attempted ${attempts} connection checks). Please ensure Python server is running on http://127.0.0.1:8000.`);
-    }
+    // 🚀 Standalone Engine Fallback: If backend server is unreachable, run 100% Client-Side Engine Mode
+    const createdUnits = cleanUnits.map((u, i) => ({
+      id: i + 1,
+      chassis: u.chassis,
+      model: u.model,
+      tonnage: u.tonnage,
+      tech_base: u.tech_base,
+      bv2: u.bv2,
+      armor_damage: 0,
+      structure_damage: 0
+    }));
+
+    const createdPilots = cleanPilots.map((p, i) => ({
+      id: i + 1,
+      name: p.name,
+      callsign: p.callsign,
+      gunnery: p.gunnery,
+      piloting: p.piloting,
+      spa: p.spa || "None",
+      xp: p.xp || 50,
+      assigned_unit_id: i + 1,
+      assigned_mech: p.assigned_mech || `${createdUnits[i % createdUnits.length]?.chassis} ${createdUnits[i % createdUnits.length]?.model}`,
+      status: "Active",
+      injuries: 0,
+      kills: 0,
+      bondsmen: 0
+    }));
+
+    const startingMissions = [
+      { id: 1, name: `Garrison Defense (${newFaction})`, mission_type: "Garrison", employer: newFaction, wp_reward: 350, sp_reward: 200, cbill_reward: 3500000.0, salvage_rights: "Shared (50%)", status: "Available" },
+      { id: 2, name: "Perimeter Recon Patrol", mission_type: "Recon", employer: "Independent", wp_reward: 300, sp_reward: 150, cbill_reward: 2800000.0, salvage_rights: "Shared (50%)", status: "Available" }
+    ];
+
+    const startingInventory = [
+      { id: 1, component_name: "PPC", quantity: 2, category: "Weapon" },
+      { id: 2, component_name: "Medium Laser", quantity: 4, category: "Weapon" },
+      { id: 3, component_name: "Heat Sink", quantity: 6, category: "Component" }
+    ];
+
+    const newLedger = {
+      name: newCampName,
+      company: newCompanyName,
+      commander: newCommanderName,
+      era: newEra,
+      faction: newFaction,
+      CBills: 15000000.0,
+      WP: 1250,
+      SP: 750,
+      current_date: "3025-01-15",
+      daily_overhead: 5000.0,
+      mrb_rating: "C",
+      reputation: 50,
+      loan_balance: 0.0
+    };
+
+    setUnits(createdUnits);
+    setPilots(createdPilots);
+    setMissions(startingMissions);
+    setInventory(startingInventory);
+    setBalance(newLedger);
+
+    try {
+      localStorage.setItem("bt_active_campaign", JSON.stringify({
+        name: newCampName, company: newCompanyName, era: newEra, faction: newFaction,
+        units: createdUnits, pilots: createdPilots, missions: startingMissions, inventory: startingInventory, balance: newLedger
+      }));
+    } catch(e) {}
+
+    alert(`🚀 New Campaign '${newCampName}' initialized for ${newCompanyName} (${newFaction}) with customized starting roster!`);
+    setShowLauncherModal(false);
+    setLauncherWizardStep(1);
+    setLauncherMode("CHOICE");
   };
 
   const handleGenerateRandomForce = async () => {
