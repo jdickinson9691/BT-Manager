@@ -1376,37 +1376,65 @@ export default function Dashboard() {
                 }
 
                 return (
-                  <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "16px", borderRadius: "8px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          <h4 style={{ color: "#fff", margin: 0, fontSize: "16px" }}>{m.name}</h4>
-                          <span style={{ background: `${badgeColor}22`, border: `1px solid ${badgeColor}`, color: badgeColor, padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", marginLeft: "10px" }}>
-                            {badgeLabel}
-                          </span>
-                        </div>
-                        <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                          Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction}</span>
-                        </p>
-                        <p className="font-mono" style={{ color: "#38bdf8", fontSize: "13px", margin: "4px 0 0 0" }}>
-                          Payout: {(m.wp_reward || 400).toLocaleString()} Warchest WP | +{m.sp_reward || 200} Support SP
-                        </p>
+                  <div key={m.id || m.name} style={{ background: "rgba(30, 41, 59, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "16px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "6px" }}>
+                        <h4 style={{ color: "#fff", margin: 0, fontSize: "16px", fontWeight: "bold" }}>{m.name}</h4>
+                        <span style={{ background: `${badgeColor}22`, border: `1px solid ${badgeColor}`, color: badgeColor, padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                          {badgeLabel}
+                        </span>
                       </div>
+                      <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 4px 0" }}>
+                        Employer: <strong style={{ color: "#cbd5e1" }}>{m.employer}</strong> | Target: <span style={{ color: "#f43f5e" }}>{m.enemy_faction || "Enemy Force"}</span>
+                      </p>
+                      <p className="font-mono" style={{ color: "#38bdf8", fontSize: "13px", margin: 0 }}>
+                        Payout: {(m.wp_reward || 400).toLocaleString()} Warchest WP | +{m.sp_reward || 200} Support SP
+                      </p>
+                    </div>
 
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          onClick={() => setSelectedIntelMission(m)}
-                          style={{ background: "#0284c7", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                        >
-                          View Intel
-                        </button>
-                        <button
-                          onClick={() => handleAcceptContract(m)}
-                          style={{ background: "#ea580c", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}
-                        >
-                          Sign &amp; Deploy ➔
-                        </button>
-                      </div>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexShrink: 0 }}>
+                      <button
+                        onClick={() => setSelectedIntelMission(m)}
+                        style={{
+                          background: "#0284c7",
+                          color: "#ffffff",
+                          border: "none",
+                          height: "38px",
+                          minWidth: "95px",
+                          padding: "0 16px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                        }}
+                      >
+                        View Intel
+                      </button>
+                      <button
+                        onClick={() => handleAcceptContract(m)}
+                        style={{
+                          background: "#ea580c",
+                          color: "#ffffff",
+                          border: "none",
+                          height: "38px",
+                          minWidth: "125px",
+                          padding: "0 16px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                        }}
+                      >
+                        Sign &amp; Deploy ➔
+                      </button>
                     </div>
                   </div>
                 );
