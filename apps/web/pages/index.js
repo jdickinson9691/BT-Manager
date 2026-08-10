@@ -443,10 +443,17 @@ export default function Dashboard() {
     let success = false;
     let lastError = null;
 
+    const endpoints = [
+      "http://localhost:8000/api/v1/campaigns/create",
+      "http://127.0.0.1:8000/api/v1/campaigns/create",
+      "http://127.0.0.1:8000/api/v1/campaigns/create"
+    ];
+
     while (attempts < 3 && !success) {
       try {
+        const currentEndpoint = endpoints[attempts];
         attempts++;
-        const res = await fetch("http://localhost:8000/api/v1/campaigns/create", {
+        const res = await fetch(currentEndpoint, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
@@ -472,7 +479,7 @@ export default function Dashboard() {
     }
 
     if (!success) {
-      alert(`⚠️ Connection Error: Unable to reach backend server (Attempted ${attempts} connection checks). Please ensure Python server is running on http://localhost:8000.`);
+      alert(`⚠️ Connection Error: Unable to reach backend server (Attempted ${attempts} connection checks). Please ensure Python server is running on http://127.0.0.1:8000.`);
     }
   };
 
