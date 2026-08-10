@@ -410,8 +410,11 @@ def create_new_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db
         event_type="Setup",
         description=f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {era_details['name']} ({req.faction}). Custom roster & pilots linked."
     ))
-    db.commit()
-    return CoreAgent.get_ledger_summary(db)
+    summary = CoreAgent.get_ledger_summary(db)
+    summary["status"] = "success"
+    summary["campaign_id"] = campaign.id
+    summary["message"] = f"Campaign '{req.campaign_name}' initialized for unit '{req.company_name}' under Era {era_details['name']} ({req.faction})."
+    return summary
 
 @app.get("/api/v1/campaign/export")
 def export_campaign_save(db: Session = Depends(get_db)):
