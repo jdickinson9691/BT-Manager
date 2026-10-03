@@ -923,7 +923,7 @@ export default function Dashboard() {
     try {
       const res = await fetch("http://localhost:8000/api/v1/inventory/buy", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ part_name: partName, category, cost })
+        body: JSON.stringify({ item_name: partName || "Component", category: category || "Weapon", cost: Number(cost) || 100000 })
       });
       if (res.ok) { fetchInventory(); fetchBalance(); fetchLogs(); }
     } catch (e) {}
@@ -1784,22 +1784,29 @@ export default function Dashboard() {
             {/* WAREHOUSE MARKET DEPOT */}
             <h4 style={{ color: "#10b981", margin: "0 0 12px 0", fontSize: "15px" }}>🛒 Market Component Depot (Buy Stock)</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {inventory.map(i => (
-                <div key={i.id} style={{ background: "rgba(30, 41, 59, 0.4)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <strong style={{ color: "#fff", fontSize: "13px" }}>{i.part_name}</strong>
-                    <span style={{ color: "#94a3b8", fontSize: "12px", marginLeft: "10px" }}>Stock: x{i.stock}</span>
+              {(inventory || []).map((i, idx) => {
+                const name = i.component_name || i.part_name || i.name || "Component";
+                const qty = i.quantity ?? i.stock ?? i.qty ?? 1;
+                const category = i.category || i.type || "Equipment";
+                const costVal = Number(i.cost ?? i.value ?? (category === "Weapon" ? 300000 : 50000));
+
+                return (
+                  <div key={i.id || idx} style={{ background: "rgba(30, 41, 59, 0.4)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "13px" }}>{name}</strong>
+                      <span style={{ color: "#94a3b8", fontSize: "12px", marginLeft: "10px" }}>Stock: x{qty}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button onClick={() => handleBuyMarketPart(name, category, costVal)} style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                        Buy (${costVal.toLocaleString()})
+                      </button>
+                      <button onClick={() => handleSellInventoryPart(i.id || idx, costVal)} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                        Sell (+75%)
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button onClick={() => handleBuyMarketPart(i.part_name, i.category, i.cost)} style={{ background: "#10b981", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
-                      Buy (${i.cost.toLocaleString()})
-                    </button>
-                    <button onClick={() => handleSellInventoryPart(i.id, i.cost)} style={{ background: "#ea580c", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
-                      Sell (+75%)
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -3142,15 +3149,22 @@ export default function Dashboard() {
                   </button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
-                  {inventory.map((inv, i) => (
-                    <div key={i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <strong style={{ color: "#fff", fontSize: "13px" }}>{inv.name}</strong>
-                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>Type: {inv.type} | Stock Qty: <strong style={{ color: "#fbbf24" }}>{inv.qty}</strong></div>
+                  {(inventory || []).map((inv, i) => {
+                    const name = inv.component_name || inv.part_name || inv.name || "Component";
+                    const qty = inv.quantity ?? inv.stock ?? inv.qty ?? 1;
+                    const type = inv.category || inv.type || "Equipment";
+                    const val = Number(inv.cost ?? inv.value ?? (type === "Weapon" ? 300000 : 50000));
+
+                    return (
+                      <div key={inv.id || i} style={{ background: "#1e293b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <strong style={{ color: "#fff", fontSize: "13px" }}>{name}</strong>
+                          <div style={{ fontSize: "11px", color: "#94a3b8" }}>Type: {type} | Stock Qty: <strong style={{ color: "#fbbf24" }}>{qty}</strong></div>
+                        </div>
+                        <span style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold" }}>{val.toLocaleString()} C-Bills</span>
                       </div>
-                      <span style={{ color: "#10b981", fontSize: "12px", fontWeight: "bold" }}>{(inv.value || 0).toLocaleString()} C-Bills</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
