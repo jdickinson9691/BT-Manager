@@ -17,6 +17,7 @@ from packages.database.db import init_db, get_db
 from packages.database.models import Campaign, Unit, Mission, Pilot, Inventory, CampaignLog
 from packages.data_importer.mtf_parser import MTFParser
 from packages.data_importer.sarna_client import SarnaClient
+from packages.data_importer.master_unit_database import MasterUnitDatabase
 from packages.agents import (
     CoreAgent,
     OperationsAgent,
@@ -473,6 +474,37 @@ class RandomForceRequest(BaseModel):
 def get_factions_for_era_endpoint(era: str = "3025"):
     factions = EraFactionAgent.get_factions_for_era(era)
     return {"era": era, "factions": factions}
+
+@app.get("/api/v1/network/master-catalog")
+def get_master_catalog_endpoint(era: Optional[str] = None, faction: Optional[str] = None, unit_type: Optional[str] = None):
+    """Returns master unit catalog organized by Era, Faction, and Unit Type."""
+    all_units = MasterUnitDatabase.get_all_units()
+    
+    if era or faction or unit_type:
+        filtered = MasterUnitDatabase.filter_units(
+            era_code=era if era else "",
+            faction=faction,
+            unit_type=unit_type
+        )
+        return {"total_count": len(filtered), "units": filtered}
+
+    # Group comprehensively by Era -> Faction
+    eras = ["2750", "2821", "3025", "3050", "3062", "3068", "3151"]
+    catalog_by_era = {}
+    
+    for era_code in eras:
+        factions_in_era = EraFactionAgent.get_factions_for_era(era_code)
+        catalog_by_era[era_code] = {}
+        for fac in factions_in_era:
+            fac_units = MasterUnitDatabase.filter_units(era_code=era_code, faction=fac)
+            catalog_by_era[era_code][fac] = {
+                "battlemechs": [u for u in fac_units if u.get("type") == "BattleMech"],
+                "omnimechs": [u for u in fac_units if u.get("type") == "OmniMech"],
+                "industrialmechs": [u for u in fac_units if u.get("type") == "IndustrialMech"],
+                "vehicles": [u for u in fac_units if u.get("type") in ("Combat Vehicle", "Hovercraft", "VTOL")]
+            }
+            
+    return {"eras": catalog_by_era, "total_registered_units": len(all_units)}
 
 @app.post("/api/v1/generator/random-force")
 def generate_random_force_endpoint(req: RandomForceRequest):

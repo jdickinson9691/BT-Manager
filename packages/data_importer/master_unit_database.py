@@ -122,7 +122,14 @@ class MasterUnitDatabase:
         {"chassis": "Athena Combat Tank", "model": "Standard", "tonnage": 75, "bv2": 1450, "wp_cost": 480, "tech_base": "Clan", "type": "Combat Vehicle", "eras": ["3050", "3062", "3068"], "factions": ["Clan Jade Falcon", "Clan Wolf", "Clan Smoke Jaguar", "Clan Ghost Bear"]},
         {"chassis": "Huitzilopochtli Assault Tank", "model": "Standard", "tonnage": 85, "bv2": 1580, "wp_cost": 520, "tech_base": "Clan", "type": "Combat Vehicle", "eras": ["3050", "3062", "3068"], "factions": ["Clan Ghost Bear", "Clan Smoke Jaguar", "Clan Steel Viper"]},
         {"chassis": "Donar Assault Helicopter", "model": "Standard", "tonnage": 21, "bv2": 710, "wp_cost": 240, "tech_base": "Clan", "type": "VTOL", "eras": ["3050", "3062", "3068"], "factions": ["Clan Jade Falcon", "Clan Wolf", "Clan Ghost Bear"]},
-        {"chassis": "Epona Hover Tank", "model": "Prime", "tonnage": 45, "bv2": 1120, "wp_cost": 380, "tech_base": "Clan", "type": "Hovercraft", "eras": ["3050", "3062", "3068"], "factions": ["Clan Jade Falcon", "Clan Wolf", "Clan Smoke Jaguar"]}
+        {"chassis": "Epona Hover Tank", "model": "Prime", "tonnage": 45, "bv2": 1120, "wp_cost": 380, "tech_base": "Clan", "type": "Hovercraft", "eras": ["3050", "3062", "3068"], "factions": ["Clan Jade Falcon", "Clan Wolf", "Clan Smoke Jaguar"]},
+
+        # =========================================================================
+        # INDUSTRIALMECHS
+        # =========================================================================
+        {"chassis": "Crosscut", "model": "CCB-1 LoggerMech", "tonnage": 30, "bv2": 210, "wp_cost": 90, "tech_base": "Inner Sphere", "type": "IndustrialMech", "eras": ["2750", "2821", "3025", "3050", "3062", "3068", "3151"], "factions": ["House Davion", "House Steiner", "House Marik", "House Kurita", "House Liao", "Mercenaries", "Pirates"]},
+        {"chassis": "CattleMaster", "model": "CTM-A1", "tonnage": 25, "bv2": 185, "wp_cost": 80, "tech_base": "Inner Sphere", "type": "IndustrialMech", "eras": ["3025", "3050", "3062", "3068", "3151"], "factions": ["House Davion", "House Marik", "House Steiner", "Mercenaries", "Pirates"]},
+        {"chassis": "Buster", "model": "XV-V HaulerMech", "tonnage": 50, "bv2": 320, "wp_cost": 110, "tech_base": "Inner Sphere", "type": "IndustrialMech", "eras": ["2750", "2821", "3025", "3050", "3062", "3068", "3151"], "factions": ["House Davion", "House Steiner", "House Marik", "House Kurita", "House Liao", "ComStar", "Word of Blake", "Mercenaries"]}
     ]
 
     @classmethod

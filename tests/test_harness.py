@@ -674,6 +674,13 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         DataSyncAgent.set_mode(mul_online=False, sarna_online=False, megamek_online=False, flechs_online=False)
         self.assertFalse(DataSyncAgent.IS_MUL_ONLINE)
 
+    def test_28_master_catalog_endpoint(self):
+        """Verify API master unit catalog endpoint returns structured unit data by Era, Faction, and Type."""
+        from apps.api.main import get_master_catalog_endpoint
+        res = get_master_catalog_endpoint(era="3025", faction="House Davion")
+        self.assertIn("units", res)
+        self.assertGreater(res["total_count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
