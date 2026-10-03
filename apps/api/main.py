@@ -1081,3 +1081,11 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         "spas": spas,
         "procurement": procurement
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    import sys
+    port = 8000
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        port = int(sys.argv[1])
+    uvicorn.run("apps.api.main:app" if not getattr(sys, 'frozen', False) else app, host="127.0.0.1", port=port, reload=False)
