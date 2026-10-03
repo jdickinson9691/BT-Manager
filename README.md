@@ -9,7 +9,7 @@
 
 ## 📖 Executive Summary
 
-**BT-Manager** is a comprehensive, standalone tabletop companion application designed for Game Masters and mercenary commanders playing *BattleTech* tabletop campaigns. It automates Chaos Campaign Warchest economics, Master Unit List (MUL) procurement, OpFor battle value parity auditing, pilot skill progressions (*A Time of War v4.0*), Tech Bay repair duration clocks (*Strategic Operations v5.0*), and Flechs Sheets digital record tracking.
+**BT-Manager** is a comprehensive, standalone tabletop companion application designed for Game Masters and mercenary commanders playing *BattleTech* tabletop campaigns. It automates Chaos Campaign Warchest economics (*BattleTech: Mercenaries Boxed Set Refit & CAT35600*), Master Unit List (MUL) procurement, OpFor battle value parity auditing (*BattleTech Core Rulebook 2026 Edition*), pilot skill progressions (*A Time of War v4.0*), Tech Bay repair duration clocks (*Strategic Operations v5.0*), and Flechs Sheets digital record tracking.
 
 ---
 
@@ -17,6 +17,7 @@
 
 ### 🎲 1. In-Person Tabletop Game Master Workflow
 - **7 Historical BattleTech Eras**: Full support for `2750` (Star League), `2821` (Early Succession Wars), `3025` (Late Succession Wars), `3050` (Clan Invasion), `3062` (Civil War), `3068` (Jihad), and `3151` (ilClan).
+- **2026 Catalyst Rules Alignment**: Built upon rules standards from the *2026 BattleTech Core Rulebook*, *2026 Starter Box*, *2026 Core Rules Box (AGoAC Refit)*, *Mercenaries Boxed Set*, and *Battlefield Support (BSP)* asset budgets.
 - **Era-Filtered Factions**: Faction choices dynamically update based on historical presence (e.g. Clan Wolf, Clan Jade Falcon, Word of Blake, House Davion).
 - **🎲 Random Force Generator**: Generates era-accurate, faction-appropriate Mechs, vehicles, and MechWarriors from the Master Unit List database with real-time validation checks.
 - **Contract BV2 Threat Parity Audit**: Computes player force Battle Value (BV2) vs contract OpFor threat rating, badging contracts as 🟢 **Balanced**, 🟡 **Challenging**, or 🔴 **Extreme Threat**.
@@ -42,7 +43,7 @@
 
 ---
 
-## 🧪 Verification & Testing (23/23 Tests Passing)
+## 🧪 Verification & Testing (25/25 Tests Passing)
 
 To run the automated test suite:
 
@@ -50,7 +51,7 @@ To run the automated test suite:
 python tests/test_harness.py
 ```
 
-All **23 unit tests** pass clean in `<1.0s`.
+All **25 unit tests** pass clean in `<1.0s`.
 
 ---
 

@@ -4191,10 +4191,15 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {[
+                        { title: "BattleTech Core Rulebook (2026 Edition - CAT3500D)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech Starter Box Quick-Start Rules (2026 Printing)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech Core Rules Box - AGoAC (2026 Refit Printing)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech Mercenaries Boxed Set Rulebook (Refit Edition)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech Force Manual: Mercenaries (2025/2026)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleTech ACES Solo/Co-op System (2026 Deck & Logs)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
                         { title: "Campaign Operations (v5.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
-                        { title: "Chaos Campaign Rulebook (CAT35600)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
-                        { title: "BattleTech Mercenaries Rulebook (1st Print)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
-                        { title: "BattleMech Manual (v7.01)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "Chaos Campaign Rulebook (CAT35600 Refit)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
+                        { title: "BattleMech Manual (v7.01 Refit Standard)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
                         { title: "A Time of War RPG (v4.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
                         { title: "Strategic Operations AAR (v5.0 - 2024)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
                         { title: "Tactical Operations Advanced Rules (v7.0)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." },
@@ -4202,7 +4207,7 @@ export default function Dashboard() {
                         { title: "Master Unit List (MUL) Database", url: "http://masterunitlist.info", owner: "Catalyst Game Labs & MUL Team" },
                         { title: "Sarna BattleTech Wiki", url: "https://www.sarna.net", owner: "Sarna.net Community / BattleTech Wiki" },
                         { title: "MegaMek & MekHQ Suite", url: "https://megamek.org", owner: "MegaMek Open Source Project" },
-                        { title: "Mercenary ForcePack Record Sheets", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." }
+                        { title: "Mercenary ForcePack Record Sheets (Wave 1 & 2)", url: "https://battletech.com/downloads/", owner: "Catalyst Game Labs & Topps Company, Inc." }
                       ].map((ref, rIdx) => (
                         <tr key={rIdx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: rIdx % 2 === 0 ? "transparent" : "rgba(30, 41, 59, 0.3)" }}>
                           <td style={{ padding: "8px 10px", color: "#f1f5f9", fontWeight: "bold" }}>{ref.title}</td>

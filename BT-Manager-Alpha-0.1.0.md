@@ -130,11 +130,11 @@ The Campaign Launcher enforces a strict, thematic 2-step setup workflow:
 - **Publisher Name**: Lüdinn Entertainment
 - **Legal Trademark Disclaimer**:
   > *"BattleTech, MechWarrior, and associated logos, faction emblems, and unit names are registered trademarks of Topps Company, Inc. and Catalyst Game Labs. BT-Manager is an open-source, non-commercial tabletop companion tool created by Lüdinn Entertainment for fan utility and campaign management."*
-- **Operations Manual Modal**: Features a zero-scroll 3-tier container with a fixed sticky footer (`✓ Close Manual`) and a dedicated **`📚 References & IP Attribution`** section listing 12+ public source materials, download URLs, and copyright owners.
+- **Operations Manual Modal**: Features a zero-scroll 3-tier container with a fixed sticky footer (`✓ Close Manual`) and a dedicated **`📚 References & IP Attribution`** section listing 18+ public source materials, 2026 Catalyst rules refits (Core Rulebook, Starter Box, Core Rules Box, Mercenaries Boxed Set Refit, Force Manuals), download URLs, and copyright owners.
 
 ---
 
-## 🧪 6. Test Suite & Verification (22/22 Pass Rate)
+## 🧪 6. Test Suite & Verification (25/25 Pass Rate)
 
 Automated test harness `tests/test_harness.py`:
 - `test_01_core_agent_ledger_summary`
@@ -159,6 +159,9 @@ Automated test harness `tests/test_harness.py`:
 - `test_20_company_overview_roster_and_asset_audit`
 - `test_21_random_force_generator_and_parity_audit`
 - `test_22_flechs_sheets_mtf_export_and_era_faction_filtering`
+- `test_23_catalyst_2026_rules_downloads_registry`
+- `test_24_catalyst_2026_rulebook_citations_audit`
+- `test_25_mercenaries_refit_sp_bsp_settlement`
 
 ---
 

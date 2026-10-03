@@ -624,7 +624,30 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertGreaterEqual(len(get_ref_spas(db=self.db)), 5)
         self.assertGreaterEqual(len(get_ref_starmap(db=self.db)), 5)
 
+    def test_26_catalyst_2026_rules_refit_audit(self):
+        """Verify official_rules_downloads.json includes 2026 Core Rulebook, Starter Box, Core Rules Box, and Mercenaries downloads."""
+        import json
+        import os
+
+        rules_json_path = os.path.join(os.path.dirname(__file__), "..", "docs", "official_rules_downloads.json")
+        self.assertTrue(os.path.exists(rules_json_path))
+
+        with open(rules_json_path, "r", encoding="utf-8") as f:
+            downloads = json.load(f)
+
+        self.assertGreaterEqual(len(downloads), 70)
+        has_2026_core = any("BattleTech-Core-Rulebook-2026" in url for url in downloads)
+        has_starter_box = any("BattleTech-Starter-Box" in url for url in downloads)
+        has_core_box = any("BattleTech-Core-Rules-Box" in url for url in downloads)
+        has_mercenaries_refit = any("BattleTech-Mercenaries-Boxed-Set" in url for url in downloads)
+
+        self.assertTrue(has_2026_core, "Missing 2026 Core Rulebook download citation")
+        self.assertTrue(has_starter_box, "Missing 2026 Starter Box download citation")
+        self.assertTrue(has_core_box, "Missing 2026 Core Rules Box download citation")
+        self.assertTrue(has_mercenaries_refit, "Missing Mercenaries Refit download citation")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
