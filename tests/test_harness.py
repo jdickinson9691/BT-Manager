@@ -646,8 +646,37 @@ class TestBattleTechAgentHarness(unittest.TestCase):
         self.assertTrue(has_core_box, "Missing 2026 Core Rules Box download citation")
         self.assertTrue(has_mercenaries_refit, "Missing Mercenaries Refit download citation")
 
+    def test_27_live_data_sync_agent_network_pings(self):
+        """Verify DataSyncAgent live network pings and mode toggle state handling for MUL, Sarna, MegaMek, and Flechs."""
+        from packages.agents.data_sync_agent import DataSyncAgent
+        
+        # Test enabling all network modes
+        DataSyncAgent.set_mode(mul_online=True, sarna_online=True, megamek_online=True, flechs_online=True)
+        self.assertTrue(DataSyncAgent.IS_MUL_ONLINE)
+        self.assertTrue(DataSyncAgent.IS_SARNA_ONLINE)
+        self.assertTrue(DataSyncAgent.IS_MEGAMEK_ONLINE)
+        self.assertTrue(DataSyncAgent.IS_FLECHS_ONLINE)
+
+        # Test sync responses
+        mul_res = DataSyncAgent.sync_online_data("mul")
+        self.assertIn(mul_res["status"], ["synced", "fallback"])
+
+        sarna_res = DataSyncAgent.sync_online_data("sarna")
+        self.assertIn(sarna_res["status"], ["synced", "fallback"])
+
+        megamek_res = DataSyncAgent.sync_online_data("megamek")
+        self.assertIn(megamek_res["status"], ["synced", "fallback"])
+
+        flechs_res = DataSyncAgent.sync_online_data("flechs")
+        self.assertIn(flechs_res["status"], ["synced", "fallback"])
+
+        # Reset mode back to offline cache
+        DataSyncAgent.set_mode(mul_online=False, sarna_online=False, megamek_online=False, flechs_online=False)
+        self.assertFalse(DataSyncAgent.IS_MUL_ONLINE)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

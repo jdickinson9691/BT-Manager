@@ -154,8 +154,22 @@ export default function Dashboard() {
   const fetchStarmap = () => { fetch("http://localhost:8000/api/v1/starmap").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setStarmapSystems(data); }).catch(() => {}); };
   const fetchSpas = () => { fetch("http://localhost:8000/api/v1/pilots/spas").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setAvailableSpas(data); }).catch(() => {}); };
   const fetchProcurement = () => { fetch("http://localhost:8000/api/v1/market/mechs").then(r => r.json()).then(data => { if (Array.isArray(data) && data.length > 0) setProcurementMechs(data); }).catch(() => {}); };
+  const fetchNetworkConfig = () => {
+    fetch("http://localhost:8000/api/v1/network/config")
+      .then(r => r.json())
+      .then(cfg => {
+        if (cfg) {
+          if (cfg.mul_online !== undefined) setOnlineMulMode(!!cfg.mul_online);
+          if (cfg.sarna_online !== undefined) setOnlineSarnaMode(!!cfg.sarna_online);
+          if (cfg.megamek_online !== undefined) setOnlineMegamekMode(!!cfg.megamek_online);
+          if (cfg.flechs_online !== undefined) setOnlineFlechsMode(!!cfg.flechs_online);
+        }
+      })
+      .catch(() => {});
+  };
 
   const refreshAll = () => {
+    fetchNetworkConfig();
     fetch("http://localhost:8000/api/v1/dashboard/summary")
       .then(r => r.json())
       .then(data => {
@@ -1138,21 +1152,28 @@ export default function Dashboard() {
       if (res.ok) {
         if (newVal) {
           // Trigger background sync when turning ON
-          fetch("http://localhost:8000/api/v1/network/sync", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ source: service })
-          })
-          .then(r => r.json())
-          .then(syncData => {
-            alert(`🌐 ${service.toUpperCase()} Live Mode Activated: ${syncData.message || "Cache updated!"}`);
-          })
-          .catch(() => {
+          try {
+            const syncRes = await fetch("http://localhost:8000/api/v1/network/sync", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ source: service })
+            });
+            const syncData = await syncRes.json();
+            if (syncData.status === "fallback" || syncData.reachable === false) {
+              alert(`⚠️ ${service.toUpperCase()} Live Connection Failure: ${syncData.message || "Reverting to offline cache."}`);
+              if (service === "mul") setOnlineMulMode(false);
+              if (service === "sarna") setOnlineSarnaMode(false);
+              if (service === "megamek") setOnlineMegamekMode(false);
+              if (service === "flechs") setOnlineFlechsMode(false);
+            } else {
+              alert(`🌐 ${service.toUpperCase()} Live Mode Activated: ${syncData.message || "Cache updated!"}`);
+            }
+          } catch (syncErr) {
             alert(`⚠️ Connection timeout for ${service.toUpperCase()}. Falling back to Offline Cache Mode.`);
             if (service === "mul") setOnlineMulMode(false);
             if (service === "sarna") setOnlineSarnaMode(false);
             if (service === "megamek") setOnlineMegamekMode(false);
             if (service === "flechs") setOnlineFlechsMode(false);
-          });
+          }
         } else {
           alert(`🔒 ${service.toUpperCase()} set to Offline Cached Mode.`);
         }
@@ -1164,6 +1185,7 @@ export default function Dashboard() {
         if (service === "mul") setOnlineMulMode(false);
         if (service === "sarna") setOnlineSarnaMode(false);
         if (service === "megamek") setOnlineMegamekMode(false);
+        if (service === "flechs") setOnlineFlechsMode(false);
         return;
       }
     }
